@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Swarify — Free Ad-Free Music Streaming</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand-logo">
+          <div class="logo-icon">
+            <span class="bar bar-1"></span>
+            <span class="bar bar-2"></span>
+            <span class="bar bar-3"></span>
+            <span class="bar bar-4"></span>
+          </div>
+          <div class="logo-text">
+            <h2>Swarify</h2>
+            <span class="badge-free">AD-FREE</span>
+          </div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">DISCOVER</div>
+        <button class="nav-item active" data-view="home">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+          <span>Home</span>
+        </button>
+        <button class="nav-item" data-view="telugu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>
+          <span>Telugu Hits (తెలుగు)</span>
+        </button>
+        <button class="nav-item" data-view="hindi">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+          <span>Hindi Hits (हिंदी)</span>
+        </button>
+        <button class="nav-item" data-view="english">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+          <span>English Hits</span>
+        </button>
+
+        <div class="nav-section-title">LIBRARY</div>
+        <button class="nav-item" data-view="liked">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+          <span>Liked Songs</span>
+          <span class="count-badge" id="liked-count">0</span>
+        </button>
+        <button class="nav-item" data-view="queue-view">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+          <span>Current Queue</span>
+          <span class="count-badge" id="queue-nav-count">0</span>
+        </button>
+        <div class="nav-section-title playlist-nav-header">
+          <span>PLAYLISTS</span>
+          <button class="btn-create-pl-mini" id="btn-open-create-playlist" title="Create New Playlist">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          </button>
+        </div>
+        <div class="playlist-nav-list" id="playlist-nav-list">
+          <!-- Dynamically populated playlists -->
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="shortcuts-card">
+          <span class="kbd-title">Shortcuts</span>
+          <div class="kbd-row"><kbd>Space</kbd> <span>Play/Pause</span></div>
+          <div class="kbd-row"><kbd>← / →</kbd> <span>Seek ±5s</span></div>
+          <div class="kbd-row"><kbd>N / P</kbd> <span>Next / Prev</span></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Top Navigation & Search Bar -->
+      <header class="top-header">
+        <div class="search-container">
+          <div class="search-box">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" id="search-input" placeholder="Search Telugu, Hindi, English songs, artists, or movies..." autocomplete="off" />
+            <button id="clear-search-btn" class="clear-btn hidden">&times;</button>
+          </div>
+          <!-- Auto-complete Suggestions Dropdown -->
+          <div id="suggestions-dropdown" class="suggestions-dropdown hidden"></div>
+        </div>
+
+        <div class="header-actions">
+          <div class="filter-chips">
+            <button class="chip active" data-lang="all">All</button>
+            <button class="chip" data-lang="telugu">Telugu</button>
+            <button class="chip" data-lang="hindi">Hindi</button>
+            <button class="chip" data-lang="english">English</button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Scrollable Main View -->
+      <section class="content-scrollable" id="main-view">
+        <!-- Dynamic Hero Banner -->
+        <div class="hero-banner" id="hero-banner">
+          <div class="hero-content">
+            <span class="hero-tag">FEATURED PLAYLIST</span>
+            <h1 class="hero-title" id="hero-title">Telugu & Indian Blockbuster Hits</h1>
+            <p class="hero-desc" id="hero-desc">Stream top Telugu, Hindi & English chartbusters ad-free in crystal clarity.</p>
+            <div class="hero-buttons">
+              <button class="btn-primary" id="hero-play-all-btn">
+                <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                <span>Play All</span>
+              </button>
+              <button class="btn-secondary" id="hero-shuffle-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="21 16 21 21 16 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line><line x1="4" y1="4" x2="9" y2="9"></line></svg>
+                <span>Shuffle Play</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section Containers -->
+        <div id="songs-container">
+          <!-- Dynamically populated sections or search results -->
+          <div class="content-section" id="telugu-section">
+            <div class="section-header">
+              <div class="section-title-group">
+                <h2>Telugu Blockbusters (తెలుగు)</h2>
+                <span class="section-subtitle">Devara, Pushpa 2, Ala Vaikunthapurramuloo & more</span>
+              </div>
+              <button class="btn-view-all" data-target="telugu">View All</button>
+            </div>
+            <div class="song-grid" id="telugu-grid"></div>
+          </div>
+
+          <div class="content-section" id="hindi-section">
+            <div class="section-header">
+              <div class="section-title-group">
+                <h2>Bollywood Top Hits (हिंदी)</h2>
+                <span class="section-subtitle">Arijit Singh, Pritam, Shreya Ghoshal & chartbusters</span>
+              </div>
+              <button class="btn-view-all" data-target="hindi">View All</button>
+            </div>
+            <div class="song-grid" id="hindi-grid"></div>
+          </div>
+
+          <div class="content-section" id="english-section">
+            <div class="section-header">
+              <div class="section-title-group">
+                <h2>Global English Hits</h2>
+                <span class="section-subtitle">The Weeknd, Taylor Swift, Ed Sheeran & Billboard top 50</span>
+              </div>
+              <button class="btn-view-all" data-target="english">View All</button>
+            </div>
+            <div class="song-grid" id="english-grid"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Queue Drawer Side Panel -->
+    <aside class="queue-drawer hidden" id="queue-drawer">
+      <div class="queue-header">
+        <h3>Playing Queue</h3>
+        <button class="btn-icon close-queue" id="close-queue-btn">&times;</button>
+      </div>
+      <div class="queue-list" id="queue-list">
+        <!-- Dynamically rendered queue tracks -->
+      </div>
+    </aside>
+  </div>
+
+  <!-- Persistent Bottom Player -->
+  <footer class="player-bar">
+    <!-- Left Track Info -->
+    <div class="player-track-info">
+      <div class="track-thumb-wrapper">
+        <img id="player-thumb" src="https://i.ytimg.com/vi/g44VQxMcFH4/hqdefault.jpg" alt="Track Art" />
+        <div class="playing-indicator-overlay hidden" id="playing-indicator-overlay">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+      <div class="track-meta">
+        <div class="track-title-scroller">
+          <h4 id="player-title">Select a song to start listening</h4>
+        </div>
+        <p id="player-artist">Swarify • 100% Free & Ad-Free</p>
+      </div>
+      <button class="btn-icon like-btn" id="player-like-btn" title="Add to Liked Songs">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+      </button>
+      <button class="btn-icon add-pl-btn" id="player-add-playlist-btn" title="Add to Playlist">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 11H5M19 16H5M11 6H5M19 6h-4"></path></svg>
+      </button>
+    </div>
+
+    <!-- Center Playback Controls & Scrubber -->
+    <div class="player-center">
+      <div class="player-buttons">
+        <button class="btn-ctrl" id="btn-shuffle" title="Shuffle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="21 16 21 21 16 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line><line x1="4" y1="4" x2="9" y2="9"></line></svg>
+        </button>
+        <button class="btn-ctrl" id="btn-prev" title="Previous (P)">
+          <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2"></line></svg>
+        </button>
+        <button class="btn-ctrl btn-play-pause" id="btn-play" title="Play/Pause (Space)">
+          <svg id="play-icon" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+          <svg id="pause-icon" class="hidden" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+        </button>
+        <button class="btn-ctrl" id="btn-next" title="Next (N)">
+          <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2"></line></svg>
+        </button>
+        <button class="btn-ctrl" id="btn-repeat" title="Repeat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>
+          <span class="repeat-one-indicator hidden">1</span>
+        </button>
+      </div>
+
+      <div class="scrubber-container">
+        <span class="time-label" id="current-time">0:00</span>
+        <div class="progress-bar-wrapper" id="progress-wrapper">
+          <div class="progress-fill" id="progress-fill"></div>
+          <div class="progress-thumb" id="progress-thumb"></div>
+        </div>
+        <span class="time-label" id="total-duration">0:00</span>
+      </div>
+    </div>
+
+    <!-- Right Controls: Visualizer, Video toggle, Queue, Volume -->
+    <div class="player-right">
+      <div class="equalizer-bars" id="audio-visualizer">
+        <span></span><span></span><span></span><span></span>
+      </div>
+
+      <button class="btn-icon" id="btn-toggle-video" title="Toggle Mini Video / Audio Mode">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+      </button>
+
+      <button class="btn-icon" id="btn-toggle-queue" title="View Queue">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+      </button>
+
+      <div class="volume-container">
+        <button class="btn-icon" id="btn-mute" title="Mute/Unmute">
+          <svg id="vol-high-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+          <svg id="vol-mute-icon" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
+        </button>
+        <input type="range" id="volume-slider" min="0" max="100" value="80" />
+      </div>
+    </div>
+  </footer>
+
+  <!-- Embedded Mini Video Dock (Collapsible) -->
+  <div class="mini-video-dock hidden" id="video-dock">
+    <div class="video-dock-header">
+      <span>Video Player</span>
+      <button class="dock-close-btn" id="dock-close-btn">&times;</button>
+    </div>
+    <div id="yt-player-container">
+      <div id="yt-player"></div>
+    </div>
+  </div>
+
+  <!-- Create Playlist Modal -->
+  <div class="modal-overlay hidden" id="create-playlist-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Create New Playlist</h3>
+        <button class="modal-close-btn" id="close-create-pl-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="pl-name-input">Playlist Name</label>
+          <input type="text" id="pl-name-input" placeholder="e.g. My Telugu Hits" maxlength="50" autocomplete="off" />
+        </div>
+        <div class="form-group">
+          <label for="pl-desc-input">Description (optional)</label>
+          <input type="text" id="pl-desc-input" placeholder="e.g. Best Tollywood beats & melodies" maxlength="120" autocomplete="off" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary modal-cancel-btn" id="cancel-create-pl-btn">Cancel</button>
+        <button class="btn-primary" id="confirm-create-pl-btn">Create Playlist</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add to Playlist Modal -->
+  <div class="modal-overlay hidden" id="add-to-playlist-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Add to Playlist</h3>
+        <button class="modal-close-btn" id="close-add-to-pl-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-subtitle" id="add-to-pl-song-title">Select a playlist for this song:</p>
+        <div class="modal-pl-list" id="modal-pl-list">
+          <!-- Dynamically populated playlists -->
+        </div>
+        <div class="modal-quick-create">
+          <button class="btn-text-action" id="btn-quick-create-pl">+ Create New Playlist</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast hidden" id="toast"></div>
+
+  <!-- Native HTML5 Audio Engine for Background & Screen-Off Playback -->
+  <audio id="native-audio" preload="auto"></audio>
+
+  <!-- YouTube IFrame API Script (Secondary Video Dock) -->
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
