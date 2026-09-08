@@ -5,9 +5,8 @@ import webbrowser
 import urllib.request
 from datetime import datetime
 
-# Configuration
+# Configuration - Live Public Website ONLY (No localhost)
 PUBLIC_URL = "https://graphic-wave-said-effort.trycloudflare.com"
-LOCAL_URL = "http://localhost:8000"
 INTERVAL_SECONDS = 10 * 60  # 10 minutes (600 seconds)
 LOG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "auto_open.log")
 
@@ -24,7 +23,6 @@ def log(message: str):
     try:
         print(line, flush=True)
     except Exception:
-        # Fallback to ascii safe print
         print(line.encode('ascii', errors='replace').decode('ascii'), flush=True)
 
     try:
@@ -35,9 +33,8 @@ def log(message: str):
 
 def run():
     log("=" * 60)
-    log("  Swarify - 10-Minute Auto-Opener & Keep-Alive Started")
+    log("  Swarify - 10-Minute Auto-Opener (Live Website ONLY)")
     log(f"  Target Website: {PUBLIC_URL}")
-    log(f"  Local Address:  {LOCAL_URL}")
     log(f"  Cadence:        Every 10 minutes ({INTERVAL_SECONDS}s)")
     log(f"  Log File:       {LOG_FILE}")
     log("=" * 60)
@@ -45,32 +42,25 @@ def run():
 
     count = 1
     while True:
-        log(f"Trigger #{count}: Automatically opening Swarify website...")
+        log(f"Trigger #{count}: Automatically opening live website...")
 
-        # 1. Open the website in the default browser
-        target = PUBLIC_URL
+        # 1. Open the live website in the default browser (ONLY public URL)
         try:
-            req = urllib.request.Request(PUBLIC_URL, headers={"User-Agent": "SwarifyAutoOpener/1.0"})
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                if resp.status == 200:
-                    target = PUBLIC_URL
-                else:
-                    target = LOCAL_URL
-        except Exception:
-            target = LOCAL_URL
-
-        try:
-            webbrowser.open(target)
-            log(f"  [OK] Successfully opened in browser: {target}")
+            webbrowser.open(PUBLIC_URL)
+            log(f"  [OK] Successfully opened live website: {PUBLIC_URL}")
         except Exception as err:
             log(f"  [!] Browser open error: {err}")
 
-        # 2. Ping local server to keep backend alive & active in memory
+        # 2. Ping live website to keep public tunnel active & warm
         try:
-            with urllib.request.urlopen(LOCAL_URL, timeout=5) as local_resp:
-                log(f"  [OK] Local server ping: HTTP {local_resp.status} (Active)")
+            req = urllib.request.Request(
+                PUBLIC_URL,
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) SwarifyKeepAlive/1.0"}
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                log(f"  [OK] Live website ping: HTTP {resp.status} (Online & Active)")
         except Exception as ping_err:
-            log(f"  [!] Server ping note: {ping_err}")
+            log(f"  [!] Live website ping note: {ping_err}")
 
         count += 1
         log("Sleeping for 10 minutes until next automatic open...\n")
