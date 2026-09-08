@@ -627,12 +627,17 @@ STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 os.makedirs(STATIC_DIR, exist_ok=True)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 def serve_index():
     index_path = os.path.join(STATIC_DIR, "index.html")
     if os.path.exists(index_path):
         return FileResponse(index_path)
-    return {"message": "MARK 3 Music API is running."}
+    return {"message": "Swarify Music API is running."}
+
+@app.api_route("/health", methods=["GET", "HEAD"])
+@app.api_route("/ping", methods=["GET", "HEAD"])
+def health_check():
+    return {"status": "ok", "service": "Swarify"}
 
 if __name__ == "__main__":
     import uvicorn
