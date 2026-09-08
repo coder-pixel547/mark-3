@@ -6,7 +6,7 @@ import urllib.request
 from datetime import datetime
 
 # URLs to target
-PUBLIC_URL = "https://profits-latex-undefined-occasion.trycloudflare.com"
+PUBLIC_URL = "https://graphic-wave-said-effort.trycloudflare.com"
 LOCAL_URL = "http://localhost:8000"
 INTERVAL_SECONDS = 10 * 60  # 10 minutes (600 seconds)
 
