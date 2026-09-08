@@ -1702,6 +1702,31 @@
   el.btnNext.addEventListener('click', () => playNext());
   el.btnPrev.addEventListener('click', playPrev);
 
+  // 10-Minute Auto Keep-Alive & Wake Lock
+  let wakeLock = null;
+  async function requestWakeLock() {
+    if ('wakeLock' in navigator) {
+      try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => { wakeLock = null; });
+      } catch (_) {}
+    }
+  }
+
+  audio.addEventListener('play', () => {
+    requestWakeLock();
+  });
+
+  // Keep-alive ping every 10 minutes (600,000 ms)
+  setInterval(async () => {
+    try {
+      await fetch('/api/trending?lang=all');
+      console.log('[Swarify] 10-minute keep-alive ping succeeded at', new Date().toLocaleTimeString());
+    } catch (e) {
+      console.warn('[Swarify] Keep-alive error:', e);
+    }
+  }, 10 * 60 * 1000);
+
   // Initialize
   updateLikedCountUI();
   updatePlaylistsSidebar();
