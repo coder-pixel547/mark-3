@@ -463,7 +463,109 @@ def suggestions(q: str = Query(..., min_length=1)):
                     return {"suggestions": sugs[:8]}
     except Exception as e:
         print("Suggestions error:", e)
-    return {"suggestions": []}
+MOOD_TITLES = {
+    "romantic": ["Midnight Melodies", "Monsoon Romance", "Soulful Love Notes", "Golden Serenade"],
+    "energetic": ["High Voltage Beats", "Mass Energy Surge", "Power Anthem Workout", "Adrenaline Rush"],
+    "chill": ["Sunset Lo-Fi Chill", "Velvet Coffee Vibes", "Acoustic Breeze", "Late Night Drift"],
+    "party": ["Dancefloor Blast", "Club Hit Explosion", "Desi Party Mash", "Non-Stop Groove"],
+    "sad": ["Heartbreak Echoes", "Melancholy Rain", "Deep Solitude", "Emotional Strings"],
+    "drive": ["Neon Highway Cruise", "Midnight Road Trip", "Night Drive Vibe", "Asphalt Drift"],
+    "focus": ["Deep Focus Flow", "Instrumental Horizon", "Calm Mind Waves", "Study Beats"]
+}
+
+def generate_ai_playlist_logic(languages: List[str], mood: str, era: str = "latest", prompt: str = "", count: int = 12):
+    import random
+    mood = mood.lower().strip()
+    clean_langs = [l.strip().lower() for l in languages if l.strip()]
+    if not clean_langs:
+        clean_langs = ["telugu"]
+
+    mood_adj = random.choice(MOOD_TITLES.get(mood, ["Sound Journey", "Sonic Wave", "Vibe Horizon"]))
+    if len(clean_langs) == 1:
+        lang_cap = clean_langs[0].capitalize()
+        if lang_cap == "Telugu": lang_cap = "Tollywood"
+        elif lang_cap == "Hindi": lang_cap = "Bollywood"
+        title = f"{lang_cap} {mood_adj}"
+    elif len(clean_langs) == 2:
+        title = f"{clean_langs[0].capitalize()} x {clean_langs[1].capitalize()}: {mood_adj}"
+    else:
+        title = f"Multi-Language {mood_adj}"
+
+    desc = f"AI-crafted {mood} playlist across {', '.join([l.capitalize() for l in clean_langs])}"
+    if prompt:
+        desc += f" • Inspired by: {prompt}"
+
+    tracks_per_lang = max(3, count // len(clean_langs) + 1)
+    all_tracks = []
+    seen_ids = set()
+
+    for lang in clean_langs:
+        era_term = ""
+        if era == "latest": era_term = "2024 2025"
+        elif era == "2010s": era_term = "2010s hits"
+        elif era == "classics": era_term = "90s 2000s classics"
+
+        query_parts = [lang, mood]
+        if prompt:
+            query_parts.append(prompt)
+        if era_term:
+            query_parts.append(era_term)
+        query_parts.append("songs audio")
+        
+        search_q = " ".join(query_parts)
+        results = search_youtube(search_q, max_results=tracks_per_lang + 2)
+        
+        for t in results:
+            if t["id"] not in seen_ids:
+                seen_ids.add(t["id"])
+                t["language"] = lang
+                all_tracks.append(t)
+                if len(all_tracks) >= count * 2:
+                    break
+
+    if len(all_tracks) < count:
+        for lang in clean_langs:
+            for t in CURATED_TRACKS.get(lang, []):
+                if t["id"] not in seen_ids:
+                    seen_ids.add(t["id"])
+                    all_tracks.append(t)
+
+    random.shuffle(all_tracks)
+    final_tracks = all_tracks[:count]
+
+    return {
+        "title": title,
+        "description": desc,
+        "languages": clean_langs,
+        "mood": mood,
+        "era": era,
+        "prompt": prompt,
+        "tracks": final_tracks
+    }
+
+@app.post("/api/ai-playlist")
+async def api_create_ai_playlist(request: Request):
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    langs = data.get("languages", ["telugu", "hindi"])
+    mood = data.get("mood", "romantic")
+    era = data.get("era", "latest")
+    prompt = data.get("prompt", "")
+    count = int(data.get("count", 12))
+    return generate_ai_playlist_logic(langs, mood, era, prompt, count)
+
+@app.get("/api/ai-playlist")
+def api_get_ai_playlist(
+    langs: str = Query("telugu,hindi", description="Comma separated languages"),
+    mood: str = Query("romantic"),
+    era: str = Query("latest"),
+    prompt: str = Query(""),
+    count: int = Query(12)
+):
+    lang_list = [l.strip() for l in langs.split(",") if l.strip()]
+    return generate_ai_playlist_logic(lang_list, mood, era, prompt, count)
 
 @app.get("/api/audio-info/{video_id}")
 def get_audio_info(video_id: str, title: Optional[str] = None):

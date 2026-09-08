@@ -24,7 +24,16 @@
     isVideoDockVisible: false,
     allTelugu: [],
     allHindi: [],
-    allEnglish: []
+    allEnglish: [],
+    aiWizard: {
+      step: 1,
+      selectedLangs: new Set(['telugu', 'hindi']),
+      selectedMood: 'romantic',
+      selectedEra: 'latest',
+      count: 12,
+      customPrompt: '',
+      generatedPlaylist: null
+    }
   };
 
   // Seed starter playlist if none exists
@@ -116,7 +125,34 @@
     closeAddToPlModal: document.getElementById('close-add-to-pl-modal'),
     addToPlSongTitle: document.getElementById('add-to-pl-song-title'),
     modalPlList: document.getElementById('modal-pl-list'),
-    btnQuickCreatePl: document.getElementById('btn-quick-create-pl')
+    btnQuickCreatePl: document.getElementById('btn-quick-create-pl'),
+    // AI Playlist Creator
+    btnOpenAiCreator: document.getElementById('btn-open-ai-creator'),
+    heroAiBtn: document.getElementById('hero-ai-btn'),
+    aiPlaylistModal: document.getElementById('ai-playlist-modal'),
+    closeAiModal: document.getElementById('close-ai-modal'),
+    wizardProgress: document.getElementById('wizard-progress'),
+    wizardStep1: document.getElementById('wizard-step-1'),
+    wizardStep2: document.getElementById('wizard-step-2'),
+    wizardStep3: document.getElementById('wizard-step-3'),
+    wizardStepLoading: document.getElementById('wizard-step-loading'),
+    wizardStepResult: document.getElementById('wizard-step-result'),
+    btnNextToStep2: document.getElementById('btn-next-to-step-2'),
+    btnBackToStep1: document.getElementById('btn-back-to-step-1'),
+    btnNextToStep3: document.getElementById('btn-next-to-step-3'),
+    btnBackToStep2: document.getElementById('btn-back-to-step-2'),
+    btnGenerateAi: document.getElementById('btn-generate-ai'),
+    aiLoadingStatus: document.getElementById('ai-loading-status'),
+    resultPlTitle: document.getElementById('result-pl-title'),
+    resultPlDesc: document.getElementById('result-pl-desc'),
+    resultLangsBadge: document.getElementById('result-langs-badge'),
+    resultCountBadge: document.getElementById('result-count-badge'),
+    resultTracksPreview: document.getElementById('result-tracks-preview'),
+    btnAiPlayNow: document.getElementById('btn-ai-play-now'),
+    btnAiSavePlaylist: document.getElementById('btn-ai-save-playlist'),
+    btnAiTweak: document.getElementById('btn-ai-tweak'),
+    aiCustomPrompt: document.getElementById('ai-custom-prompt'),
+    langSelectedCounter: document.getElementById('lang-selected-counter')
   };
 
   // Toast Helper
@@ -858,6 +894,285 @@
     }
     openAddToPlaylistModal(state.queue[state.currentIndex]);
   });
+
+  // ==========================================
+  // 6b. AI Playlist Creator Wizard System
+  // ==========================================
+  function openAiModal() {
+    setWizardStep(1);
+    el.aiPlaylistModal.classList.remove('hidden');
+    updateLangCounterUI();
+  }
+
+  function closeAiModal() {
+    el.aiPlaylistModal.classList.add('hidden');
+  }
+
+  function setWizardStep(step) {
+    state.aiWizard.step = step;
+
+    // Hide all step containers
+    el.wizardStep1.classList.add('hidden');
+    el.wizardStep2.classList.add('hidden');
+    el.wizardStep3.classList.add('hidden');
+    el.wizardStepLoading.classList.add('hidden');
+    el.wizardStepResult.classList.add('hidden');
+
+    if (step === 1) el.wizardStep1.classList.remove('hidden');
+    else if (step === 2) el.wizardStep2.classList.remove('hidden');
+    else if (step === 3) el.wizardStep3.classList.remove('hidden');
+    else if (step === 'loading') el.wizardStepLoading.classList.remove('hidden');
+    else if (step === 4 || step === 'result') el.wizardStepResult.classList.remove('hidden');
+
+    // Update progress bar UI
+    const progressSteps = el.wizardProgress.querySelectorAll('.wizard-step');
+    progressSteps.forEach(s => {
+      const sNum = parseInt(s.dataset.step, 10);
+      s.classList.remove('active', 'completed');
+      if (typeof step === 'number') {
+        if (sNum < step) s.classList.add('completed');
+        else if (sNum === step) s.classList.add('active');
+      } else if (step === 'loading' || step === 'result') {
+        if (sNum <= 3) s.classList.add('completed');
+        if (sNum === 4) s.classList.add('active');
+      }
+    });
+  }
+
+  function updateLangCounterUI() {
+    const count = state.aiWizard.selectedLangs.size;
+    el.langSelectedCounter.textContent = count === 1 ? '1 language selected' : `${count} languages selected`;
+    el.btnNextToStep2.disabled = count === 0;
+    el.btnNextToStep2.style.opacity = count === 0 ? '0.4' : '1';
+    el.btnNextToStep2.style.pointerEvents = count === 0 ? 'none' : 'auto';
+  }
+
+  // Open & Close Triggers
+  if (el.btnOpenAiCreator) el.btnOpenAiCreator.addEventListener('click', openAiModal);
+  if (el.heroAiBtn) el.heroAiBtn.addEventListener('click', openAiModal);
+  if (el.closeAiModal) el.closeAiModal.addEventListener('click', closeAiModal);
+
+  // Close on outside click
+  el.aiPlaylistModal.addEventListener('click', (e) => {
+    if (e.target === el.aiPlaylistModal) closeAiModal();
+  });
+
+  // Step 1: Language selection cards
+  document.querySelectorAll('#lang-grid .lang-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const lang = card.dataset.lang;
+      if (state.aiWizard.selectedLangs.has(lang)) {
+        if (state.aiWizard.selectedLangs.size > 1) {
+          state.aiWizard.selectedLangs.delete(lang);
+          card.classList.remove('selected');
+        } else {
+          showToast('Select at least one language');
+        }
+      } else {
+        state.aiWizard.selectedLangs.add(lang);
+        card.classList.add('selected');
+      }
+      updateLangCounterUI();
+    });
+  });
+
+  // Quick Language Presets
+  document.querySelectorAll('.btn-preset-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const presetLangs = btn.dataset.preset.split(',').map(s => s.trim());
+      state.aiWizard.selectedLangs = new Set(presetLangs);
+      document.querySelectorAll('#lang-grid .lang-card').forEach(c => {
+        c.classList.toggle('selected', presetLangs.includes(c.dataset.lang));
+      });
+      updateLangCounterUI();
+      showToast(`Preset: ${presetLangs.join(' + ').toUpperCase()}`);
+    });
+  });
+
+  // Step 1 -> Step 2
+  el.btnNextToStep2.addEventListener('click', () => {
+    if (state.aiWizard.selectedLangs.size === 0) {
+      showToast('Please select at least one language');
+      return;
+    }
+    setWizardStep(2);
+  });
+
+  // Step 2: Mood Selection cards
+  document.querySelectorAll('#mood-grid .mood-card').forEach(card => {
+    card.addEventListener('click', () => {
+      document.querySelectorAll('#mood-grid .mood-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      state.aiWizard.selectedMood = card.dataset.mood;
+    });
+  });
+
+  // Step 2 Navigation
+  el.btnBackToStep1.addEventListener('click', () => setWizardStep(1));
+  el.btnNextToStep3.addEventListener('click', () => setWizardStep(3));
+
+  // Step 3: Era options
+  document.querySelectorAll('#era-options .era-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('#era-options .era-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      state.aiWizard.selectedEra = chip.dataset.era;
+    });
+  });
+
+  // Step 3: Count options
+  document.querySelectorAll('#count-options .count-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('#count-options .count-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      state.aiWizard.count = parseInt(chip.dataset.count, 10) || 12;
+    });
+  });
+
+  // Step 3 Navigation
+  el.btnBackToStep2.addEventListener('click', () => setWizardStep(2));
+
+  // Step 3 -> Generate AI Playlist
+  el.btnGenerateAi.addEventListener('click', async () => {
+    state.aiWizard.customPrompt = el.aiCustomPrompt ? el.aiCustomPrompt.value.trim() : '';
+    setWizardStep('loading');
+
+    const langsArr = Array.from(state.aiWizard.selectedLangs);
+    const langNames = langsArr.map(l => l.charAt(0).toUpperCase() + l.slice(1)).join(', ');
+
+    // Dynamic loading messages
+    const loadingMsgs = [
+      `Searching trending & classic ${langNames} tracks...`,
+      `Filtering for ${state.aiWizard.selectedMood} vibe & emotional flow...`,
+      `Balancing multilingual crossfade & tempo...`,
+      `Finalizing your custom streamable mix...`
+    ];
+    let msgIdx = 0;
+    if (el.aiLoadingStatus) el.aiLoadingStatus.textContent = loadingMsgs[0];
+    const msgInterval = setInterval(() => {
+      msgIdx = (msgIdx + 1) % loadingMsgs.length;
+      if (el.aiLoadingStatus) el.aiLoadingStatus.textContent = loadingMsgs[msgIdx];
+    }, 1200);
+
+    try {
+      const resp = await fetch('/api/ai-playlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          languages: langsArr,
+          mood: state.aiWizard.selectedMood,
+          era: state.aiWizard.selectedEra,
+          prompt: state.aiWizard.customPrompt,
+          count: state.aiWizard.count
+        })
+      });
+
+      clearInterval(msgInterval);
+
+      if (!resp.ok) {
+        throw new Error(`Server returned ${resp.status}`);
+      }
+
+      const data = await resp.json();
+      state.aiWizard.generatedPlaylist = data;
+      renderAiPlaylistResult(data);
+      setWizardStep(4);
+    } catch (err) {
+      clearInterval(msgInterval);
+      console.error('Error generating AI playlist:', err);
+      showToast('AI Playlist generation failed. Retrying with fallback...');
+      
+      // Attempt fallback via GET endpoint
+      try {
+        const getResp = await fetch(`/api/ai-playlist?langs=${langsArr.join(',')}&mood=${state.aiWizard.selectedMood}&era=${state.aiWizard.selectedEra}&count=${state.aiWizard.count}`);
+        if (getResp.ok) {
+          const fallbackData = await getResp.json();
+          state.aiWizard.generatedPlaylist = fallbackData;
+          renderAiPlaylistResult(fallbackData);
+          setWizardStep(4);
+          return;
+        }
+      } catch (getErr) {
+        console.error('Fallback failed:', getErr);
+      }
+      setWizardStep(3);
+    }
+  });
+
+  function renderAiPlaylistResult(data) {
+    el.resultPlTitle.textContent = data.title || 'Custom AI Playlist';
+    el.resultPlDesc.textContent = data.description || 'Curated blend of multi-language tracks';
+
+    // Format language badges
+    const displayLangs = (data.languages || []).map(l => l.charAt(0).toUpperCase() + l.slice(1)).join(' + ');
+    el.resultLangsBadge.textContent = displayLangs || 'Multi-Language';
+    el.resultCountBadge.textContent = `${data.tracks?.length || 0} Tracks`;
+
+    // Render preview track items
+    el.resultTracksPreview.innerHTML = '';
+    const tracks = data.tracks || [];
+
+    if (tracks.length === 0) {
+      el.resultTracksPreview.innerHTML = '<p style="color: var(--text-dim); padding: 20px; text-align: center;">No tracks found for this specific combination. Try tweaking your prompt!</p>';
+      return;
+    }
+
+    tracks.forEach((t, i) => {
+      const item = document.createElement('div');
+      item.className = 'result-track-item';
+      item.innerHTML = `
+        <img class="result-track-thumb" src="${t.thumbnail || 'https://i.ytimg.com/vi/' + t.id + '/hqdefault.jpg'}" alt="${t.title}" />
+        <div class="result-track-info">
+          <div class="result-track-title">${t.title}</div>
+          <div class="result-track-artist">${t.artist || 'Unknown Artist'}</div>
+        </div>
+        <span class="result-track-lang-pill">${t.language || 'Mix'}</span>
+        <span class="result-track-duration">${t.duration || '3:30'}</span>
+      `;
+      item.style.cursor = 'pointer';
+      item.addEventListener('click', () => {
+        setQueueAndPlay(tracks, i);
+        closeAiModal();
+        showToast(`Playing "${t.title}" from AI mix 🎶`);
+      });
+      el.resultTracksPreview.appendChild(item);
+    });
+
+    // Reset save button state
+    el.btnAiSavePlaylist.textContent = 'Save to My Playlists';
+    el.btnAiSavePlaylist.disabled = false;
+
+    // Action: Play Entire Playlist
+    el.btnAiPlayNow.onclick = () => {
+      if (tracks.length > 0) {
+        setQueueAndPlay(tracks, 0);
+        closeAiModal();
+        showToast(`Playing "${data.title}" 🎶`);
+      }
+    };
+
+    // Action: Save to My Playlists
+    el.btnAiSavePlaylist.onclick = () => {
+      if (!tracks || tracks.length === 0) return;
+      const newPl = {
+        id: 'pl_ai_' + Date.now(),
+        name: data.title || 'AI Curated Mix',
+        description: data.description || 'AI Curated Multi-Language Playlist',
+        createdAt: Date.now(),
+        tracks: tracks
+      };
+      state.playlists.push(newPl);
+      savePlaylists();
+      showToast(`Saved "${newPl.name}" to My Playlists! 📁`);
+      el.btnAiSavePlaylist.textContent = '✓ Saved to Playlists';
+      el.btnAiSavePlaylist.disabled = true;
+    };
+
+    // Action: Tweak Options
+    el.btnAiTweak.onclick = () => {
+      setWizardStep(3);
+    };
+  }
 
   // Queue Drawer
   function updateQueueUI() {
