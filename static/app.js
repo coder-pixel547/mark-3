@@ -152,7 +152,34 @@
     btnAiSavePlaylist: document.getElementById('btn-ai-save-playlist'),
     btnAiTweak: document.getElementById('btn-ai-tweak'),
     aiCustomPrompt: document.getElementById('ai-custom-prompt'),
-    langSelectedCounter: document.getElementById('lang-selected-counter')
+    langSelectedCounter: document.getElementById('lang-selected-counter'),
+    // Mobile Controls & Full-Screen Sheet
+    playerTrackInfo: document.getElementById('player-track-info'),
+    mobileMiniProgressFill: document.getElementById('mobile-mini-progress-fill'),
+    mobileBottomNav: document.getElementById('mobile-bottom-nav'),
+    mobileNavAiBtn: document.getElementById('mobile-nav-ai-btn'),
+    mobileNowPlayingSheet: document.getElementById('mobile-now-playing-sheet'),
+    btnCollapseMobilePlayer: document.getElementById('btn-collapse-mobile-player'),
+    sheetAlbumName: document.getElementById('sheet-header-album'),
+    sheetBtnQueue: document.getElementById('sheet-btn-queue'),
+    sheetThumb: document.getElementById('sheet-thumb'),
+    sheetTitle: document.getElementById('sheet-title'),
+    sheetArtist: document.getElementById('sheet-artist'),
+    sheetLikeBtn: document.getElementById('sheet-like-btn'),
+    sheetProgressWrapper: document.getElementById('sheet-progress-wrapper'),
+    sheetProgressFill: document.getElementById('sheet-progress-fill'),
+    sheetProgressThumb: document.getElementById('sheet-progress-thumb'),
+    sheetCurrentTime: document.getElementById('sheet-current-time'),
+    sheetTotalDuration: document.getElementById('sheet-total-duration'),
+    sheetBtnShuffle: document.getElementById('sheet-btn-shuffle'),
+    sheetBtnPrev: document.getElementById('sheet-btn-prev'),
+    sheetBtnPlay: document.getElementById('sheet-btn-play'),
+    sheetPlayIcon: document.getElementById('sheet-play-icon'),
+    sheetPauseIcon: document.getElementById('sheet-pause-icon'),
+    sheetBtnNext: document.getElementById('sheet-btn-next'),
+    sheetBtnRepeat: document.getElementById('sheet-btn-repeat'),
+    sheetBtnAddPlaylist: document.getElementById('sheet-btn-add-playlist'),
+    sheetBtnToggleVideo: document.getElementById('sheet-btn-toggle-video')
   };
 
   // Toast Helper
@@ -204,10 +231,18 @@
     if (audio.duration && !isNaN(audio.duration)) {
       const current = audio.currentTime;
       const total = audio.duration;
-      el.currentTime.textContent = formatTime(current);
-      el.totalDuration.textContent = formatTime(total);
+      const fmtCurrent = formatTime(current);
+      const fmtTotal = formatTime(total);
+
+      el.currentTime.textContent = fmtCurrent;
+      el.totalDuration.textContent = fmtTotal;
+      if (el.sheetCurrentTime) el.sheetCurrentTime.textContent = fmtCurrent;
+      if (el.sheetTotalDuration) el.sheetTotalDuration.textContent = fmtTotal;
+
       const percent = Math.min(100, (current / total) * 100);
       el.progressFill.style.width = `${percent}%`;
+      if (el.mobileMiniProgressFill) el.mobileMiniProgressFill.style.width = `${percent}%`;
+      if (el.sheetProgressFill) el.sheetProgressFill.style.width = `${percent}%`;
     }
   });
 
@@ -505,31 +540,57 @@
     if (isPlaying) {
       el.playIcon.classList.add('hidden');
       el.pauseIcon.classList.remove('hidden');
+      if (el.sheetPlayIcon) el.sheetPlayIcon.classList.add('hidden');
+      if (el.sheetPauseIcon) el.sheetPauseIcon.classList.remove('hidden');
       el.playingIndicator.classList.remove('hidden');
       el.audioVisualizer.classList.add('active');
     } else {
       el.playIcon.classList.remove('hidden');
       el.pauseIcon.classList.add('hidden');
+      if (el.sheetPlayIcon) el.sheetPlayIcon.classList.remove('hidden');
+      if (el.sheetPauseIcon) el.sheetPauseIcon.classList.add('hidden');
       el.playingIndicator.classList.add('hidden');
       el.audioVisualizer.classList.remove('active');
     }
   }
 
   function updateCurrentTrackUI(track) {
-    el.playerTitle.textContent = track.title || 'Unknown Title';
-    el.playerArtist.textContent = track.artist || 'MARK 3 Music';
-    el.playerThumb.src = track.thumbnail || `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg`;
-    el.totalDuration.textContent = track.duration || '3:30';
+    const title = track.title || 'Unknown Title';
+    const artist = track.artist || 'Swarify';
+    const thumbUrl = track.thumbnail || `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg`;
+    const dur = track.duration || '3:30';
+
+    el.playerTitle.textContent = title;
+    el.playerArtist.textContent = artist;
+    el.playerThumb.src = thumbUrl;
+    el.totalDuration.textContent = dur;
+
+    // Mobile Sheet sync
+    if (el.sheetTitle) el.sheetTitle.textContent = title;
+    if (el.sheetArtist) el.sheetArtist.textContent = artist;
+    if (el.sheetThumb) el.sheetThumb.src = thumbUrl;
+    if (el.sheetTotalDuration) el.sheetTotalDuration.textContent = dur;
+    if (el.sheetAlbumName) el.sheetAlbumName.textContent = track.album || (track.language ? `${track.language.toUpperCase()} Hits` : 'Swarify Chartbusters');
 
     const isLiked = state.likedSongs.some(t => t.id === track.id);
     if (isLiked) {
       el.playerLikeBtn.classList.add('active');
       el.playerLikeBtn.querySelector('svg').style.fill = '#ef4444';
       el.playerLikeBtn.querySelector('svg').style.stroke = '#ef4444';
+      if (el.sheetLikeBtn) {
+        el.sheetLikeBtn.classList.add('active');
+        el.sheetLikeBtn.querySelector('svg').style.fill = '#ef4444';
+        el.sheetLikeBtn.querySelector('svg').style.stroke = '#ef4444';
+      }
     } else {
       el.playerLikeBtn.classList.remove('active');
       el.playerLikeBtn.querySelector('svg').style.fill = 'none';
       el.playerLikeBtn.querySelector('svg').style.stroke = 'currentColor';
+      if (el.sheetLikeBtn) {
+        el.sheetLikeBtn.classList.remove('active');
+        el.sheetLikeBtn.querySelector('svg').style.fill = 'none';
+        el.sheetLikeBtn.querySelector('svg').style.stroke = 'currentColor';
+      }
     }
   }
 
@@ -615,6 +676,117 @@
       showToast('Repeat OFF');
     }
   });
+
+  // Mobile Sheet Scrubber
+  if (el.sheetProgressWrapper) {
+    el.sheetProgressWrapper.addEventListener('click', function(e) {
+      const rect = el.sheetProgressWrapper.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const fraction = Math.max(0, Math.min(1, clickX / rect.width));
+
+      if (state.audioMode === 'video') {
+        if (state.ytPlayer && state.ytPlayer.getDuration) {
+          state.ytPlayer.seekTo(fraction * state.ytPlayer.getDuration(), true);
+        }
+      } else {
+        if (audio.duration && !isNaN(audio.duration)) {
+          audio.currentTime = fraction * audio.duration;
+          updateMediaSessionPosition();
+        }
+      }
+      if (el.sheetProgressFill) el.sheetProgressFill.style.width = `${fraction * 100}%`;
+      if (el.mobileMiniProgressFill) el.mobileMiniProgressFill.style.width = `${fraction * 100}%`;
+      el.progressFill.style.width = `${fraction * 100}%`;
+    });
+  }
+
+  // Mobile Sheet Expand & Collapse
+  function openMobilePlayerSheet() {
+    if (window.innerWidth <= 768 && el.mobileNowPlayingSheet) {
+      el.mobileNowPlayingSheet.classList.remove('hidden');
+    }
+  }
+
+  function closeMobilePlayerSheet() {
+    if (el.mobileNowPlayingSheet) {
+      el.mobileNowPlayingSheet.classList.add('hidden');
+    }
+  }
+
+  if (el.playerTrackInfo) {
+    el.playerTrackInfo.addEventListener('click', (e) => {
+      if (e.target.closest('.like-btn') || e.target.closest('.add-pl-btn')) return;
+      openMobilePlayerSheet();
+    });
+  }
+
+  if (el.btnCollapseMobilePlayer) {
+    el.btnCollapseMobilePlayer.addEventListener('click', closeMobilePlayerSheet);
+  }
+
+  // Mobile Sheet Controls
+  if (el.sheetBtnPlay) el.sheetBtnPlay.addEventListener('click', togglePlayPause);
+  if (el.sheetBtnNext) el.sheetBtnNext.addEventListener('click', () => playNext());
+  if (el.sheetBtnPrev) el.sheetBtnPrev.addEventListener('click', playPrev);
+
+  if (el.sheetBtnShuffle) {
+    el.sheetBtnShuffle.addEventListener('click', function() {
+      state.isShuffle = !state.isShuffle;
+      el.btnShuffle.classList.toggle('active', state.isShuffle);
+      el.sheetBtnShuffle.classList.toggle('active', state.isShuffle);
+      showToast(state.isShuffle ? 'Shuffle ON' : 'Shuffle OFF');
+    });
+  }
+
+  if (el.sheetBtnRepeat) {
+    el.sheetBtnRepeat.addEventListener('click', function() {
+      el.btnRepeat.click();
+      el.sheetBtnRepeat.classList.toggle('active', state.repeatMode !== 'off');
+    });
+  }
+
+  if (el.sheetLikeBtn) {
+    el.sheetLikeBtn.addEventListener('click', function() {
+      if (state.currentIndex === -1 || !state.queue[state.currentIndex]) return;
+      toggleLikeTrack(state.queue[state.currentIndex]);
+    });
+  }
+
+  if (el.sheetBtnAddPlaylist) {
+    el.sheetBtnAddPlaylist.addEventListener('click', function() {
+      if (state.currentIndex === -1 || !state.queue[state.currentIndex]) return;
+      openAddToPlaylistModal(state.queue[state.currentIndex]);
+    });
+  }
+
+  if (el.sheetBtnToggleVideo) {
+    el.sheetBtnToggleVideo.addEventListener('click', function() {
+      el.btnToggleVideo.click();
+    });
+  }
+
+  if (el.sheetBtnQueue) {
+    el.sheetBtnQueue.addEventListener('click', function() {
+      closeMobilePlayerSheet();
+      el.btnToggleQueue.click();
+    });
+  }
+
+  // Mobile Bottom Navigation Tabs
+  document.querySelectorAll('.mobile-nav-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.mobile-nav-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      const view = tab.dataset.view;
+      if (view) switchView(view);
+    });
+  });
+
+  if (el.mobileNavAiBtn) {
+    el.mobileNavAiBtn.addEventListener('click', () => {
+      openAiModal();
+    });
+  }
 
   // Liked Songs
   function toggleLikeTrack(track) {
@@ -739,6 +911,7 @@
 
     el.navItems.forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.playlist-nav-item').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.mobile-nav-tab').forEach(t => t.classList.toggle('active', t.dataset.view === 'liked'));
     updatePlaylistsSidebar();
 
     renderPlaylistView(playlistId);
@@ -1521,6 +1694,9 @@
     });
     document.querySelectorAll('.playlist-nav-item').forEach(btn => {
       btn.classList.remove('active');
+    });
+    document.querySelectorAll('.mobile-nav-tab').forEach(tab => {
+      tab.classList.toggle('active', tab.dataset.view === viewName);
     });
 
     const prevSection = document.getElementById('custom-view-section');
