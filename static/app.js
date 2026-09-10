@@ -150,6 +150,7 @@
     resultTracksPreview: document.getElementById('result-tracks-preview'),
     btnAiPlayNow: document.getElementById('btn-ai-play-now'),
     btnAiSavePlaylist: document.getElementById('btn-ai-save-playlist'),
+    btnAiSharePlaylist: document.getElementById('btn-ai-share-playlist'),
     btnAiTweak: document.getElementById('btn-ai-tweak'),
     aiCustomPrompt: document.getElementById('ai-custom-prompt'),
     langSelectedCounter: document.getElementById('lang-selected-counter'),
@@ -384,14 +385,29 @@
     }
   }
 
+  function preloadNextTrackSpeculative() {
+    if (state.queue.length <= 1) return;
+    const nextIdx = (state.currentIndex + 1) % state.queue.length;
+    const nextTrack = state.queue[nextIdx];
+    if (nextTrack) {
+      const nextId = nextTrack.id || nextTrack.videoId;
+      if (nextId) {
+        fetch(`/api/audio-info/${nextId}?title=${encodeURIComponent(nextTrack.title)}`).catch(() => {});
+      }
+    }
+  }
+
   // ==========================================
   // 4. Playback Controllers
   // ==========================================
   async function loadAndPlayTrack(track, addToQueue = true) {
-    if (!track || !track.id) return;
+    if (!track) return;
+    track.id = track.id || track.videoId;
+    track.videoId = track.videoId || track.id;
+    if (!track.id) return;
 
     if (addToQueue) {
-      const existingIdx = state.queue.findIndex(t => t.id === track.id);
+      const existingIdx = state.queue.findIndex(t => (t.id || t.videoId) === track.id);
       if (existingIdx !== -1) {
         state.currentIndex = existingIdx;
       } else {
@@ -422,6 +438,7 @@
       if (streamTimeout) clearTimeout(streamTimeout);
       audio.removeEventListener('playing', onPlaying);
       showToast(`Now Playing: ${track.title} 🎵`);
+      preloadNextTrackSpeculative();
     };
     audio.addEventListener('playing', onPlaying);
 
@@ -1202,6 +1219,18 @@
     });
   });
 
+  // Step 3: Quick Prompt Suggestion Chips
+  document.querySelectorAll('#prompt-chips-row .prompt-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const pText = chip.dataset.prompt;
+      if (el.aiCustomPrompt) {
+        el.aiCustomPrompt.value = pText;
+        state.aiWizard.customPrompt = pText;
+        showToast(`Selected prompt: ${chip.textContent.trim()}`);
+      }
+    });
+  });
+
   // Step 3 Navigation
   el.btnBackToStep2.addEventListener('click', () => setWizardStep(2));
 
@@ -1247,6 +1276,13 @@
       }
 
       const data = await resp.json();
+      // Normalize track contracts
+      if (Array.isArray(data.tracks)) {
+        data.tracks.forEach(t => {
+          t.id = t.id || t.videoId;
+          t.videoId = t.videoId || t.id;
+        });
+      }
       state.aiWizard.generatedPlaylist = data;
       renderAiPlaylistResult(data);
       setWizardStep(4);
@@ -1257,9 +1293,15 @@
       
       // Attempt fallback via GET endpoint
       try {
-        const getResp = await fetch(`/api/ai-playlist?langs=${langsArr.join(',')}&mood=${state.aiWizard.selectedMood}&era=${state.aiWizard.selectedEra}&count=${state.aiWizard.count}`);
+        const getResp = await fetch(`/api/ai-playlist?langs=${langsArr.join(',')}&mood=${state.aiWizard.selectedMood}&era=${state.aiWizard.selectedEra}&count=${state.aiWizard.count}&prompt=${encodeURIComponent(state.aiWizard.customPrompt)}`);
         if (getResp.ok) {
           const fallbackData = await getResp.json();
+          if (Array.isArray(fallbackData.tracks)) {
+            fallbackData.tracks.forEach(t => {
+              t.id = t.id || t.videoId;
+              t.videoId = t.videoId || t.id;
+            });
+          }
           state.aiWizard.generatedPlaylist = fallbackData;
           renderAiPlaylistResult(fallbackData);
           setWizardStep(4);
@@ -1291,6 +1333,8 @@
     }
 
     tracks.forEach((t, i) => {
+      t.id = t.id || t.videoId;
+      t.videoId = t.videoId || t.id;
       const item = document.createElement('div');
       item.className = 'result-track-item';
       item.innerHTML = `
@@ -1340,6 +1384,25 @@
       el.btnAiSavePlaylist.textContent = '✓ Saved to Playlists';
       el.btnAiSavePlaylist.disabled = true;
     };
+
+    // Action: Share Playlist
+    if (el.btnAiSharePlaylist) {
+      el.btnAiSharePlaylist.onclick = async () => {
+        if (!tracks || tracks.length === 0) return;
+        const topTracks = tracks.slice(0, 5).map((t, idx) => `${idx + 1}. ${t.title} - ${t.artist}`).join('\n');
+        const shareText = `🎵 Check out my AI Playlist: "${data.title}" on Swarify!\n\nTop Tracks:\n${topTracks}\n\nStream full ad-free mix: ${window.location.origin}`;
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(shareText);
+            showToast('Playlist summary copied to clipboard! 📋');
+          } else {
+            showToast('Share link ready!');
+          }
+        } catch (_) {
+          showToast('Mix ready to share!');
+        }
+      };
+    }
 
     // Action: Tweak Options
     el.btnAiTweak.onclick = () => {

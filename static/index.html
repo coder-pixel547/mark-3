@@ -631,12 +631,20 @@
               <button type="button" class="count-chip" data-count="6">6 Songs (Quick EP)</button>
               <button type="button" class="count-chip active" data-count="12">12 Songs (Full Album)</button>
               <button type="button" class="count-chip" data-count="18">18 Songs (Mega Mix)</button>
+              <button type="button" class="count-chip" data-count="24">24 Songs (Grand Mix)</button>
             </div>
           </div>
 
           <div class="form-section">
-            <label class="section-label" for="ai-custom-prompt">Specific Artists, Actors or Vibe (Optional)</label>
-            <input type="text" id="ai-custom-prompt" placeholder="e.g. Anirudh, Sid Sriram, Arijit Singh, rainy night, highway trip..." autocomplete="off" />
+            <label class="section-label" for="ai-custom-prompt">Natural Language Vibe or Artists (Optional)</label>
+            <input type="text" id="ai-custom-prompt" placeholder="e.g. Sid Sriram, Arijit Singh, rainy night highway drive, bass drops..." autocomplete="off" />
+            <div class="prompt-chips-row" id="prompt-chips-row">
+              <button type="button" class="prompt-chip" data-prompt="🌧️ Rainy Night Highway Drive">🌧️ Rainy Drive</button>
+              <button type="button" class="prompt-chip" data-prompt="⚡ High Adrenaline Gym Workout">⚡ Gym Pump</button>
+              <button type="button" class="prompt-chip" data-prompt="💖 Soulful Romantic Duets">💖 Romantic Duets</button>
+              <button type="button" class="prompt-chip" data-prompt="☕ Lo-Fi Late Night Study Chill">☕ Lo-Fi Chill</button>
+              <button type="button" class="prompt-chip" data-prompt="🔥 Anirudh & Devi Sri Prasad Mass Hits">🔥 Mass Beats</button>
+            </div>
           </div>
 
           <div class="step-footer space-between">
@@ -659,6 +667,12 @@
             <p class="loading-status" id="ai-loading-status">Curating chartbuster tracks across your chosen languages...</p>
             <div class="loading-dots">
               <span></span><span></span><span></span>
+            </div>
+            <!-- Loading Skeletons -->
+            <div class="skeleton-tracks-preview">
+              <div class="skeleton-track-row"><div class="skeleton-thumb shimmer"></div><div class="skeleton-text-group"><div class="skeleton-line shimmer line-wide"></div><div class="skeleton-line shimmer line-short"></div></div></div>
+              <div class="skeleton-track-row"><div class="skeleton-thumb shimmer"></div><div class="skeleton-text-group"><div class="skeleton-line shimmer line-wide"></div><div class="skeleton-line shimmer line-short"></div></div></div>
+              <div class="skeleton-track-row"><div class="skeleton-thumb shimmer"></div><div class="skeleton-text-group"><div class="skeleton-line shimmer line-wide"></div><div class="skeleton-line shimmer line-short"></div></div></div>
             </div>
           </div>
         </div>
@@ -683,6 +697,10 @@
             <button type="button" class="btn-secondary" id="btn-ai-save-playlist">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 11H5M19 16H5M11 6H5M19 6h-4"></path></svg>
               <span>Save to My Playlists</span>
+            </button>
+            <button type="button" class="btn-secondary" id="btn-ai-share-playlist" title="Share Playlist Link">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+              <span>Share Mix</span>
             </button>
             <button type="button" class="btn-secondary-subtle" id="btn-ai-tweak">
               <span>✏️ Tweak Options</span>
