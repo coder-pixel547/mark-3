@@ -1156,6 +1156,42 @@ def get_audio_info(video_id: str, title: Optional[str] = None):
         "filesize": meta.get("filesize")
     }
 
+@app.get("/api/debug/extract/{video_id}")
+def debug_extract(video_id: str):
+    """Debug route to diagnose yt-dlp behavior in production."""
+    results = {}
+    primary_opts = {
+        'format': AUDIO_FORMAT_SELECTOR,
+        'quiet': True,
+        'no_warnings': True,
+        'skip_download': True,
+        'noplaylist': True,
+    }
+    try:
+        with yt_dlp.YoutubeDL(primary_opts) as ydl:
+            res = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+            results["primary"] = {"success": True, "format_id": res.get("format_id"), "has_url": bool(res.get("url"))}
+    except Exception as e:
+        results["primary"] = {"success": False, "error": str(e), "type": type(e).__name__}
+
+    fallback_opts = {
+        'format': AUDIO_FORMAT_SELECTOR,
+        'quiet': True,
+        'no_warnings': True,
+        'skip_download': True,
+        'noplaylist': True,
+        'extractor_args': YTDL_FALLBACK_CLIENT_ARGS,
+    }
+    try:
+        with yt_dlp.YoutubeDL(fallback_opts) as ydl:
+            res = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+            results["fallback"] = {"success": True, "format_id": res.get("format_id"), "has_url": bool(res.get("url"))}
+    except Exception as e:
+        results["fallback"] = {"success": False, "error": str(e), "type": type(e).__name__}
+
+    return results
+
+
 @app.get("/api/stream/{video_id}")
 def stream_audio(video_id: str, request: Request, title: Optional[str] = None):
     """
