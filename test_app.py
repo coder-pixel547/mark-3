@@ -88,3 +88,41 @@ def test_is_valid_song_track():
     assert is_valid_song_track("Telugu Hits Audio Jukebox", "1:20:00") is False
     assert is_valid_song_track("Romantic Songs Compilation", "45:00") is False
     assert is_valid_song_track("Short Sound Effect", "0:15") is False
+
+def test_parse_duration_edge_cases():
+    """Verify duration parsing edge cases and fallback safety."""
+    assert parse_duration_to_seconds(None) == 210
+    assert parse_duration_to_seconds("") == 210
+    assert parse_duration_to_seconds("invalid") == 210
+    assert parse_duration_to_seconds("0:00") == 0
+    assert parse_duration_to_seconds("2:46") == 166
+
+def test_audio_metadata_format_fallback():
+    """Verify audio format selector contains preferred M4A, Opus, and fallbacks."""
+    from app import AUDIO_FORMAT_SELECTOR
+    assert "bestaudio[ext=m4a]" in AUDIO_FORMAT_SELECTOR
+    assert "140" in AUDIO_FORMAT_SELECTOR
+    assert "bestaudio[ext=webm]" in AUDIO_FORMAT_SELECTOR
+    assert "251" in AUDIO_FORMAT_SELECTOR
+
+def test_stream_audio_partial_content():
+    """Verify /api/stream/{video_id} returns HTTP 206 Partial Content with correct headers."""
+    # Use a known fast-extracting track from catalog
+    vid = "g44VQxMcFH4"
+    resp = client.get(f"/api/stream/{vid}", headers={"Range": "bytes=0-500"})
+    assert resp.status_code == 206
+    headers = {k.lower(): v for k, v in resp.headers.items()}
+    assert headers.get("accept-ranges") == "bytes"
+    assert "content-range" in headers
+    assert headers["content-range"].startswith("bytes 0-")
+    assert "content-length" in headers
+    assert "content-type" in headers
+    assert "audio/" in headers["content-type"]
+
+def test_stream_audio_404_json():
+    """Verify stream endpoint returns 404 JSON on nonexistent or unavailable video ID."""
+    resp = client.get("/api/stream/invalid_fake_vid_xyz999", headers={"Range": "bytes=0-100"})
+    assert resp.status_code == 404
+    data = resp.json()
+    assert "error" in data
+    assert data["videoId"] == "invalid_fake_vid_xyz999"

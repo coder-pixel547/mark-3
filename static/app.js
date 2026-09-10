@@ -194,9 +194,9 @@
     }, 2800);
   }
 
-  // Format Seconds to M:SS
+  // Format Seconds to M:SS with NaN and Infinity protection
   function formatTime(seconds) {
-    if (isNaN(seconds) || seconds < 0) return '0:00';
+    if (!seconds || isNaN(seconds) || !Number.isFinite(seconds) || seconds < 0) return '0:00';
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
@@ -205,10 +205,23 @@
   // Parse Duration String (e.g. "3:45") to Seconds
   function parseDurationToSeconds(durStr) {
     if (!durStr) return 210;
-    const parts = durStr.split(':').map(Number);
-    if (parts.length === 2) return parts[0] * 60 + parts[1];
-    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    const parts = String(durStr).split(':').map(Number);
+    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) return parts[0] * 60 + parts[1];
+    if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) return parts[0] * 3600 + parts[1] * 60 + parts[2];
     return 210;
+  }
+
+  // Resolve Effective Song Duration with Finite Fallback
+  function getEffectiveDuration() {
+    if (Number.isFinite(audio.duration) && audio.duration > 0) {
+      return audio.duration;
+    }
+    const curTrack = state.queue[state.currentIndex];
+    if (curTrack && curTrack.duration) {
+      const parsed = parseDurationToSeconds(curTrack.duration);
+      if (parsed > 0) return parsed;
+    }
+    return 210; // 3:30 sensible fallback
   }
 
   // ==========================================
@@ -229,28 +242,54 @@
   });
 
   audio.addEventListener('timeupdate', () => {
-    if (audio.duration && !isNaN(audio.duration)) {
-      const current = audio.currentTime;
-      const total = audio.duration;
-      const fmtCurrent = formatTime(current);
-      const fmtTotal = formatTime(total);
+    const current = audio.currentTime || 0;
+    const total = getEffectiveDuration();
+    const fmtCurrent = formatTime(current);
+    const fmtTotal = (Number.isFinite(audio.duration) && audio.duration > 0)
+      ? formatTime(audio.duration)
+      : (state.queue[state.currentIndex]?.duration || formatTime(total));
 
-      el.currentTime.textContent = fmtCurrent;
-      el.totalDuration.textContent = fmtTotal;
-      if (el.sheetCurrentTime) el.sheetCurrentTime.textContent = fmtCurrent;
-      if (el.sheetTotalDuration) el.sheetTotalDuration.textContent = fmtTotal;
+    el.currentTime.textContent = fmtCurrent;
+    el.totalDuration.textContent = fmtTotal;
+    if (el.sheetCurrentTime) el.sheetCurrentTime.textContent = fmtCurrent;
+    if (el.sheetTotalDuration) el.sheetTotalDuration.textContent = fmtTotal;
 
-      const percent = Math.min(100, (current / total) * 100);
+    if (total > 0) {
+      const percent = Math.min(100, Math.max(0, (current / total) * 100));
       el.progressFill.style.width = `${percent}%`;
       if (el.mobileMiniProgressFill) el.mobileMiniProgressFill.style.width = `${percent}%`;
       if (el.sheetProgressFill) el.sheetProgressFill.style.width = `${percent}%`;
     }
   });
 
-  audio.addEventListener('loadedmetadata', () => {
-    if (audio.duration && !isNaN(audio.duration)) {
-      el.totalDuration.textContent = formatTime(audio.duration);
+  function onDurationUpdate() {
+    if (Number.isFinite(audio.duration) && audio.duration > 0) {
+      const fmt = formatTime(audio.duration);
+      el.totalDuration.textContent = fmt;
+      if (el.sheetTotalDuration) el.sheetTotalDuration.textContent = fmt;
+    } else {
+      const cur = state.queue[state.currentIndex];
+      if (cur && cur.duration) {
+        el.totalDuration.textContent = cur.duration;
+        if (el.sheetTotalDuration) el.sheetTotalDuration.textContent = cur.duration;
+      }
     }
+  }
+
+  audio.addEventListener('loadedmetadata', onDurationUpdate);
+  audio.addEventListener('durationchange', onDurationUpdate);
+
+  audio.addEventListener('waiting', () => {
+    console.log('[Audio Event: waiting] buffering...');
+    if (el.playingIndicator) el.playingIndicator.classList.remove('hidden');
+  });
+
+  audio.addEventListener('canplay', () => {
+    console.log('[Audio Event: canplay] audio ready');
+  });
+
+  audio.addEventListener('stalled', () => {
+    console.warn('[Audio Event: stalled] network stalled');
   });
 
   audio.addEventListener('ended', () => {
@@ -258,15 +297,27 @@
   });
 
   audio.addEventListener('error', (e) => {
-    console.warn('Native audio stream error, falling back to YouTube Iframe:', e);
+    const err = audio.error;
+    const code = err ? err.code : 'UNKNOWN';
+    const message = err ? err.message : (e?.message || 'Media resource failed');
+    console.error(`[Audio Error] code=${code} message="${message}"`, err);
+
+    const errorLabels = {
+      1: 'MEDIA_ERR_ABORTED',
+      2: 'MEDIA_ERR_NETWORK',
+      3: 'MEDIA_ERR_DECODE',
+      4: 'MEDIA_ERR_SRC_NOT_SUPPORTED'
+    };
+    console.warn(`[Audio Error Code ${code}] (${errorLabels[code] || 'UNKNOWN_ERROR'})`);
+
     const curTrack = state.queue[state.currentIndex];
-    if (curTrack && state.ytPlayer && state.isPlayerReady) {
-      showToast('Switching to secondary stream...');
-      playViaYouTube(curTrack.id);
-    } else {
-      showToast('Error playing audio, skipping...');
+    const trackName = curTrack ? curTrack.title : 'Track';
+    showToast(`⚠️ "${trackName}" is unavailable. Skipping to next...`, 3500);
+
+    // Skip to next available track
+    setTimeout(() => {
       playNext(true);
-    }
+    }, 1200);
   });
 
   // ==========================================
@@ -442,14 +493,15 @@
     };
     audio.addEventListener('playing', onPlaying);
 
-    // If native stream does not start within 3.5s, seamlessly fallback to YouTube engine
+    // Allow adequate time for initial stream extraction & buffering (12s)
     streamTimeout = setTimeout(() => {
       if (!started && !state.isPlaying) {
-        console.warn('Stream buffering timeout, switching engine...');
+        console.warn('Stream buffering timeout, checking track availability...');
         audio.removeEventListener('playing', onPlaying);
-        playViaYouTube(track.id);
+        showToast(`⚠️ Buffering timeout for "${track.title}". Skipping...`, 3000);
+        playNext(true);
       }
-    }, 3500);
+    }, 12000);
 
     try {
       const streamUrl = `/api/stream/${track.id}?title=${encodeURIComponent(track.title)}`;
@@ -622,8 +674,9 @@
         state.ytPlayer.seekTo(fraction * state.ytPlayer.getDuration(), true);
       }
     } else {
-      if (audio.duration && !isNaN(audio.duration)) {
-        audio.currentTime = fraction * audio.duration;
+      const total = getEffectiveDuration();
+      if (total > 0 && Number.isFinite(total)) {
+        audio.currentTime = fraction * total;
         updateMediaSessionPosition();
       }
     }
@@ -706,8 +759,9 @@
           state.ytPlayer.seekTo(fraction * state.ytPlayer.getDuration(), true);
         }
       } else {
-        if (audio.duration && !isNaN(audio.duration)) {
-          audio.currentTime = fraction * audio.duration;
+        const total = getEffectiveDuration();
+        if (total > 0 && Number.isFinite(total)) {
+          audio.currentTime = fraction * total;
           updateMediaSessionPosition();
         }
       }

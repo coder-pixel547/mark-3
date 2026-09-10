@@ -139,14 +139,14 @@ CURATED_TRACKS: Dict[str, List[Dict[str, Any]]] = {
             "thumbnail": "https://i.ytimg.com/vi/LPeZOE8ZIHI/hqdefault.jpg"
         },
         {
-            "id": "sAzlW265gKA",
-            "videoId": "sAzlW265gKA",
+            "id": "dOKQeqGNJwY",
+            "videoId": "dOKQeqGNJwY",
             "title": "Inthandham — Sita Ramam",
             "artist": "SPB Charan, Vishal Chandrashekhar",
             "duration": "3:39",
             "language": "telugu",
             "album": "Sita Ramam",
-            "thumbnail": "https://i.ytimg.com/vi/sAzlW265gKA/hqdefault.jpg"
+            "thumbnail": "https://i.ytimg.com/vi/dOKQeqGNJwY/hqdefault.jpg"
         },
         {
             "id": "gvyUuxdRdR4",
@@ -171,14 +171,14 @@ CURATED_TRACKS: Dict[str, List[Dict[str, Any]]] = {
             "thumbnail": "https://i.ytimg.com/vi/BddP6PYo2gs/hqdefault.jpg"
         },
         {
-            "id": "VAdGW7QDJUI",
-            "videoId": "VAdGW7QDJUI",
+            "id": "VAdGW7QDJiU",
+            "videoId": "VAdGW7QDJiU",
             "title": "Chaleya — Jawan",
             "artist": "Arijit Singh, Shilpa Rao, Anirudh",
             "duration": "3:20",
             "language": "hindi",
             "album": "Jawan",
-            "thumbnail": "https://i.ytimg.com/vi/VAdGW7QDJUI/hqdefault.jpg"
+            "thumbnail": "https://i.ytimg.com/vi/VAdGW7QDJiU/hqdefault.jpg"
         },
         {
             "id": "RLzC55ai0eo",
@@ -211,14 +211,14 @@ CURATED_TRACKS: Dict[str, List[Dict[str, Any]]] = {
             "thumbnail": "https://i.ytimg.com/vi/gvyUuxdRdR4/hqdefault.jpg"
         },
         {
-            "id": "GvyUuxdRdR4",
-            "videoId": "GvyUuxdRdR4",
-            "title": "Raataan Lambiyan — Shershaah",
-            "artist": "Jubin Nautiyal, Asees Kaur, Tanishk Bagchi",
+            "id": "V7LwfY5U5WI",
+            "videoId": "V7LwfY5U5WI",
+            "title": "Ranjha / Raataan Lambiyan — Shershaah",
+            "artist": "B Praak, Jasleen Royal, Tanishk Bagchi",
             "duration": "3:50",
             "language": "hindi",
             "album": "Shershaah",
-            "thumbnail": "https://i.ytimg.com/vi/GvyUuxdRdR4/hqdefault.jpg"
+            "thumbnail": "https://i.ytimg.com/vi/V7LwfY5U5WI/hqdefault.jpg"
         },
         {
             "id": "kJQP7kiw5Fk",
@@ -315,14 +315,14 @@ CURATED_TRACKS: Dict[str, List[Dict[str, Any]]] = {
             "thumbnail": "https://i.ytimg.com/vi/szvt1vD0Uug/hqdefault.jpg"
         },
         {
-            "id": "KUN5Uf9mOBQ",
-            "videoId": "KUN5Uf9mOBQ",
+            "id": "KUN5Uf9mObQ",
+            "videoId": "KUN5Uf9mObQ",
             "title": "Arabic Kuthu — Beast",
             "artist": "Anirudh Ravichander, Jonita Gandhi",
             "duration": "4:40",
             "language": "tamil",
             "album": "Beast",
-            "thumbnail": "https://i.ytimg.com/vi/KUN5Uf9mOBQ/hqdefault.jpg"
+            "thumbnail": "https://i.ytimg.com/vi/KUN5Uf9mObQ/hqdefault.jpg"
         },
         {
             "id": "eYq7WapuDLU",
@@ -347,14 +347,14 @@ CURATED_TRACKS: Dict[str, List[Dict[str, Any]]] = {
     ],
     "punjabi": [
         {
-            "id": "n_FCrCQ6-9U",
-            "videoId": "n_FCrCQ6-9U",
+            "id": "n_FCrCQ6-bA",
+            "videoId": "n_FCrCQ6-bA",
             "title": "295 — Sidhu Moose Wala",
             "artist": "Sidhu Moose Wala, The Kidd",
             "duration": "4:30",
             "language": "punjabi",
             "album": "Moosetape",
-            "thumbnail": "https://i.ytimg.com/vi/n_FCrCQ6-9U/hqdefault.jpg"
+            "thumbnail": "https://i.ytimg.com/vi/n_FCrCQ6-bA/hqdefault.jpg"
         },
         {
             "id": "VNs_cCtdbPc",
@@ -399,86 +399,86 @@ CURATED_TRACKS: Dict[str, List[Dict[str, Any]]] = {
     ],
     "malayalam": [
         {
-            "id": "k9YQ0gNlXw0",
-            "videoId": "k9YQ0gNlXw0",
+            "id": "tOM-nWPcR4U",
+            "videoId": "tOM-nWPcR4U",
             "title": "Illuminati — Aavesham",
             "artist": "Sushin Shyam, Dabzee",
             "duration": "3:15",
             "language": "malayalam",
             "album": "Aavesham",
-            "thumbnail": "https://i.ytimg.com/vi/k9YQ0gNlXw0/hqdefault.jpg"
+            "thumbnail": "https://i.ytimg.com/vi/tOM-nWPcR4U/hqdefault.jpg"
         },
         {
-            "id": "1mY8yHqY8Yk",
-            "videoId": "1mY8yHqY8Yk",
+            "id": "_eWvDaztcjI",
+            "videoId": "_eWvDaztcjI",
             "title": "Manavalan Thug — Thallumaala",
             "artist": "Dabzee, SA, Vishnu Vijay",
             "duration": "3:30",
             "language": "malayalam",
             "album": "Thallumaala",
-            "thumbnail": "https://i.ytimg.com/vi/1mY8yHqY8Yk/hqdefault.jpg"
+            "thumbnail": "https://i.ytimg.com/vi/_eWvDaztcjI/hqdefault.jpg"
         },
         {
-            "id": "FzLpP8VBCkg",
-            "videoId": "FzLpP8VBCkg",
+            "id": "k8NSnBnkFXM",
+            "videoId": "k8NSnBnkFXM",
             "title": "Malare — Premam",
             "artist": "Vijay Yesudas, Rajesh Murugesan",
             "duration": "4:40",
             "language": "malayalam",
             "album": "Premam",
-            "thumbnail": "https://i.ytimg.com/vi/FzLpP8VBCkg/hqdefault.jpg"
+            "thumbnail": "https://i.ytimg.com/vi/k8NSnBnkFXM/hqdefault.jpg"
         },
         {
-            "id": "V4raBaoFz9A",
-            "videoId": "V4raBaoFz9A",
+            "id": "epAFDEJImrU",
+            "videoId": "epAFDEJImrU",
             "title": "Darshana — Hridayam",
             "artist": "Hesham Abdul Wahab, Darshana Rajendran",
             "duration": "3:52",
             "language": "malayalam",
             "album": "Hridayam",
-            "thumbnail": "https://i.ytimg.com/vi/V4raBaoFz9A/hqdefault.jpg"
+            "thumbnail": "https://i.ytimg.com/vi/epAFDEJImrU/hqdefault.jpg"
         }
     ],
     "kannada": [
         {
-            "id": "a3IRyZgC_80",
-            "videoId": "a3IRyZgC_80",
+            "id": "3XShkcOze3s",
+            "videoId": "3XShkcOze3s",
             "title": "Singara Siriye — Kantara",
             "artist": "Vijay Prakash, Ananya Bhat, B. Ajaneesh Loknath",
             "duration": "4:42",
             "language": "kannada",
             "album": "Kantara",
-            "thumbnail": "https://i.ytimg.com/vi/a3IRyZgC_80/hqdefault.jpg"
+            "thumbnail": "https://i.ytimg.com/vi/3XShkcOze3s/hqdefault.jpg"
         },
         {
-            "id": "G8uV4vN7zR0",
-            "videoId": "G8uV4vN7zR0",
+            "id": "ixg5q75VsqI",
+            "videoId": "ixg5q75VsqI",
             "title": "Ra Ra Rakkamma — Vikrant Rona",
             "artist": "Sunidhi Chauhan, Nakash Aziz, B. Ajaneesh Loknath",
             "duration": "3:40",
             "language": "kannada",
             "album": "Vikrant Rona",
-            "thumbnail": "https://i.ytimg.com/vi/G8uV4vN7zR0/hqdefault.jpg"
+            "thumbnail": "https://i.ytimg.com/vi/ixg5q75VsqI/hqdefault.jpg"
         },
         {
-            "id": "qLbhXlZfG0g",
-            "videoId": "qLbhXlZfG0g",
+            "id": "gQXx1MhrQxE",
+            "videoId": "gQXx1MhrQxE",
             "title": "Mehabooba — KGF Chapter 2",
             "artist": "Ananya Bhat, Ravi Basrur",
             "duration": "3:38",
             "language": "kannada",
             "album": "KGF Chapter 2",
-            "thumbnail": "https://i.ytimg.com/vi/qLbhXlZfG0g/hqdefault.jpg"
+            "thumbnail": "https://i.ytimg.com/vi/gQXx1MhrQxE/hqdefault.jpg"
         },
         {
-            "id": "dF_4E2sE9kE",
-            "videoId": "dF_4E2sE9kE",
+            "id": "G_9IJlbCEs4",
+            "videoId": "G_9IJlbCEs4",
             "title": "Dheera Dheera — KGF Chapter 1",
             "artist": "Ananya Bhat, Ravi Basrur",
             "duration": "3:42",
             "language": "kannada",
             "album": "KGF Chapter 1",
-            "thumbnail": "https://i.ytimg.com/vi/dF_4E2sE9kE/hqdefault.jpg"
+            "thumbnail": "https://i.ytimg.com/vi/G_9IJlbCEs4/hqdefault.jpg"
         }
     ]
 }
@@ -647,18 +647,25 @@ def search_youtube(query: str, max_results: int = 10) -> List[Dict[str, Any]]:
 # ==============================================================================
 # Direct Audio Stream Resolution with yt-dlp & Caching
 # ==============================================================================
-def get_direct_audio_url(video_id: str, search_query_hint: Optional[str] = None) -> Optional[str]:
-    """Extracts direct audio stream URL with fast format resolution and fallback."""
-    if video_id in AUDIO_URL_CACHE:
+AUDIO_FORMAT_SELECTOR = "bestaudio[ext=m4a]/140/bestaudio[ext=webm]/251/139/bestaudio/best"
+
+def get_audio_metadata(
+    video_id: str,
+    search_query_hint: Optional[str] = None,
+    force_refresh: bool = False
+) -> Optional[Dict[str, Any]]:
+    """Extracts direct audio stream metadata with format fallback, caching, and diagnostics."""
+    if not force_refresh and video_id in AUDIO_URL_CACHE:
         item = AUDIO_URL_CACHE[video_id]
         if time.time() - item["timestamp"] < AUDIO_CACHE_TTL:
-            return item["url"]
+            return item
 
     ydl_opts = {
-        'format': '140/bestaudio[ext=m4a]/bestaudio/best',
+        'format': AUDIO_FORMAT_SELECTOR,
         'quiet': True,
         'no_warnings': True,
-        'skip_download': True
+        'skip_download': True,
+        'noplaylist': True,
     }
 
     # 1. Try direct video ID
@@ -667,20 +674,36 @@ def get_direct_audio_url(video_id: str, search_query_hint: Optional[str] = None)
             info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
             url = info.get("url")
             if url:
-                AUDIO_URL_CACHE[video_id] = {"timestamp": time.time(), "url": url}
-                return url
+                ext = info.get("ext", "m4a")
+                content_type = "audio/webm" if ext == "webm" else "audio/mp4"
+                meta = {
+                    "url": url,
+                    "headers": info.get("http_headers") or {},
+                    "content_type": content_type,
+                    "duration": info.get("duration"),
+                    "filesize": info.get("filesize") or info.get("filesize_approx"),
+                    "is_live": bool(info.get("is_live")),
+                    "ext": ext,
+                    "timestamp": time.time()
+                }
+                AUDIO_URL_CACHE[video_id] = meta
+                return meta
     except Exception as e:
-        safe_log(f"Direct extract failed for {video_id}: {e}")
+        err_msg = str(e)
+        safe_log(f"[yt-dlp direct failed] video_id={video_id}: {err_msg}")
+        if any(w in err_msg.lower() for w in ["unavailable", "private", "age", "geo", "live", "no audio"]):
+            safe_log(f"[yt-dlp diagnose] video {video_id} flagged: {err_msg}")
 
     # 2. Auto-fallback: search working audio if the specific video ID is blocked/unavailable
     try:
         fallback_query = search_query_hint or f"{video_id} audio song"
         fallback_opts = {
-            'format': '140/bestaudio[ext=m4a]/bestaudio/best',
+            'format': AUDIO_FORMAT_SELECTOR,
             'quiet': True,
             'no_warnings': True,
             'default_search': 'ytsearch1:',
-            'skip_download': True
+            'skip_download': True,
+            'noplaylist': True,
         }
         with yt_dlp.YoutubeDL(fallback_opts) as ydl:
             res = ydl.extract_info(f"ytsearch1:{fallback_query}", download=False)
@@ -688,12 +711,29 @@ def get_direct_audio_url(video_id: str, search_query_hint: Optional[str] = None)
                 entry = res['entries'][0]
                 url = entry.get('url')
                 if url:
-                    AUDIO_URL_CACHE[video_id] = {"timestamp": time.time(), "url": url}
-                    return url
+                    ext = entry.get("ext", "m4a")
+                    content_type = "audio/webm" if ext == "webm" else "audio/mp4"
+                    meta = {
+                        "url": url,
+                        "headers": entry.get("http_headers") or {},
+                        "content_type": content_type,
+                        "duration": entry.get("duration"),
+                        "filesize": entry.get("filesize") or entry.get("filesize_approx"),
+                        "is_live": bool(entry.get("is_live")),
+                        "ext": ext,
+                        "timestamp": time.time()
+                    }
+                    AUDIO_URL_CACHE[video_id] = meta
+                    return meta
     except Exception as ex:
-        safe_log(f"Fallback search failed for {video_id}: {ex}")
+        safe_log(f"[yt-dlp fallback failed] video_id={video_id}: {ex}")
 
     return None
+
+def get_direct_audio_url(video_id: str, search_query_hint: Optional[str] = None) -> Optional[str]:
+    """Returns direct audio stream URL with format fallback and caching."""
+    meta = get_audio_metadata(video_id, search_query_hint)
+    return meta["url"] if meta else None
 
 # ==============================================================================
 # Multi-Provider LLM Integration (OpenAI, Groq, Gemini)
@@ -1076,58 +1116,107 @@ async def suggestions(q: str = Query(..., min_length=1)):
 @app.get("/api/audio-info/{video_id}")
 def get_audio_info(video_id: str, title: Optional[str] = None):
     """Returns direct audio stream URL and proxied stream URL."""
-    audio_url = get_direct_audio_url(video_id, title)
-    if not audio_url:
-        raise HTTPException(status_code=404, detail="Audio stream not found")
+    meta = get_audio_metadata(video_id, title)
+    if not meta:
+        return JSONResponse(status_code=404, content={"error": "Audio stream not found", "videoId": video_id})
     return {
         "video_id": video_id,
         "videoId": video_id,
-        "audio_url": audio_url,
-        "stream_url": f"/api/stream/{video_id}"
+        "audio_url": meta["url"],
+        "stream_url": f"/api/stream/{video_id}",
+        "content_type": meta.get("content_type", "audio/mp4"),
+        "duration": meta.get("duration"),
+        "filesize": meta.get("filesize")
     }
 
 @app.get("/api/stream/{video_id}")
 def stream_audio(video_id: str, request: Request, title: Optional[str] = None):
-    """Direct inline audio stream proxy with HTTP 206 Partial Content and Range headers."""
-    audio_url = get_direct_audio_url(video_id, title)
-    if not audio_url:
-        raise HTTPException(status_code=404, detail="Audio stream not found")
+    """Direct inline audio stream proxy with HTTP 206 Partial Content, Range headers, and auto retry."""
+    meta = get_audio_metadata(video_id, title)
+    if not meta or not meta.get("url"):
+        return JSONResponse(
+            status_code=404,
+            content={"error": "Audio stream not found", "videoId": video_id, "detail": "Unable to extract audio formats"}
+        )
 
-    req_headers = {}
     range_header = request.headers.get("range")
+    req_headers = dict(meta.get("headers", {}))
     if range_header:
         req_headers["Range"] = range_header
 
+    upstream_resp = None
     try:
-        upstream_resp = requests.get(audio_url, headers=req_headers, stream=True, timeout=12)
+        upstream_resp = requests.get(meta["url"], headers=req_headers, stream=True, timeout=15)
+        # If upstream expired (403/410), force refresh cache once
+        if upstream_resp.status_code in (403, 410):
+            safe_log(f"Upstream stream expired for {video_id} (HTTP {upstream_resp.status_code}), re-extracting...")
+            AUDIO_URL_CACHE.pop(video_id, None)
+            meta = get_audio_metadata(video_id, title, force_refresh=True)
+            if not meta or not meta.get("url"):
+                return JSONResponse(status_code=404, content={"error": "Audio stream expired and re-extraction failed", "videoId": video_id})
+            req_headers = dict(meta.get("headers", {}))
+            if range_header:
+                req_headers["Range"] = range_header
+            upstream_resp = requests.get(meta["url"], headers=req_headers, stream=True, timeout=15)
+    except Exception as ex:
+        safe_log(f"Streaming network error for {video_id}: {ex}")
+        # Try refreshing extraction once on connection error
+        try:
+            AUDIO_URL_CACHE.pop(video_id, None)
+            meta = get_audio_metadata(video_id, title, force_refresh=True)
+            if meta and meta.get("url"):
+                req_headers = dict(meta.get("headers", {}))
+                if range_header:
+                    req_headers["Range"] = range_header
+                upstream_resp = requests.get(meta["url"], headers=req_headers, stream=True, timeout=15)
+        except Exception:
+            pass
 
-        def iterfile():
-            try:
-                for chunk in upstream_resp.iter_content(chunk_size=64 * 1024):
-                    if chunk:
-                        yield chunk
-            except Exception as ex:
-                safe_log(f"Stream iter error: {ex}")
+    if upstream_resp is None or upstream_resp.status_code >= 400:
+        status_code = upstream_resp.status_code if upstream_resp else 502
+        return JSONResponse(status_code=status_code, content={"error": "Failed to stream audio", "videoId": video_id})
 
-        res_headers = {
-            "Content-Type": upstream_resp.headers.get("Content-Type", "audio/mp4"),
-            "Accept-Ranges": "bytes",
-            "Content-Disposition": "inline",
-            "Cache-Control": "public, max-age=7200",
-        }
-        if "Content-Range" in upstream_resp.headers:
-            res_headers["Content-Range"] = upstream_resp.headers["Content-Range"]
-        if "Content-Length" in upstream_resp.headers:
-            res_headers["Content-Length"] = upstream_resp.headers["Content-Length"]
+    # Determine status code (206 if Range requested or upstream returned 206)
+    res_status = upstream_resp.status_code
+    if range_header and res_status == 200:
+        res_status = 206
 
-        return StreamingResponse(
-            iterfile(),
-            status_code=upstream_resp.status_code,
-            headers=res_headers
-        )
-    except Exception as e:
-        safe_log(f"Streaming error for {video_id}: {e}")
-        raise HTTPException(status_code=502, detail="Failed to stream audio")
+    content_type = upstream_resp.headers.get("Content-Type") or meta.get("content_type") or "audio/mp4"
+
+    res_headers = {
+        "Content-Type": content_type,
+        "Accept-Ranges": "bytes",
+        "Content-Disposition": "inline",
+        "Cache-Control": "public, max-age=7200",
+    }
+
+    if "Content-Range" in upstream_resp.headers:
+        res_headers["Content-Range"] = upstream_resp.headers["Content-Range"]
+    elif range_header and "Content-Length" in upstream_resp.headers:
+        try:
+            cl = int(upstream_resp.headers["Content-Length"])
+            res_headers["Content-Range"] = f"bytes 0-{cl - 1}/{cl}"
+        except Exception:
+            pass
+
+    if "Content-Length" in upstream_resp.headers:
+        res_headers["Content-Length"] = upstream_resp.headers["Content-Length"]
+    elif meta.get("filesize"):
+        res_headers["Content-Length"] = str(meta["filesize"])
+
+    def iterfile():
+        try:
+            for chunk in upstream_resp.iter_content(chunk_size=64 * 1024):
+                if chunk:
+                    yield chunk
+        except Exception as ex:
+            safe_log(f"Stream iter broken for {video_id}: {ex}")
+
+    return StreamingResponse(
+        iterfile(),
+        status_code=res_status,
+        headers=res_headers
+    )
 
 # Serve static directory
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
