@@ -1118,7 +1118,36 @@ async def suggestions(q: str = Query(..., min_length=1)):
                     return {"suggestions": sugs[:8]}
     except Exception as e:
         safe_log(f"Suggestions error: {e}")
-    return {"suggestions": []}
+@app.get("/api/debug-extract/{video_id}")
+def debug_extract(video_id: str):
+    import traceback
+    try:
+        ydl_opts = {
+            'format': AUDIO_FORMAT_SELECTOR,
+            'quiet': True,
+            'no_warnings': True,
+            'skip_download': True,
+            'noplaylist': True,
+            'extractor_args': YTDL_CLIENT_ARGS
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+            formats = [f.get('format_id') for f in info.get('formats', [])]
+            return {
+                "success": True,
+                "url_found": bool(info.get("url")),
+                "format_id": info.get("format_id"),
+                "ext": info.get("ext"),
+                "formats_count": len(formats),
+                "sample_formats": formats[:15]
+            }
+    except Exception as e:
+        return {
+            "success": False,
+            "error_type": type(e).__name__,
+            "error_message": str(e),
+            "traceback": traceback.format_exc()
+        }
 
 @app.get("/api/audio-info/{video_id}")
 def get_audio_info(video_id: str, title: Optional[str] = None):
