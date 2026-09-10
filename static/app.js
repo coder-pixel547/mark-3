@@ -228,6 +228,7 @@
   // 1. Native HTML5 Audio Setup (Spotify Style)
   // ==========================================
   const audio = el.nativeAudio;
+  audio.preload = "auto";
   audio.volume = state.volume / 100;
 
   audio.addEventListener('play', () => {
@@ -292,8 +293,30 @@
     console.log('[Audio Event: canplay] audio ready');
   });
 
+  let stalledTimeout = null;
   audio.addEventListener('stalled', () => {
-    console.warn('[Audio Event: stalled] network stalled');
+    const err = audio.error;
+    console.warn(`[Audio Event: stalled] network stalled. error.code=${err?.code || 'none'} message="${err?.message || ''}"`);
+    if (stalledTimeout) clearTimeout(stalledTimeout);
+    stalledTimeout = setTimeout(() => {
+      const curTrack = state.queue[state.currentIndex];
+      if (curTrack && (audio.paused || audio.readyState < 2)) {
+        console.warn(`[Audio Stalled] Prolonged stall for "${curTrack.title}"`);
+        if (!curTrack._stalledRetry) {
+          curTrack._stalledRetry = true;
+          showToast(`Reconnecting stream for "${curTrack.title}"...`, 2000);
+          audio.load();
+          audio.play().catch(() => {});
+        } else {
+          showToast(`This track is unavailable, skipping…`, 3500);
+          playNext(true);
+        }
+      }
+    }, 8000);
+  });
+
+  audio.addEventListener('playing', () => {
+    if (stalledTimeout) clearTimeout(stalledTimeout);
   });
 
   audio.addEventListener('ended', () => {
@@ -309,24 +332,34 @@
     if (streamTimeout) clearTimeout(streamTimeout);
 
     const curTrack = state.queue[state.currentIndex];
-    const trackId = curTrack?.id || curTrack?.videoId;
+    if (!curTrack) return;
+    const trackId = curTrack.id || curTrack.videoId;
 
-    // Seamlessly fall back to YouTube client player if direct stream failed
-    if (curTrack && trackId && !curTrack._triedYtFallback && state.audioMode !== 'video') {
-      curTrack._triedYtFallback = true;
-      console.warn(`[Audio Error] Direct stream failed for "${curTrack.title}". Switching to YouTube backup engine...`);
-      showToast(`⚡ Direct stream unavailable. Playing via YouTube player...`, 2500);
-      playViaYouTube(trackId);
-      return;
+    // Do not auto-skip on the first error; retry once by re-requesting /api/stream/{id} before giving up
+    if (!curTrack._retryAttempted) {
+      curTrack._retryAttempted = true;
+      console.warn(`[Audio Error] Retrying stream once for "${curTrack.title}" (${trackId})...`);
+      showToast(`Retrying stream for "${curTrack.title}"...`, 2000);
+      try {
+        const streamUrl = `/api/stream/${trackId}?title=${encodeURIComponent(curTrack.title)}&retry=1&t=${Date.now()}`;
+        audio.src = streamUrl;
+        audio.load();
+        audio.play().catch(playErr => {
+          console.warn('[Audio Retry Play Error]', playErr);
+        });
+        return;
+      } catch (retryErr) {
+        console.error('[Audio Retry Setup Error]', retryErr);
+      }
     }
 
-    const trackName = curTrack ? curTrack.title : 'Track';
-    showToast(`⚠️ "${trackName}" is unavailable. Skipping to next...`, 3500);
+    // If retry already failed or track unavailable, show user-facing toast before advancing
+    showToast(`This track is unavailable, skipping…`, 3500);
 
     // Skip to next available track
     setTimeout(() => {
       playNext(true);
-    }, 1200);
+    }, 1500);
   });
 
   // ==========================================
@@ -642,6 +675,7 @@
 
     try {
       const streamUrl = `/api/stream/${track.id}?title=${encodeURIComponent(track.title)}`;
+      audio.preload = "auto";
       audio.src = streamUrl;
       audio.load();
       await audio.play();

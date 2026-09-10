@@ -50,7 +50,7 @@ def safe_log(msg: str):
 SEARCH_CACHE: Dict[str, Dict[str, Any]] = {}
 AUDIO_URL_CACHE: Dict[str, Dict[str, Any]] = {}
 CACHE_TTL = 3600        # 1 hour
-AUDIO_CACHE_TTL = 14400 # 4 hours
+AUDIO_CACHE_TTL = 1800  # 30 minutes (direct URL cache TTL)
 
 # ==============================================================================
 # Comprehensive 7-Language Curated Music Catalog
@@ -647,10 +647,10 @@ def search_youtube(query: str, max_results: int = 10) -> List[Dict[str, Any]]:
 # ==============================================================================
 # Direct Audio Stream Resolution with yt-dlp & Caching
 # ==============================================================================
-AUDIO_FORMAT_SELECTOR = "bestaudio[ext=m4a]/140/bestaudio[ext=webm]/251/139/bestaudio/18/best"
-YTDL_CLIENT_ARGS = {
+AUDIO_FORMAT_SELECTOR = "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best"
+YTDL_FALLBACK_CLIENT_ARGS = {
     'youtube': {
-        'player_client': ['android']
+        'player_client': ['android', 'ios', 'web']
     }
 }
 
@@ -665,75 +665,95 @@ def get_audio_metadata(
         if time.time() - item["timestamp"] < AUDIO_CACHE_TTL:
             return item
 
-    ydl_opts = {
+    # 1. Primary: pure audio extraction with standard client
+    info = None
+    primary_opts = {
         'format': AUDIO_FORMAT_SELECTOR,
         'quiet': True,
         'no_warnings': True,
         'skip_download': True,
         'noplaylist': True,
-        'extractor_args': YTDL_CLIENT_ARGS,
     }
-
-    # 1. Try direct video ID
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        with yt_dlp.YoutubeDL(primary_opts) as ydl:
             info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
-            url = info.get("url")
-            if url:
-                ext = info.get("ext", "m4a")
-                content_type = "audio/webm" if ext == "webm" else "audio/mp4"
-                meta = {
-                    "url": url,
-                    "headers": info.get("http_headers") or {},
-                    "content_type": content_type,
-                    "duration": info.get("duration"),
-                    "filesize": info.get("filesize") or info.get("filesize_approx"),
-                    "is_live": bool(info.get("is_live")),
-                    "ext": ext,
-                    "timestamp": time.time()
-                }
-                AUDIO_URL_CACHE[video_id] = meta
-                return meta
     except Exception as e:
-        err_msg = str(e)
-        safe_log(f"[yt-dlp direct failed] video_id={video_id}: {err_msg}")
-        if any(w in err_msg.lower() for w in ["unavailable", "private", "age", "geo", "live", "no audio"]):
-            safe_log(f"[yt-dlp diagnose] video {video_id} flagged: {err_msg}")
+        safe_log(f"[yt-dlp primary failed] video_id={video_id}: {e}")
 
-    # 2. Auto-fallback: search working audio if the specific video ID is blocked/unavailable
+    # 2. Fallback: if throttled or primary yielded no direct URL, use player_client fallback
+    if not info or not info.get("url"):
+        safe_log(f"[yt-dlp fallback] attempting player_client fallback for video_id={video_id}")
+        fallback_opts = {
+            'format': AUDIO_FORMAT_SELECTOR,
+            'quiet': True,
+            'no_warnings': True,
+            'skip_download': True,
+            'noplaylist': True,
+            'extractor_args': YTDL_FALLBACK_CLIENT_ARGS,
+        }
+        try:
+            with yt_dlp.YoutubeDL(fallback_opts) as ydl:
+                info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+        except Exception as ex:
+            safe_log(f"[yt-dlp multi-client failed] video_id={video_id}: {ex}")
+
+    if info and info.get("url"):
+        ext = info.get("ext", "m4a")
+        raw_acodec = str(info.get("acodec") or "").lower()
+        content_type = "audio/webm" if (ext == "webm" or "opus" in raw_acodec) else "audio/mp4"
+        meta = {
+            "url": info["url"],
+            "headers": info.get("http_headers") or {},
+            "format_id": info.get("format_id", "unknown"),
+            "content_type": content_type,
+            "duration": info.get("duration"),
+            "filesize": info.get("filesize") or info.get("filesize_approx"),
+            "is_live": bool(info.get("is_live")),
+            "ext": ext,
+            "vcodec": info.get("vcodec"),
+            "acodec": info.get("acodec"),
+            "timestamp": time.time()
+        }
+        AUDIO_URL_CACHE[video_id] = meta
+        return meta
+
+    # 3. Search fallback if specific video ID is completely blocked/unavailable
     try:
         fallback_query = search_query_hint or f"{video_id} audio song"
-        fallback_opts = {
+        search_opts = {
             'format': AUDIO_FORMAT_SELECTOR,
             'quiet': True,
             'no_warnings': True,
             'default_search': 'ytsearch1:',
             'skip_download': True,
             'noplaylist': True,
-            'extractor_args': YTDL_CLIENT_ARGS,
         }
-        with yt_dlp.YoutubeDL(fallback_opts) as ydl:
+        with yt_dlp.YoutubeDL(search_opts) as ydl:
             res = ydl.extract_info(f"ytsearch1:{fallback_query}", download=False)
             if res and 'entries' in res and len(res['entries']) > 0:
                 entry = res['entries'][0]
                 url = entry.get('url')
                 if url:
                     ext = entry.get("ext", "m4a")
-                    content_type = "audio/webm" if ext == "webm" else "audio/mp4"
+                    raw_acodec = str(entry.get("acodec") or "").lower()
+                    content_type = "audio/webm" if (ext == "webm" or "opus" in raw_acodec) else "audio/mp4"
                     meta = {
                         "url": url,
                         "headers": entry.get("http_headers") or {},
+                        "format_id": entry.get("format_id", "unknown"),
                         "content_type": content_type,
                         "duration": entry.get("duration"),
                         "filesize": entry.get("filesize") or entry.get("filesize_approx"),
                         "is_live": bool(entry.get("is_live")),
                         "ext": ext,
+                        "vcodec": entry.get("vcodec"),
+                        "acodec": entry.get("acodec"),
                         "timestamp": time.time()
                     }
                     AUDIO_URL_CACHE[video_id] = meta
                     return meta
     except Exception as ex:
-        safe_log(f"[yt-dlp fallback failed] video_id={video_id}: {ex}")
+        safe_log(f"[yt-dlp search fallback failed] video_id={video_id}: {ex}")
 
     return None
 
@@ -1138,9 +1158,13 @@ def get_audio_info(video_id: str, title: Optional[str] = None):
 
 @app.get("/api/stream/{video_id}")
 def stream_audio(video_id: str, request: Request, title: Optional[str] = None):
-    """Direct inline audio stream proxy with HTTP 206 Partial Content, Range headers, and auto retry."""
+    """
+    Direct inline audio stream proxy with HTTP 206 Partial Content, Range headers,
+    resilient chunk streaming, and clean client disconnect handling.
+    """
     meta = get_audio_metadata(video_id, title)
     if not meta or not meta.get("url"):
+        safe_log(f"[Stream 404] Audio stream metadata not found for video_id={video_id}")
         return JSONResponse(
             status_code=404,
             content={"error": "Audio stream not found", "videoId": video_id, "detail": "Unable to extract audio formats"}
@@ -1153,10 +1177,16 @@ def stream_audio(video_id: str, request: Request, title: Optional[str] = None):
 
     upstream_resp = None
     try:
-        upstream_resp = requests.get(meta["url"], headers=req_headers, stream=True, timeout=15)
+        # Stream with requests.get(url, stream=True, timeout=(10, None))
+        upstream_resp = requests.get(
+            meta["url"],
+            headers=req_headers,
+            stream=True,
+            timeout=(10, None)
+        )
         # If upstream expired (403/410), force refresh cache once
         if upstream_resp.status_code in (403, 410):
-            safe_log(f"Upstream stream expired for {video_id} (HTTP {upstream_resp.status_code}), re-extracting...")
+            safe_log(f"[Stream Expired] Upstream HTTP {upstream_resp.status_code} for {video_id}, re-extracting fresh URL...")
             AUDIO_URL_CACHE.pop(video_id, None)
             meta = get_audio_metadata(video_id, title, force_refresh=True)
             if not meta or not meta.get("url"):
@@ -1164,10 +1194,9 @@ def stream_audio(video_id: str, request: Request, title: Optional[str] = None):
             req_headers = dict(meta.get("headers", {}))
             if range_header:
                 req_headers["Range"] = range_header
-            upstream_resp = requests.get(meta["url"], headers=req_headers, stream=True, timeout=15)
+            upstream_resp = requests.get(meta["url"], headers=req_headers, stream=True, timeout=(10, None))
     except Exception as ex:
-        safe_log(f"Streaming network error for {video_id}: {ex}")
-        # Try refreshing extraction once on connection error
+        safe_log(f"[Stream Connection Error] video_id={video_id}: {ex}")
         try:
             AUDIO_URL_CACHE.pop(video_id, None)
             meta = get_audio_metadata(video_id, title, force_refresh=True)
@@ -1175,21 +1204,25 @@ def stream_audio(video_id: str, request: Request, title: Optional[str] = None):
                 req_headers = dict(meta.get("headers", {}))
                 if range_header:
                     req_headers["Range"] = range_header
-                upstream_resp = requests.get(meta["url"], headers=req_headers, stream=True, timeout=15)
+                upstream_resp = requests.get(meta["url"], headers=req_headers, stream=True, timeout=(10, None))
         except Exception:
             pass
 
     if upstream_resp is None or upstream_resp.status_code >= 400:
         status_code = upstream_resp.status_code if upstream_resp else 502
+        safe_log(f"[Stream Upstream Failed] video_id={video_id} status={status_code}")
         return JSONResponse(status_code=status_code, content={"error": "Failed to stream audio", "videoId": video_id})
 
-    # Determine status code (206 if Range requested or upstream returned 206)
+    # Forward the upstream status code (206 vs 200).
+    # If the browser asks for bytes=0-, pass the Range header upstream and mirror the 206 response.
     res_status = upstream_resp.status_code
     if range_header and res_status == 200:
         res_status = 206
 
+    # Determine container & Content-Type
+    ext = meta.get("ext", "m4a").lower()
     raw_ct = (upstream_resp.headers.get("Content-Type") or meta.get("content_type") or "").lower()
-    if "webm" in raw_ct:
+    if "webm" in ext or "webm" in raw_ct or "opus" in raw_ct:
         content_type = "audio/webm"
     else:
         content_type = "audio/mp4"
@@ -1198,30 +1231,48 @@ def stream_audio(video_id: str, request: Request, title: Optional[str] = None):
         "Content-Type": content_type,
         "Accept-Ranges": "bytes",
         "Content-Disposition": "inline",
-        "Cache-Control": "public, max-age=7200",
+        "Cache-Control": "public, max-age=1800",
     }
 
+    # Forward Content-Range (if 206)
     if "Content-Range" in upstream_resp.headers:
         res_headers["Content-Range"] = upstream_resp.headers["Content-Range"]
-    elif range_header and "Content-Length" in upstream_resp.headers:
+    elif res_status == 206 and range_header and "Content-Length" in upstream_resp.headers:
         try:
             cl = int(upstream_resp.headers["Content-Length"])
             res_headers["Content-Range"] = f"bytes 0-{cl - 1}/{cl}"
         except Exception:
             pass
 
+    # Forward Content-Length
     if "Content-Length" in upstream_resp.headers:
         res_headers["Content-Length"] = upstream_resp.headers["Content-Length"]
     elif meta.get("filesize"):
         res_headers["Content-Length"] = str(meta["filesize"])
 
+    format_id = meta.get("format_id", "unknown")
+    safe_log(
+        f"[Stream Start] video_id={video_id} format={format_id} "
+        f"upstream_status={upstream_resp.status_code} res_status={res_status} "
+        f"range={range_header} content_type={content_type} "
+        f"content_length={res_headers.get('Content-Length')}"
+    )
+
     def iterfile():
+        bytes_streamed = 0
         try:
             for chunk in upstream_resp.iter_content(chunk_size=64 * 1024):
                 if chunk:
+                    bytes_streamed += len(chunk)
                     yield chunk
+            safe_log(f"[Stream Finished] video_id={video_id} format={format_id} total_bytes={bytes_streamed}")
+        except (BrokenPipeError, ConnectionResetError) as e:
+            safe_log(f"[Client Disconnected] video_id={video_id} after {bytes_streamed} bytes: {e}")
         except Exception as ex:
-            safe_log(f"Stream iter broken for {video_id}: {ex}")
+            if type(ex).__name__ in ("ClientDisconnected", "ConnectionResetError", "BrokenPipeError"):
+                safe_log(f"[Client Disconnected] video_id={video_id} after {bytes_streamed} bytes: {ex}")
+            else:
+                safe_log(f"[Stream Exception] video_id={video_id} after {bytes_streamed} bytes: {ex}")
 
     return StreamingResponse(
         iterfile(),
