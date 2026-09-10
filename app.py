@@ -650,7 +650,7 @@ def search_youtube(query: str, max_results: int = 10) -> List[Dict[str, Any]]:
 AUDIO_FORMAT_SELECTOR = "bestaudio[ext=m4a]/140/bestaudio[ext=webm]/251/139/bestaudio/18/best"
 YTDL_CLIENT_ARGS = {
     'youtube': {
-        'player_client': ['android', 'ios', 'web', 'tv']
+        'player_client': ['android']
     }
 }
 
