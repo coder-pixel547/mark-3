@@ -231,14 +231,18 @@
   audio.volume = state.volume / 100;
 
   audio.addEventListener('play', () => {
-    state.isPlaying = true;
-    updatePlayPauseUI(true);
-    updateMediaSessionPosition();
+    if (state.audioMode === 'native') {
+      state.isPlaying = true;
+      updatePlayPauseUI(true);
+      updateMediaSessionPosition();
+    }
   });
 
   audio.addEventListener('pause', () => {
-    state.isPlaying = false;
-    updatePlayPauseUI(false);
+    if (state.audioMode === 'native') {
+      state.isPlaying = false;
+      updatePlayPauseUI(false);
+    }
   });
 
   audio.addEventListener('timeupdate', () => {
@@ -302,15 +306,20 @@
     const message = err ? err.message : (e?.message || 'Media resource failed');
     console.error(`[Audio Error] code=${code} message="${message}"`, err);
 
-    const errorLabels = {
-      1: 'MEDIA_ERR_ABORTED',
-      2: 'MEDIA_ERR_NETWORK',
-      3: 'MEDIA_ERR_DECODE',
-      4: 'MEDIA_ERR_SRC_NOT_SUPPORTED'
-    };
-    console.warn(`[Audio Error Code ${code}] (${errorLabels[code] || 'UNKNOWN_ERROR'})`);
+    if (streamTimeout) clearTimeout(streamTimeout);
 
     const curTrack = state.queue[state.currentIndex];
+    const trackId = curTrack?.id || curTrack?.videoId;
+
+    // Seamlessly fall back to YouTube client player if direct stream failed
+    if (curTrack && trackId && !curTrack._triedYtFallback && state.audioMode !== 'video') {
+      curTrack._triedYtFallback = true;
+      console.warn(`[Audio Error] Direct stream failed for "${curTrack.title}". Switching to YouTube backup engine...`);
+      showToast(`⚡ Direct stream unavailable. Playing via YouTube player...`, 2500);
+      playViaYouTube(trackId);
+      return;
+    }
+
     const trackName = curTrack ? curTrack.title : 'Track';
     showToast(`⚠️ "${trackName}" is unavailable. Skipping to next...`, 3500);
 
@@ -356,19 +365,36 @@
 
       navigator.mediaSession.setActionHandler('seekto', (details) => {
         if (details.seekTime !== undefined) {
-          audio.currentTime = details.seekTime;
-          updateMediaSessionPosition();
+          if (state.audioMode === 'video' && state.ytPlayer && typeof state.ytPlayer.seekTo === 'function') {
+            state.ytPlayer.seekTo(details.seekTime, true);
+            updateYtProgress();
+          } else {
+            audio.currentTime = details.seekTime;
+            updateMediaSessionPosition();
+          }
         }
       });
 
       navigator.mediaSession.setActionHandler('seekforward', () => {
-        audio.currentTime = Math.min(audio.duration || 9999, audio.currentTime + 10);
-        updateMediaSessionPosition();
+        if (state.audioMode === 'video' && state.ytPlayer && typeof state.ytPlayer.getCurrentTime === 'function') {
+          const cur = state.ytPlayer.getCurrentTime() || 0;
+          state.ytPlayer.seekTo(cur + 10, true);
+          updateYtProgress();
+        } else {
+          audio.currentTime = Math.min(audio.duration || 9999, audio.currentTime + 10);
+          updateMediaSessionPosition();
+        }
       });
 
       navigator.mediaSession.setActionHandler('seekbackward', () => {
-        audio.currentTime = Math.max(0, audio.currentTime - 10);
-        updateMediaSessionPosition();
+        if (state.audioMode === 'video' && state.ytPlayer && typeof state.ytPlayer.getCurrentTime === 'function') {
+          const cur = state.ytPlayer.getCurrentTime() || 0;
+          state.ytPlayer.seekTo(Math.max(0, cur - 10), true);
+          updateYtProgress();
+        } else {
+          audio.currentTime = Math.max(0, audio.currentTime - 10);
+          updateMediaSessionPosition();
+        }
       });
     }
   }
@@ -386,8 +412,75 @@
   }
 
   // ==========================================
-  // 3. YouTube Secondary Engine (Video Dock)
+  // 3. YouTube Secondary Engine (Video Dock & Direct Fallback)
   // ==========================================
+  let pendingYtVideoId = null;
+  let ytProgressInterval = null;
+
+  function startYtProgressTracking() {
+    stopYtProgressTracking();
+    updateYtProgress();
+    ytProgressInterval = setInterval(updateYtProgress, 250);
+  }
+
+  function stopYtProgressTracking() {
+    if (ytProgressInterval) {
+      clearInterval(ytProgressInterval);
+      ytProgressInterval = null;
+    }
+  }
+
+  function updateYtProgress() {
+    if (!state.ytPlayer || typeof state.ytPlayer.getCurrentTime !== 'function') return;
+
+    let current = 0;
+    let duration = 0;
+    try {
+      current = state.ytPlayer.getCurrentTime() || 0;
+      duration = state.ytPlayer.getDuration() || 0;
+    } catch (e) {
+      return;
+    }
+
+    // Fallback to track duration if ytPlayer duration not yet available
+    if (!Number.isFinite(duration) || duration <= 0) {
+      const curTrack = state.queue[state.currentIndex];
+      if (curTrack && curTrack.duration) {
+        duration = parseDurationToSeconds(curTrack.duration);
+      }
+    }
+
+    const fmtCurrent = formatTime(current);
+    const fmtTotal = (Number.isFinite(duration) && duration > 0)
+      ? formatTime(duration)
+      : (state.queue[state.currentIndex]?.duration || '0:00');
+
+    el.currentTime.textContent = fmtCurrent;
+    el.totalDuration.textContent = fmtTotal;
+    if (el.sheetCurrentTime) el.sheetCurrentTime.textContent = fmtCurrent;
+    if (el.sheetTotalDuration) el.sheetTotalDuration.textContent = fmtTotal;
+
+    if (duration > 0) {
+      const percent = Math.min(100, Math.max(0, (current / duration) * 100));
+      el.progressFill.style.width = `${percent}%`;
+      if (el.mobileMiniProgressFill) el.mobileMiniProgressFill.style.width = `${percent}%`;
+      if (el.sheetProgressFill) el.sheetProgressFill.style.width = `${percent}%`;
+    }
+
+    // Update MediaSession lock-screen position state
+    if ('mediaSession' in navigator && 'setPositionState' in navigator.mediaSession) {
+      if (Number.isFinite(duration) && duration > 0) {
+        try {
+          navigator.mediaSession.setPositionState({
+            duration: duration,
+            playbackRate: 1,
+            position: Math.min(current, duration)
+          });
+        } catch (e) {}
+      }
+    }
+  }
+
   window.onYouTubeIframeAPIReady = function() {
     state.ytPlayer = new YT.Player('yt-player', {
       height: '100%',
@@ -401,8 +494,15 @@
         origin: window.location.origin
       },
       events: {
-        onReady: () => { state.isPlayerReady = true; },
-        onStateChange: onYouTubeStateChange
+        onReady: () => {
+          state.isPlayerReady = true;
+          console.log('[YouTube Player] Ready');
+          if (pendingYtVideoId && state.audioMode === 'video') {
+            playViaYouTube(pendingYtVideoId);
+          }
+        },
+        onStateChange: onYouTubeStateChange,
+        onError: onYouTubeError
       }
     });
   };
@@ -412,13 +512,34 @@
       if (event.data === YT.PlayerState.PLAYING) {
         state.isPlaying = true;
         updatePlayPauseUI(true);
+        startYtProgressTracking();
+        if (streamTimeout) clearTimeout(streamTimeout);
+        if (el.playingIndicator) el.playingIndicator.classList.remove('hidden');
+        if (el.audioVisualizer) el.audioVisualizer.classList.add('active');
       } else if (event.data === YT.PlayerState.PAUSED) {
         state.isPlaying = false;
         updatePlayPauseUI(false);
+        stopYtProgressTracking();
+        if (el.playingIndicator) el.playingIndicator.classList.add('hidden');
+        if (el.audioVisualizer) el.audioVisualizer.classList.remove('active');
       } else if (event.data === YT.PlayerState.ENDED) {
+        stopYtProgressTracking();
         handleTrackEnded();
+      } else if (event.data === YT.PlayerState.BUFFERING) {
+        if (el.playingIndicator) el.playingIndicator.classList.remove('hidden');
       }
     }
+  }
+
+  function onYouTubeError(event) {
+    console.warn('[YouTube Player Error] code=', event.data);
+    stopYtProgressTracking();
+    const curTrack = state.queue[state.currentIndex];
+    const trackName = curTrack ? curTrack.title : 'Track';
+    showToast(`⚠️ "${trackName}" cannot be played. Skipping to next...`, 3000);
+    setTimeout(() => {
+      playNext(true);
+    }, 1000);
   }
 
   let streamTimeout = null;
@@ -426,13 +547,22 @@
   function playViaYouTube(videoId) {
     state.audioMode = 'video';
     audio.pause();
-    if (state.ytPlayer && state.isPlayerReady) {
-      state.ytPlayer.loadVideoById(videoId);
-      state.ytPlayer.playVideo();
-      state.isPlaying = true;
-      updatePlayPauseUI(true);
-      const curTrack = state.queue[state.currentIndex];
-      if (curTrack) showToast(`Now Playing: ${curTrack.title} 🎵`);
+    pendingYtVideoId = videoId;
+
+    if (state.ytPlayer && state.isPlayerReady && typeof state.ytPlayer.loadVideoById === 'function') {
+      try {
+        state.ytPlayer.loadVideoById(videoId);
+        state.ytPlayer.playVideo();
+        state.isPlaying = true;
+        updatePlayPauseUI(true);
+        startYtProgressTracking();
+        const curTrack = state.queue[state.currentIndex];
+        if (curTrack) showToast(`Now Playing: ${curTrack.title} 🎵`);
+      } catch (err) {
+        console.error('Error starting YouTube playback:', err);
+      }
+    } else {
+      console.log('YouTube player initializing, queued video:', videoId);
     }
   }
 
@@ -479,6 +609,7 @@
     }
 
     state.audioMode = 'native';
+    stopYtProgressTracking();
     if (state.ytPlayer && state.isPlayerReady) {
       try { state.ytPlayer.pauseVideo(); } catch (e) {}
     }
@@ -493,15 +624,21 @@
     };
     audio.addEventListener('playing', onPlaying);
 
-    // Allow adequate time for initial stream extraction & buffering (12s)
+    // Allow adequate time for initial stream extraction & buffering (10s)
     streamTimeout = setTimeout(() => {
       if (!started && !state.isPlaying) {
-        console.warn('Stream buffering timeout, checking track availability...');
+        console.warn('Stream buffering timeout, attempting YouTube fallback...');
         audio.removeEventListener('playing', onPlaying);
-        showToast(`⚠️ Buffering timeout for "${track.title}". Skipping...`, 3000);
-        playNext(true);
+        if (state.audioMode !== 'video' && !track._triedYtFallback) {
+          track._triedYtFallback = true;
+          showToast(`Switching to backup player for "${track.title}"...`, 2500);
+          playViaYouTube(track.id);
+        } else {
+          showToast(`⚠️ Buffering timeout for "${track.title}". Skipping...`, 3000);
+          playNext(true);
+        }
       }
-    }, 12000);
+    }, 10000);
 
     try {
       const streamUrl = `/api/stream/${track.id}?title=${encodeURIComponent(track.title)}`;
@@ -509,9 +646,10 @@
       audio.load();
       await audio.play();
     } catch (err) {
-      console.warn('Direct stream failed, falling back:', err);
+      console.warn('Direct stream failed, falling back to YouTube player:', err);
       if (streamTimeout) clearTimeout(streamTimeout);
       audio.removeEventListener('playing', onPlaying);
+      track._triedYtFallback = true;
       playViaYouTube(track.id);
     }
   }
@@ -528,8 +666,17 @@
 
     if (state.audioMode === 'video') {
       if (state.ytPlayer && state.isPlayerReady) {
-        if (state.isPlaying) state.ytPlayer.pauseVideo();
-        else state.ytPlayer.playVideo();
+        if (state.isPlaying) {
+          state.ytPlayer.pauseVideo();
+          state.isPlaying = false;
+          updatePlayPauseUI(false);
+          stopYtProgressTracking();
+        } else {
+          state.ytPlayer.playVideo();
+          state.isPlaying = true;
+          updatePlayPauseUI(true);
+          startYtProgressTracking();
+        }
       }
       return;
     }
@@ -562,9 +709,18 @@
 
   function playPrev() {
     if (state.queue.length === 0) return;
-    if (audio.currentTime > 4) {
-      audio.currentTime = 0;
-      return;
+    if (state.audioMode === 'video') {
+      const curTime = (state.ytPlayer && typeof state.ytPlayer.getCurrentTime === 'function') ? state.ytPlayer.getCurrentTime() : 0;
+      if (curTime > 4) {
+        state.ytPlayer.seekTo(0, true);
+        updateYtProgress();
+        return;
+      }
+    } else {
+      if (audio.currentTime > 4) {
+        audio.currentTime = 0;
+        return;
+      }
     }
     if (state.currentIndex > 0) {
       playTrackAtIndex(state.currentIndex - 1);
@@ -670,8 +826,10 @@
     const fraction = Math.max(0, Math.min(1, clickX / rect.width));
 
     if (state.audioMode === 'video') {
-      if (state.ytPlayer && state.ytPlayer.getDuration) {
-        state.ytPlayer.seekTo(fraction * state.ytPlayer.getDuration(), true);
+      if (state.ytPlayer && typeof state.ytPlayer.getDuration === 'function') {
+        const dur = state.ytPlayer.getDuration() || getEffectiveDuration();
+        state.ytPlayer.seekTo(fraction * dur, true);
+        updateYtProgress();
       }
     } else {
       const total = getEffectiveDuration();
@@ -755,8 +913,10 @@
       const fraction = Math.max(0, Math.min(1, clickX / rect.width));
 
       if (state.audioMode === 'video') {
-        if (state.ytPlayer && state.ytPlayer.getDuration) {
-          state.ytPlayer.seekTo(fraction * state.ytPlayer.getDuration(), true);
+        if (state.ytPlayer && typeof state.ytPlayer.getDuration === 'function') {
+          const dur = state.ytPlayer.getDuration() || getEffectiveDuration();
+          state.ytPlayer.seekTo(fraction * dur, true);
+          updateYtProgress();
         }
       } else {
         const total = getEffectiveDuration();
@@ -1535,8 +1695,9 @@
       if (state.ytPlayer && state.isPlayerReady) {
         state.ytPlayer.pauseVideo();
       }
+      stopYtProgressTracking();
       state.audioMode = 'native';
-      audio.play();
+      audio.play().catch(e => console.warn('Audio play resumed error:', e));
       showToast('Audio Mode: Background & Screen-Off enabled 🎧');
     }
   });
@@ -1548,8 +1709,9 @@
     const curTrack = state.queue[state.currentIndex];
     if (curTrack) {
       if (state.ytPlayer && state.isPlayerReady) state.ytPlayer.pauseVideo();
+      stopYtProgressTracking();
       state.audioMode = 'native';
-      audio.play();
+      audio.play().catch(e => console.warn('Audio play resumed error:', e));
     }
   });
 
