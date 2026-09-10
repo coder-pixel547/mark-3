@@ -647,7 +647,12 @@ def search_youtube(query: str, max_results: int = 10) -> List[Dict[str, Any]]:
 # ==============================================================================
 # Direct Audio Stream Resolution with yt-dlp & Caching
 # ==============================================================================
-AUDIO_FORMAT_SELECTOR = "bestaudio[ext=m4a]/140/bestaudio[ext=webm]/251/139/bestaudio/best"
+AUDIO_FORMAT_SELECTOR = "bestaudio[ext=m4a]/140/bestaudio[ext=webm]/251/139/bestaudio/18/best"
+YTDL_CLIENT_ARGS = {
+    'youtube': {
+        'player_client': ['android', 'ios', 'web', 'tv']
+    }
+}
 
 def get_audio_metadata(
     video_id: str,
@@ -666,6 +671,7 @@ def get_audio_metadata(
         'no_warnings': True,
         'skip_download': True,
         'noplaylist': True,
+        'extractor_args': YTDL_CLIENT_ARGS,
     }
 
     # 1. Try direct video ID
@@ -704,6 +710,7 @@ def get_audio_metadata(
             'default_search': 'ytsearch1:',
             'skip_download': True,
             'noplaylist': True,
+            'extractor_args': YTDL_CLIENT_ARGS,
         }
         with yt_dlp.YoutubeDL(fallback_opts) as ydl:
             res = ydl.extract_info(f"ytsearch1:{fallback_query}", download=False)
@@ -1181,7 +1188,11 @@ def stream_audio(video_id: str, request: Request, title: Optional[str] = None):
     if range_header and res_status == 200:
         res_status = 206
 
-    content_type = upstream_resp.headers.get("Content-Type") or meta.get("content_type") or "audio/mp4"
+    raw_ct = (upstream_resp.headers.get("Content-Type") or meta.get("content_type") or "").lower()
+    if "webm" in raw_ct:
+        content_type = "audio/webm"
+    else:
+        content_type = "audio/mp4"
 
     res_headers = {
         "Content-Type": content_type,

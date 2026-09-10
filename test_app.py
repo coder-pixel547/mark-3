@@ -104,6 +104,7 @@ def test_audio_metadata_format_fallback():
     assert "140" in AUDIO_FORMAT_SELECTOR
     assert "bestaudio[ext=webm]" in AUDIO_FORMAT_SELECTOR
     assert "251" in AUDIO_FORMAT_SELECTOR
+    assert "18" in AUDIO_FORMAT_SELECTOR
 
 def test_stream_audio_partial_content():
     """Verify /api/stream/{video_id} returns HTTP 206 Partial Content with correct headers."""
