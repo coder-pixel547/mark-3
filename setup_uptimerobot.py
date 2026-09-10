@@ -1,10 +1,10 @@
-﻿import os
+import os
 import sys
 import json
 import urllib.request
 import urllib.parse
 
-PUBLIC_URL = "https://graphic-wave-said-effort.trycloudflare.com"
+PUBLIC_URL = "https://crew-robbie-carrier-paperback.trycloudflare.com"
 
 def create_monitor(api_key: str, friendly_name: str = "Swarify Music Stream", url: str = PUBLIC_URL):
     api_endpoint = "https://api.uptimerobot.com/v2/newMonitor"

@@ -6,7 +6,7 @@
 
 ## 🌐 Live Website
 
-- **Public Live URL**: [https://graphic-wave-said-effort.trycloudflare.com](https://graphic-wave-said-effort.trycloudflare.com)
+- **Public Live URL**: [https://crew-robbie-carrier-paperback.trycloudflare.com](https://crew-robbie-carrier-paperback.trycloudflare.com)
 - **Local Network URL**: `http://192.168.1.10:8000`
 - **Localhost**: `http://localhost:8000`
 

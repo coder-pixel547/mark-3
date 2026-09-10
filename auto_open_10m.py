@@ -6,7 +6,7 @@ import urllib.request
 from datetime import datetime
 
 # Configuration - Live Public Website ONLY (No localhost)
-PUBLIC_URL = "https://graphic-wave-said-effort.trycloudflare.com"
+PUBLIC_URL = "https://crew-robbie-carrier-paperback.trycloudflare.com"
 INTERVAL_SECONDS = 10 * 60  # 10 minutes (600 seconds)
 LOG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "auto_open.log")
 
