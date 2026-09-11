@@ -1198,6 +1198,34 @@ async def suggestions(response: Response, q: str = Query(..., min_length=1)):
         safe_log(f"Suggestions error: {e}")
     return {"suggestions": []}
 
+@app.get("/api/debug-extract/{video_id}")
+def debug_extract(video_id: str):
+    """Temporary diagnostic endpoint to identify exact yt-dlp client errors in production environment."""
+    import yt_dlp
+    results = {}
+    for client in ['visionos', 'android', 'web', 'mweb', 'web_music', 'ios']:
+        opts = {
+            'format': AUDIO_FORMAT_SELECTOR,
+            'quiet': True,
+            'no_warnings': True,
+            'skip_download': True,
+            'noplaylist': True,
+            'extractor_args': {'youtube': {'player_client': [client]}}
+        }
+        try:
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+                results[client] = {
+                    "success": True,
+                    "format_id": info.get("format_id"),
+                    "vcodec": info.get("vcodec"),
+                    "acodec": info.get("acodec"),
+                    "has_url": bool(info.get("url"))
+                }
+        except Exception as e:
+            results[client] = {"success": False, "error": str(e)}
+    return results
+
 @app.get("/api/audio-info/{video_id}")
 def get_audio_info(video_id: str, title: Optional[str] = None):
     """Returns direct audio stream URL and proxied stream URL."""
