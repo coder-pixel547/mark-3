@@ -247,6 +247,9 @@
 
   audio.addEventListener('play', () => {
     state.isPlaying = true;
+    audio.playbackRate = 1.0;
+    audio.defaultPlaybackRate = 1.0;
+    if ('preservesPitch' in audio) audio.preservesPitch = true;
     updatePlayPauseUI(true);
     updateMediaSessionPosition();
   });
@@ -517,7 +520,9 @@
       const streamUrl = `/api/stream/${track.id}?title=${hint}`;
       audio.preload = "metadata";
       audio.src = streamUrl;
-      audio.load();
+      audio.playbackRate = 1.0;
+      audio.defaultPlaybackRate = 1.0;
+      if ('preservesPitch' in audio) audio.preservesPitch = true;
       const playPromise = audio.play();
       if (playPromise !== undefined) {
         await playPromise.catch((err) => {
@@ -671,41 +676,71 @@
     }
   }
 
-  // Universal Seeker Scrubber (Click & Touch Drag)
+  // Universal Seeker Scrubber (Click & Clean Release Seek)
   function setupScrubber(wrapper, fillElements) {
     if (!wrapper) return;
     let isDragging = false;
+    let pendingFraction = 0;
 
-    function seekFromEvent(e) {
-      const clientX = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
+    function getFraction(e) {
+      const clientX = (e.touches && e.touches.length > 0)
+        ? e.touches[0].clientX
+        : (e.changedTouches && e.changedTouches.length > 0 ? e.changedTouches[0].clientX : e.clientX);
       const rect = wrapper.getBoundingClientRect();
-      if (!rect.width) return;
+      if (!rect.width) return 0;
       const clickX = clientX - rect.left;
-      const fraction = Math.max(0, Math.min(1, clickX / rect.width));
+      return Math.max(0, Math.min(1, clickX / rect.width));
+    }
 
+    function applyVisualProgress(fraction) {
+      fillElements.forEach(f => {
+        if (f) f.style.width = `${fraction * 100}%`;
+      });
+      const total = getEffectiveDuration();
+      if (total > 0 && Number.isFinite(total)) {
+        const previewSec = fraction * total;
+        el.currentTime.textContent = formatTime(previewSec);
+        if (el.sheetCurrentTime) el.sheetCurrentTime.textContent = formatTime(previewSec);
+      }
+    }
+
+    function commitSeek(fraction) {
       const total = getEffectiveDuration();
       if (total > 0 && Number.isFinite(total)) {
         audio.currentTime = fraction * total;
         updateMediaSessionPosition();
       }
-      fillElements.forEach(f => {
-        if (f) f.style.width = `${fraction * 100}%`;
-      });
+      applyVisualProgress(fraction);
     }
 
-    wrapper.addEventListener('click', seekFromEvent);
+    // Direct Click: instant commit
+    wrapper.addEventListener('click', (e) => {
+      const fraction = getFraction(e);
+      commitSeek(fraction);
+    });
 
+    // Touch Drag: update visual ONLY while moving; commit audio.currentTime ONCE on release!
     wrapper.addEventListener('touchstart', (e) => {
       isDragging = true;
-      seekFromEvent(e);
+      pendingFraction = getFraction(e);
+      applyVisualProgress(pendingFraction);
     }, { passive: true });
 
     window.addEventListener('touchmove', (e) => {
       if (!isDragging) return;
-      seekFromEvent(e);
+      pendingFraction = getFraction(e);
+      applyVisualProgress(pendingFraction);
     }, { passive: true });
 
-    window.addEventListener('touchend', () => {
+    const endDrag = (e) => {
+      if (!isDragging) return;
+      isDragging = false;
+      if (e) pendingFraction = getFraction(e);
+      commitSeek(pendingFraction);
+    };
+
+    window.addEventListener('touchend', endDrag);
+    window.addEventListener('touchcancel', () => {
       isDragging = false;
     });
   }
