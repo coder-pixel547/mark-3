@@ -1202,6 +1202,11 @@ async def suggestions(response: Response, q: str = Query(..., min_length=1)):
 def debug_extract(video_id: str):
     import traceback
     logs = []
+    cookie_file = COOKIE_FILE_PATH if os.path.exists(COOKIE_FILE_PATH) else None
+    cookie_exists = bool(cookie_file)
+    cookie_size = os.path.getsize(cookie_file) if cookie_exists else 0
+    env_cookie = bool(os.environ.get("YTDL_COOKIES"))
+
     for client_name in ['tv_embedded', 'android_creator', 'android_music', 'ios_music', 'visionos']:
         opts = {
             'format': 'bestaudio/best',
@@ -1211,6 +1216,8 @@ def debug_extract(video_id: str):
             'noplaylist': True,
             'extractor_args': {'youtube': {'player_client': [client_name]}}
         }
+        if cookie_file:
+            opts['cookiefile'] = cookie_file
         try:
             with yt_dlp.YoutubeDL(opts) as ydl:
                 info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
@@ -1226,7 +1233,13 @@ def debug_extract(video_id: str):
                 break
         except Exception as e:
             logs.append({"client": client_name, "success": False, "error": str(e)[:150]})
-    return {"video_id": video_id, "logs": logs}
+    return {
+        "video_id": video_id,
+        "cookie_file_exists": cookie_exists,
+        "cookie_file_size": cookie_size,
+        "env_cookie_present": env_cookie,
+        "logs": logs
+    }
 
 @app.get("/api/audio-info/{video_id}")
 def get_audio_info(video_id: str, title: Optional[str] = None):
