@@ -500,6 +500,8 @@
             console.warn('[iOS Autoplay Restriction] User interaction required to start audio.');
             updatePlayPauseUI(false);
             showToast('Tap play to start listening ▶');
+          } else if (err.name === 'AbortError') {
+            // Rapid track skip: user skipped before previous track finished loading (normal!)
           } else {
             console.warn('Audio play error:', err);
           }

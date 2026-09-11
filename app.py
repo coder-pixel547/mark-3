@@ -61,11 +61,28 @@ def safe_log(msg: str):
         except Exception:
             pass
 
-# In-memory caches
+from requests.adapters import HTTPAdapter
+
+# Connection-pooled HTTP session for high-concurrency low-latency audio streaming
+STREAM_SESSION = requests.Session()
+_adapter = HTTPAdapter(pool_connections=50, pool_maxsize=50, max_retries=1)
+STREAM_SESSION.mount("https://", _adapter)
+STREAM_SESSION.mount("http://", _adapter)
+
+# In-memory caches with bounded size to prevent memory leaks in 24/7 deployments
 SEARCH_CACHE: Dict[str, Dict[str, Any]] = {}
 AUDIO_URL_CACHE: Dict[str, Dict[str, Any]] = {}
 CACHE_TTL = 3600        # 1 hour
 AUDIO_CACHE_TTL = 1800  # 30 minutes (direct URL cache TTL)
+MAX_CACHE_ENTRIES = 500
+MAX_TITLE_MAP_ENTRIES = 2000
+
+def trim_cache_if_needed(cache_dict: dict, max_size: int = 500):
+    """Evicts oldest 20% of entries when cache exceeds capacity."""
+    if len(cache_dict) > max_size:
+        num_to_evict = max(1, max_size // 5)
+        for k in list(cache_dict.keys())[:num_to_evict]:
+            cache_dict.pop(k, None)
 
 # ==============================================================================
 # Comprehensive 7-Language Curated Music Catalog
@@ -634,6 +651,7 @@ async def async_search_youtube(
                                 continue
 
                             clean_title = clean_song_title(raw_title)
+                            trim_cache_if_needed(VIDEO_TITLE_MAP, max_size=MAX_TITLE_MAP_ENTRIES)
                             VIDEO_TITLE_MAP[vid_id] = f"{clean_title} {channel}".strip()
                             results.append({
                                 "id": vid_id,
@@ -652,6 +670,7 @@ async def async_search_youtube(
         safe_log(f"Async YouTube scrape notice for '{query}': {e}")
 
     if results:
+        trim_cache_if_needed(SEARCH_CACHE, max_size=MAX_CACHE_ENTRIES)
         SEARCH_CACHE[cache_key] = {"timestamp": time.time(), "data": results}
     return results
 
@@ -719,7 +738,7 @@ def resolve_saavn_stream(query: str) -> Optional[Dict[str, Any]]:
         try:
             encoded = urllib.parse.quote(q)
             url = f'https://www.jiosaavn.com/api.php?__call=search.getResults&_marker=0&q={encoded}&ctx=web6dot0&_format=json&p=1&n=5'
-            resp = requests.get(url, headers=headers, timeout=3.5)
+            resp = STREAM_SESSION.get(url, headers=headers, timeout=3.0)
             if resp.status_code != 200:
                 continue
             data = resp.json()
@@ -727,14 +746,14 @@ def resolve_saavn_stream(query: str) -> Optional[Dict[str, Any]]:
             if not results:
                 continue
 
-            for song in results:
+            for song in results[:2]:
                 enc_url = song.get('encrypted_media_url')
                 if not enc_url:
                     continue
                 try:
                     dec = unpad_pkcs5(cipher.decrypt(base64.b64decode(enc_url))).decode('utf-8')
                     url_160 = dec.replace('_96.mp4', '_160.mp4').replace('_320.mp4', '_160.mp4')
-                    head_resp = requests.head(url_160, timeout=3.0)
+                    head_resp = STREAM_SESSION.head(url_160, timeout=2.5)
                     if head_resp.status_code == 200:
                         filesize = None
                         try:
@@ -807,6 +826,7 @@ def get_audio_metadata(
     if query_hint:
         saavn_meta = resolve_saavn_stream(query_hint)
         if saavn_meta:
+            trim_cache_if_needed(AUDIO_URL_CACHE, max_size=MAX_CACHE_ENTRIES)
             AUDIO_URL_CACHE[video_id] = saavn_meta
             return saavn_meta
 
@@ -878,6 +898,7 @@ def get_audio_metadata(
             "source": "youtube",
             "timestamp": time.time()
         }
+        trim_cache_if_needed(AUDIO_URL_CACHE, max_size=MAX_CACHE_ENTRIES)
         AUDIO_URL_CACHE[video_id] = meta
         return meta
 
@@ -1395,12 +1416,12 @@ def stream_audio(video_id: str, request: Request, title: Optional[str] = None):
 
     upstream_resp = None
     try:
-        # Stream with requests.get(url, stream=True, timeout=(10, None))
-        upstream_resp = requests.get(
+        # Stream with connection-pooled STREAM_SESSION
+        upstream_resp = STREAM_SESSION.get(
             meta["url"],
             headers=req_headers,
             stream=True,
-            timeout=(10, None)
+            timeout=(6.0, None)
         )
         # If upstream expired (403/410), force refresh cache once
         if upstream_resp.status_code in (403, 410):
@@ -1412,7 +1433,7 @@ def stream_audio(video_id: str, request: Request, title: Optional[str] = None):
             req_headers = dict(meta.get("headers", {}))
             if range_header:
                 req_headers["Range"] = range_header
-            upstream_resp = requests.get(meta["url"], headers=req_headers, stream=True, timeout=(10, None))
+            upstream_resp = STREAM_SESSION.get(meta["url"], headers=req_headers, stream=True, timeout=(6.0, None))
     except Exception as ex:
         safe_log(f"[Stream Connection Error] video_id={video_id}: {ex}")
         try:
@@ -1422,7 +1443,7 @@ def stream_audio(video_id: str, request: Request, title: Optional[str] = None):
                 req_headers = dict(meta.get("headers", {}))
                 if range_header:
                     req_headers["Range"] = range_header
-                upstream_resp = requests.get(meta["url"], headers=req_headers, stream=True, timeout=(10, None))
+                upstream_resp = STREAM_SESSION.get(meta["url"], headers=req_headers, stream=True, timeout=(6.0, None))
         except Exception:
             pass
 
