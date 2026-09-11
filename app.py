@@ -653,6 +653,13 @@ YTDL_FALLBACK_CLIENT_ARGS = {
         'player_client': ['android', 'ios', 'web']
     }
 }
+COOKIE_FILE_PATH = os.path.join(os.path.dirname(__file__), "cookies.txt")
+if not os.path.exists(COOKIE_FILE_PATH) and os.environ.get("YTDL_COOKIES"):
+    try:
+        with open(COOKIE_FILE_PATH, "w", encoding="utf-8") as cf:
+            cf.write(os.environ["YTDL_COOKIES"])
+    except Exception:
+        pass
 
 def get_audio_metadata(
     video_id: str,
@@ -665,6 +672,8 @@ def get_audio_metadata(
         if time.time() - item["timestamp"] < AUDIO_CACHE_TTL:
             return item
 
+    cookie_file = COOKIE_FILE_PATH if os.path.exists(COOKIE_FILE_PATH) else None
+
     # 1. Primary: pure audio extraction with standard client
     info = None
     primary_opts = {
@@ -674,6 +683,8 @@ def get_audio_metadata(
         'skip_download': True,
         'noplaylist': True,
     }
+    if cookie_file:
+        primary_opts['cookiefile'] = cookie_file
     try:
         with yt_dlp.YoutubeDL(primary_opts) as ydl:
             info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
@@ -691,6 +702,8 @@ def get_audio_metadata(
             'noplaylist': True,
             'extractor_args': YTDL_FALLBACK_CLIENT_ARGS,
         }
+        if cookie_file:
+            fallback_opts['cookiefile'] = cookie_file
         try:
             with yt_dlp.YoutubeDL(fallback_opts) as ydl:
                 info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
@@ -728,6 +741,8 @@ def get_audio_metadata(
             'skip_download': True,
             'noplaylist': True,
         }
+        if cookie_file:
+            search_opts['cookiefile'] = cookie_file
         with yt_dlp.YoutubeDL(search_opts) as ydl:
             res = ydl.extract_info(f"ytsearch1:{fallback_query}", download=False)
             if res and 'entries' in res and len(res['entries']) > 0:
@@ -1155,41 +1170,6 @@ def get_audio_info(video_id: str, title: Optional[str] = None):
         "duration": meta.get("duration"),
         "filesize": meta.get("filesize")
     }
-
-@app.get("/api/debug/extract/{video_id}")
-def debug_extract(video_id: str):
-    """Debug route to diagnose yt-dlp behavior in production."""
-    results = {}
-    clients_to_test = [
-        ('tv_embedded', ['tv_embedded']),
-        ('mweb', ['mweb']),
-        ('android', ['android']),
-        ('ios', ['ios']),
-    ]
-    for name, client_list in clients_to_test:
-        opts = {
-            'format': 'bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best',
-            'quiet': True,
-            'no_warnings': True,
-            'skip_download': True,
-            'noplaylist': True,
-            'extractor_args': {'youtube': {'player_client': client_list}},
-        }
-        try:
-            with yt_dlp.YoutubeDL(opts) as ydl:
-                res = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
-                results[name] = {
-                    "success": True,
-                    "format_id": res.get("format_id"),
-                    "vcodec": res.get("vcodec"),
-                    "acodec": res.get("acodec"),
-                    "has_url": bool(res.get("url"))
-                }
-        except Exception as e:
-            results[name] = {"success": False, "error": str(e)[:200], "type": type(e).__name__}
-
-    return results
-
 
 @app.get("/api/stream/{video_id}")
 def stream_audio(video_id: str, request: Request, title: Optional[str] = None):
