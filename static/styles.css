@@ -1159,6 +1159,25 @@ kbd {
   transform: translateY(20px) scale(0.95) !important;
 }
 
+.mini-video-dock.minimized {
+  width: 2px !important;
+  height: 2px !important;
+  opacity: 0.01 !important;
+  pointer-events: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  transform: translateY(20px) !important;
+}
+
+@media (max-width: 768px) {
+  .mini-video-dock {
+    width: 180px;
+    height: 120px;
+    right: 12px;
+    bottom: calc(var(--player-height) + 8px);
+  }
+}
+
 .video-dock-header {
   height: 28px;
   background: #14171f;

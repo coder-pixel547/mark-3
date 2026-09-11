@@ -302,17 +302,13 @@
       const curTrack = state.queue[state.currentIndex];
       if (curTrack && (audio.paused || audio.readyState < 2)) {
         console.warn(`[Audio Stalled] Prolonged stall for "${curTrack.title}"`);
-        if (!curTrack._stalledRetry) {
-          curTrack._stalledRetry = true;
-          showToast(`Reconnecting stream for "${curTrack.title}"...`, 2000);
-          audio.load();
-          audio.play().catch(() => {});
-        } else {
-          showToast(`This track is unavailable, skipping…`, 3500);
-          playNext(true);
+        if (state.audioMode !== 'video' && !curTrack._triedYtFallback) {
+          curTrack._triedYtFallback = true;
+          console.warn(`[Audio Stalled] Switching to backup player for "${curTrack.title}"...`);
+          playViaYouTube(curTrack.id || curTrack.videoId);
         }
       }
-    }, 8000);
+    }, 4000);
   });
 
   audio.addEventListener('playing', () => {
@@ -339,18 +335,17 @@
     if (state.audioMode !== 'video' && !curTrack._triedYtFallback) {
       curTrack._triedYtFallback = true;
       console.warn(`[Audio Error] Falling back to backup player for "${curTrack.title}" (${trackId})...`);
-      showToast(`Playing "${curTrack.title}" via backup player 🎵`, 2000);
       playViaYouTube(trackId);
       return;
     }
 
-    // If backup player also failed or not possible, show user-facing toast before advancing
-    showToast(`This track is unavailable, skipping…`, 3500);
-
-    // Skip to next available track
-    setTimeout(() => {
-      playNext(true);
-    }, 1500);
+    // Only skip if both audio and backup player failed
+    if (curTrack._triedYtFallback) {
+      showToast(`⚠️ Could not stream "${curTrack.title}". Skipping to next...`, 3000);
+      setTimeout(() => {
+        playNext(true);
+      }, 1500);
+    }
   });
 
   // ==========================================
@@ -559,31 +554,40 @@
     }
   }
 
-  window.onYouTubeIframeAPIReady = function() {
-    state.ytPlayer = new YT.Player('yt-player', {
-      height: '100%',
-      width: '100%',
-      playerVars: {
-        autoplay: 0,
-        controls: 1,
-        rel: 0,
-        modestbranding: 1,
-        playsinline: 1,
-        origin: window.location.origin
-      },
-      events: {
-        onReady: () => {
-          state.isPlayerReady = true;
-          console.log('[YouTube Player] Ready');
-          if (pendingYtVideoId && state.audioMode === 'video') {
-            playViaYouTube(pendingYtVideoId);
+  function initYouTubePlayerIfReady() {
+    if (window.YT && window.YT.Player && !state.ytPlayer) {
+      try {
+        state.ytPlayer = new YT.Player('yt-player', {
+          height: '100%',
+          width: '100%',
+          playerVars: {
+            autoplay: 1,
+            controls: 1,
+            rel: 0,
+            modestbranding: 1,
+            playsinline: 1,
+            enablejsapi: 1
+          },
+          events: {
+            onReady: () => {
+              state.isPlayerReady = true;
+              console.log('[YouTube Player] Ready');
+              if (pendingYtVideoId && state.audioMode === 'video') {
+                playViaYouTube(pendingYtVideoId);
+              }
+            },
+            onStateChange: onYouTubeStateChange,
+            onError: onYouTubeError
           }
-        },
-        onStateChange: onYouTubeStateChange,
-        onError: onYouTubeError
+        });
+      } catch (initErr) {
+        console.warn('[YouTube Player Init Error]', initErr);
       }
-    });
-  };
+    }
+  }
+
+  window.onYouTubeIframeAPIReady = initYouTubePlayerIfReady;
+  setTimeout(initYouTubePlayerIfReady, 500);
 
   function onYouTubeStateChange(event) {
     if (state.audioMode === 'video') {
@@ -613,11 +617,41 @@
     console.warn('[YouTube Player Error] code=', event.data);
     stopYtProgressTracking();
     const curTrack = state.queue[state.currentIndex];
-    const trackName = curTrack ? curTrack.title : 'Track';
+    if (!curTrack) return;
+    const trackName = curTrack.title || 'Track';
+
+    // If embed blocked (101/150) or unavailable (100), search for alternative video upload
+    if (!curTrack._searchFallbackAttempted && (event.data === 150 || event.data === 101 || event.data === 100)) {
+      curTrack._searchFallbackAttempted = true;
+      console.warn(`[YouTube Embed Blocked] Searching alternative upload for "${trackName}"...`);
+      const query = `${curTrack.title} ${curTrack.artist || ''}`.trim();
+      fetch(`/api/search?q=${encodeURIComponent(query)}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data && data.results && data.results.length > 0) {
+            const curId = curTrack.id || curTrack.videoId;
+            const alt = data.results.find(r => (r.id || r.videoId) !== curId) || data.results[0];
+            const altId = alt.id || alt.videoId;
+            if (altId && altId !== curId) {
+              console.log(`[YouTube Search Fallback] Playing alternative video ID ${altId} for "${trackName}"`);
+              playViaYouTube(altId);
+              return;
+            }
+          }
+          showToast(`⚠️ "${trackName}" cannot be played. Skipping to next...`, 3000);
+          setTimeout(() => playNext(true), 1200);
+        })
+        .catch(() => {
+          showToast(`⚠️ "${trackName}" cannot be played. Skipping to next...`, 3000);
+          setTimeout(() => playNext(true), 1200);
+        });
+      return;
+    }
+
     showToast(`⚠️ "${trackName}" cannot be played. Skipping to next...`, 3000);
     setTimeout(() => {
       playNext(true);
-    }, 1000);
+    }, 1200);
   }
 
   let streamTimeout = null;
@@ -627,9 +661,20 @@
     audio.pause();
     pendingYtVideoId = videoId;
 
+    // Ensure dock is visible and active so browser/YouTube does not halt playback
+    if (el.videoDock) {
+      el.videoDock.classList.remove('hidden');
+      el.videoDock.classList.remove('minimized');
+      state.isVideoDockVisible = true;
+      if (el.btnToggleVideo) el.btnToggleVideo.classList.add('active');
+    }
+
     if (state.ytPlayer && state.isPlayerReady && typeof state.ytPlayer.loadVideoById === 'function') {
       try {
-        state.ytPlayer.loadVideoById(videoId);
+        state.ytPlayer.loadVideoById({
+          videoId: videoId,
+          suggestedQuality: 'small'
+        });
         state.ytPlayer.playVideo();
         state.isPlaying = true;
         updatePlayPauseUI(true);
@@ -641,6 +686,7 @@
       }
     } else {
       console.log('YouTube player initializing, queued video:', videoId);
+      initYouTubePlayerIfReady();
     }
   }
 
@@ -702,21 +748,17 @@
     };
     audio.addEventListener('playing', onPlaying);
 
-    // Allow adequate time for initial stream extraction & buffering (10s)
+    // Allow adequate time for initial stream extraction & buffering (4.5s)
     streamTimeout = setTimeout(() => {
       if (!started && !state.isPlaying) {
-        console.warn('Stream buffering timeout, attempting YouTube fallback...');
+        console.warn('Stream buffering delayed, attempting backup player...');
         audio.removeEventListener('playing', onPlaying);
         if (state.audioMode !== 'video' && !track._triedYtFallback) {
           track._triedYtFallback = true;
-          showToast(`Switching to backup player for "${track.title}"...`, 2500);
           playViaYouTube(track.id);
-        } else {
-          showToast(`⚠️ Buffering timeout for "${track.title}". Skipping...`, 3000);
-          playNext(true);
         }
       }
-    }, 10000);
+    }, 4500);
 
     try {
       const streamUrl = `/api/stream/${track.id}?title=${encodeURIComponent(track.title)}`;
@@ -731,7 +773,13 @@
             updatePlayPauseUI(false);
             showToast('Tap play to start listening ▶');
           } else {
-            throw err;
+            console.warn('Audio play error, falling back to YouTube player:', err);
+            if (streamTimeout) clearTimeout(streamTimeout);
+            audio.removeEventListener('playing', onPlaying);
+            if (state.audioMode !== 'video' && !track._triedYtFallback) {
+              track._triedYtFallback = true;
+              playViaYouTube(track.id);
+            }
           }
         });
       }
@@ -739,8 +787,10 @@
       console.warn('Direct stream failed, falling back to YouTube player:', err);
       if (streamTimeout) clearTimeout(streamTimeout);
       audio.removeEventListener('playing', onPlaying);
-      track._triedYtFallback = true;
-      playViaYouTube(track.id);
+      if (state.audioMode !== 'video' && !track._triedYtFallback) {
+        track._triedYtFallback = true;
+        playViaYouTube(track.id);
+      }
     }
   }
 
@@ -1837,15 +1887,9 @@
 
   el.dockCloseBtn.addEventListener('click', () => {
     state.isVideoDockVisible = false;
-    el.videoDock.classList.add('hidden');
+    el.videoDock.classList.add('minimized');
     el.btnToggleVideo.classList.remove('active');
-    const curTrack = state.queue[state.currentIndex];
-    if (curTrack) {
-      if (state.ytPlayer && state.isPlayerReady) state.ytPlayer.pauseVideo();
-      stopYtProgressTracking();
-      state.audioMode = 'native';
-      audio.play().catch(e => console.warn('Audio play resumed error:', e));
-    }
+    showToast('Video minimized — audio continues playing 🎵', 2000);
   });
 
   // ==========================================
