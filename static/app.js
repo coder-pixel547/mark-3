@@ -21,8 +21,19 @@
     repeatMode: 'off', // 'off' | 'all' | 'one'
     volume: 80,
     isMuted: false,
-    likedSongs: safeLoadStorage('mark3_liked', []),
-    playlists: safeLoadStorage('mark3_playlists', []),
+    likedSongs: safeLoadStorage('mark3_liked', []).map(t => ({
+      ...t,
+      id: t.id || t.videoId,
+      videoId: t.videoId || t.id
+    })).filter(t => Boolean(t.id)),
+    playlists: safeLoadStorage('mark3_playlists', []).map(p => ({
+      ...p,
+      tracks: (p.tracks || []).map(t => ({
+        ...t,
+        id: t.id || t.videoId,
+        videoId: t.videoId || t.id
+      })).filter(t => Boolean(t.id))
+    })),
     activeView: 'home',
     activeLangChip: 'all',
     activePlaylistId: null,
@@ -890,7 +901,13 @@
 
   // Liked Songs
   function toggleLikeTrack(track) {
-    const idx = state.likedSongs.findIndex(t => t.id === track.id);
+    if (!track) return;
+    const tid = track.id || track.videoId;
+    if (!tid) return;
+    track.id = tid;
+    track.videoId = tid;
+
+    const idx = state.likedSongs.findIndex(t => (t.id || t.videoId) === tid);
     if (idx !== -1) {
       state.likedSongs.splice(idx, 1);
       showToast('Removed from Liked Songs');
@@ -904,10 +921,11 @@
     if (state.activeView === 'liked') {
       renderLikedView();
     }
-    if (state.queue[state.currentIndex]?.id === track.id) {
+    const curId = state.queue[state.currentIndex]?.id || state.queue[state.currentIndex]?.videoId;
+    if (curId === tid) {
       updateCurrentTrackUI(track);
     }
-    document.querySelectorAll(`.card-btn-icon[data-song-id="${track.id}"]`).forEach(btn => {
+    document.querySelectorAll(`.card-btn-icon[data-song-id="${tid}"]`).forEach(btn => {
       btn.classList.toggle('liked', idx === -1);
     });
   }
@@ -944,6 +962,13 @@
     state.playlists.push(newPl);
     savePlaylists();
     showToast(`Playlist "${newPl.name}" created! 📁`);
+
+    // If initiated from "Add to Playlist" modal, automatically add the selected track
+    if (state.selectedTrackForPlaylist) {
+      addTrackToPlaylist(newPl.id, state.selectedTrackForPlaylist);
+      state.selectedTrackForPlaylist = null;
+    }
+
     viewPlaylist(newPl.id);
   }
 
@@ -960,9 +985,13 @@
 
   function addTrackToPlaylist(playlistId, track) {
     const pl = state.playlists.find(p => p.id === playlistId);
-    if (!pl) return;
+    if (!pl || !track) return;
+    const tid = track.id || track.videoId;
+    if (!tid) return;
+    track.id = tid;
+    track.videoId = tid;
 
-    if (pl.tracks.some(t => t.id === track.id)) {
+    if (pl.tracks.some(t => (t.id || t.videoId) === tid)) {
       showToast(`Song already in "${pl.name}"`);
       return;
     }
@@ -978,9 +1007,9 @@
 
   function removeTrackFromPlaylist(playlistId, trackId) {
     const pl = state.playlists.find(p => p.id === playlistId);
-    if (!pl) return;
+    if (!pl || !trackId) return;
 
-    pl.tracks = pl.tracks.filter(t => t.id !== trackId);
+    pl.tracks = pl.tracks.filter(t => (t.id || t.videoId) !== trackId);
     savePlaylists();
     showToast('Removed from playlist');
 
@@ -1625,10 +1654,20 @@
   // Initial Catalog Loader
   async function loadInitialCatalog() {
     try {
+      const safeFetchTrending = async (lang) => {
+        try {
+          const res = await fetch(`/api/trending?lang=${lang}`);
+          if (res.ok) return await res.json();
+          return { tracks: [] };
+        } catch {
+          return { tracks: [] };
+        }
+      };
+
       const [telRes, hinRes, engRes] = await Promise.all([
-        fetch('/api/trending?lang=telugu').then(r => r.json()),
-        fetch('/api/trending?lang=hindi').then(r => r.json()),
-        fetch('/api/trending?lang=english').then(r => r.json())
+        safeFetchTrending('telugu'),
+        safeFetchTrending('hindi'),
+        safeFetchTrending('english')
       ]);
 
       state.allTelugu = telRes.tracks || [];
