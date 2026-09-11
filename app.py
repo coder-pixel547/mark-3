@@ -2,6 +2,7 @@ import os
 import re
 import json
 import time
+import base64
 import asyncio
 import random
 import urllib.parse
@@ -497,6 +498,13 @@ CURATED_TRACKS: Dict[str, List[Dict[str, Any]]] = {
     ]
 }
 
+VIDEO_TITLE_MAP: Dict[str, str] = {}
+for _lang, _track_list in CURATED_TRACKS.items():
+    for _trk in _track_list:
+        _tid = _trk.get("id") or _trk.get("videoId")
+        if _tid:
+            VIDEO_TITLE_MAP[_tid] = f"{_trk.get('title', '')} {_trk.get('artist', '')}".strip()
+
 # ==============================================================================
 # Helper Functions: Duration Parsing, Title Sanitization & Validation
 # ==============================================================================
@@ -626,6 +634,7 @@ async def async_search_youtube(
                                 continue
 
                             clean_title = clean_song_title(raw_title)
+                            VIDEO_TITLE_MAP[vid_id] = f"{clean_title} {channel}".strip()
                             results.append({
                                 "id": vid_id,
                                 "videoId": vid_id,
@@ -659,12 +668,108 @@ def search_youtube(query: str, max_results: int = 10) -> List[Dict[str, Any]]:
         return []
 
 # ==============================================================================
-# Direct Audio Stream Resolution with yt-dlp & Caching
+# High-Fidelity Direct Audio Stream Resolution (JioSaavn CDN + yt-dlp Fallback)
 # ==============================================================================
+def unpad_pkcs5(data: bytes) -> bytes:
+    pad_len = data[-1]
+    if 1 <= pad_len <= 8:
+        return data[:-pad_len]
+    return data
+
+def extract_clean_queries(title: str) -> List[str]:
+    cleaned = re.sub(r'\(.*?\)|\[.*?\]', '', title)
+    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+
+    queries = []
+    if '|' in cleaned:
+        parts = [p.strip() for p in cleaned.split('|') if p.strip()]
+        if len(parts) >= 2:
+            queries.append(f"{parts[0]} {parts[1]}")
+            queries.append(parts[0])
+        elif parts:
+            queries.append(parts[0])
+
+    if '-' in cleaned:
+        hparts = [p.strip() for p in cleaned.split('-') if p.strip()]
+        if len(hparts) >= 2:
+            queries.append(f"{hparts[0]} {hparts[1]}")
+            queries.append(hparts[0])
+
+    queries.append(cleaned)
+    return list(dict.fromkeys([q for q in queries if len(q) > 1]))
+
+def resolve_saavn_stream(query: str) -> Optional[Dict[str, Any]]:
+    """Resolves high-quality direct audio stream (160kbps AAC / MP4) via JioSaavn CDN without bot checks."""
+    if not query or not query.strip():
+        return None
+    try:
+        from Crypto.Cipher import DES
+    except ImportError:
+        return None
+
+    queries_to_try = extract_clean_queries(query)
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://www.jiosaavn.com/'
+    }
+    key = b'38346591'
+    cipher = DES.new(key, DES.MODE_ECB)
+
+    for q in queries_to_try:
+        try:
+            encoded = urllib.parse.quote(q)
+            url = f'https://www.jiosaavn.com/api.php?__call=search.getResults&_marker=0&q={encoded}&ctx=web6dot0&_format=json&p=1&n=5'
+            resp = requests.get(url, headers=headers, timeout=3.5)
+            if resp.status_code != 200:
+                continue
+            data = resp.json()
+            results = data.get('results', [])
+            if not results:
+                continue
+
+            for song in results:
+                enc_url = song.get('encrypted_media_url')
+                if not enc_url:
+                    continue
+                try:
+                    dec = unpad_pkcs5(cipher.decrypt(base64.b64decode(enc_url))).decode('utf-8')
+                    url_160 = dec.replace('_96.mp4', '_160.mp4').replace('_320.mp4', '_160.mp4')
+                    head_resp = requests.head(url_160, timeout=3.0)
+                    if head_resp.status_code == 200:
+                        filesize = None
+                        try:
+                            filesize = int(head_resp.headers.get("Content-Length", 0))
+                        except Exception:
+                            pass
+                        duration = None
+                        try:
+                            duration = int(song.get("duration") or 0)
+                        except Exception:
+                            pass
+                        safe_log(f"[Saavn Stream Resolved] query='{q}' song='{song.get('song')}' size={filesize}")
+                        return {
+                            "url": url_160,
+                            "headers": {},
+                            "format_id": "saavn-160k",
+                            "content_type": "audio/mp4",
+                            "duration": duration,
+                            "filesize": filesize,
+                            "ext": "mp4",
+                            "vcodec": "none",
+                            "acodec": "aac",
+                            "source": "saavn",
+                            "timestamp": time.time()
+                        }
+                except Exception:
+                    continue
+        except Exception:
+            continue
+    return None
+
 AUDIO_FORMAT_SELECTOR = "140/251/bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio[acodec!=none][vcodec=none]/bestaudio"
 YTDL_CLIENT_ARGS = {
     'youtube': {
-        'player_client': ['tv_embedded', 'android_creator', 'android_music', 'ios_music', 'visionos']
+        'player_client': ['visionos', 'android', 'android_vr', 'mweb', 'web_embedded', 'tv']
     }
 }
 COOKIE_FILE_PATH = os.path.join(os.path.dirname(__file__), "cookies.txt")
@@ -686,9 +791,27 @@ def get_audio_metadata(
         if time.time() - item["timestamp"] < AUDIO_CACHE_TTL:
             return item
 
-    cookie_file = COOKIE_FILE_PATH if os.path.exists(COOKIE_FILE_PATH) else None
+    # 1. Primary: High-fidelity direct CDN resolution via JioSaavn (immune to bot checks)
+    query_hint = (search_query_hint or "").strip()
+    if not query_hint:
+        query_hint = VIDEO_TITLE_MAP.get(video_id, "")
+    if not query_hint:
+        for lang_tracks in CURATED_TRACKS.values():
+            for track in lang_tracks:
+                if track.get("id") == video_id or track.get("videoId") == video_id:
+                    query_hint = f"{track.get('title', '')} {track.get('artist', '')}".strip()
+                    break
+            if query_hint:
+                break
 
-    # 1. Primary: pure audio extraction with visionos/android/web clients
+    if query_hint:
+        saavn_meta = resolve_saavn_stream(query_hint)
+        if saavn_meta:
+            AUDIO_URL_CACHE[video_id] = saavn_meta
+            return saavn_meta
+
+    # 2. Secondary: pure audio extraction with visionos/android/tv clients
+    cookie_file = COOKIE_FILE_PATH if os.path.exists(COOKIE_FILE_PATH) else None
     info = None
     primary_opts = {
         'format': AUDIO_FORMAT_SELECTOR,
@@ -713,7 +836,7 @@ def get_audio_metadata(
             safe_log(f"[Rejecting Video Stream] video_id={video_id} format={info.get('format_id')} vcodec={vcodec}")
             info = None
 
-    # 2. Fallback: if throttled or primary yielded no direct URL, retry with fallback options
+    # 3. Fallback: if throttled or primary yielded no direct URL, retry with fallback options
     if not info or not info.get("url"):
         safe_log(f"[yt-dlp fallback] attempting player_client fallback for video_id={video_id}")
         fallback_opts = {
@@ -752,22 +875,14 @@ def get_audio_metadata(
             "ext": ext,
             "vcodec": info.get("vcodec"),
             "acodec": info.get("acodec"),
+            "source": "youtube",
             "timestamp": time.time()
         }
         AUDIO_URL_CACHE[video_id] = meta
         return meta
 
-    # 3. Search fallback if specific video ID is completely blocked/unavailable
+    # 4. Search fallback if specific video ID is completely blocked/unavailable
     try:
-        query_hint = search_query_hint
-        if not query_hint:
-            for lang_tracks in CURATED_TRACKS.values():
-                for track in lang_tracks:
-                    if track.get("id") == video_id or track.get("videoId") == video_id:
-                        query_hint = f"{track.get('title', '')} {track.get('artist', '')}".strip()
-                        break
-                if query_hint:
-                    break
         fallback_query = query_hint or f"{video_id} audio song"
         search_opts = {
             'format': AUDIO_FORMAT_SELECTOR,
@@ -801,6 +916,7 @@ def get_audio_metadata(
                         "ext": ext,
                         "vcodec": entry.get("vcodec"),
                         "acodec": entry.get("acodec"),
+                        "source": "youtube",
                         "timestamp": time.time()
                     }
                     AUDIO_URL_CACHE[video_id] = meta

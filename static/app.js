@@ -448,7 +448,8 @@
     if (nextTrack) {
       const nextId = nextTrack.id || nextTrack.videoId;
       if (nextId) {
-        fetch(`/api/audio-info/${nextId}?title=${encodeURIComponent(nextTrack.title)}`).catch(() => {});
+        const hint = encodeURIComponent(`${nextTrack.title || ''} ${nextTrack.artist || ''}`.trim());
+        fetch(`/api/audio-info/${nextId}?title=${hint}`).catch(() => {});
       }
     }
   }
@@ -487,7 +488,8 @@
     audio.addEventListener('playing', onPlaying);
 
     try {
-      const streamUrl = `/api/stream/${track.id}?title=${encodeURIComponent(track.title)}`;
+      const hint = encodeURIComponent(`${track.title || ''} ${track.artist || ''}`.trim());
+      const streamUrl = `/api/stream/${track.id}?title=${hint}`;
       audio.preload = "metadata";
       audio.src = streamUrl;
       audio.load();

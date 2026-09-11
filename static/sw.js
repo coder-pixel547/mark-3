@@ -1,5 +1,5 @@
 // Swarify Service Worker — Fast Mobile App Shell Caching
-const CACHE_NAME = 'swarify-shell-v6.0';
+const CACHE_NAME = 'swarify-shell-v6.1';
 const APP_SHELL = [
   '/',
   '/static/styles.css',
