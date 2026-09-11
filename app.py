@@ -661,10 +661,10 @@ def search_youtube(query: str, max_results: int = 10) -> List[Dict[str, Any]]:
 # ==============================================================================
 # Direct Audio Stream Resolution with yt-dlp & Caching
 # ==============================================================================
-AUDIO_FORMAT_SELECTOR = "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best"
-YTDL_FALLBACK_CLIENT_ARGS = {
+AUDIO_FORMAT_SELECTOR = "140/251/bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio[acodec!=none][vcodec=none]/bestaudio"
+YTDL_CLIENT_ARGS = {
     'youtube': {
-        'player_client': ['android', 'ios', 'web']
+        'player_client': ['visionos', 'android', 'web']
     }
 }
 COOKIE_FILE_PATH = os.path.join(os.path.dirname(__file__), "cookies.txt")
@@ -688,7 +688,7 @@ def get_audio_metadata(
 
     cookie_file = COOKIE_FILE_PATH if os.path.exists(COOKIE_FILE_PATH) else None
 
-    # 1. Primary: pure audio extraction with standard client
+    # 1. Primary: pure audio extraction with visionos/android/web clients
     info = None
     primary_opts = {
         'format': AUDIO_FORMAT_SELECTOR,
@@ -696,6 +696,7 @@ def get_audio_metadata(
         'no_warnings': True,
         'skip_download': True,
         'noplaylist': True,
+        'extractor_args': YTDL_CLIENT_ARGS,
     }
     if cookie_file:
         primary_opts['cookiefile'] = cookie_file
@@ -705,7 +706,14 @@ def get_audio_metadata(
     except Exception as e:
         safe_log(f"[yt-dlp primary failed] video_id={video_id}: {e}")
 
-    # 2. Fallback: if throttled or primary yielded no direct URL, use player_client fallback
+    # Guard: verify pure audio (reject video streams which cause HTML5 <audio> to crash after 2-5s)
+    if info and info.get("url"):
+        vcodec = str(info.get("vcodec") or "none").lower()
+        if vcodec != "none":
+            safe_log(f"[Rejecting Video Stream] video_id={video_id} format={info.get('format_id')} vcodec={vcodec}")
+            info = None
+
+    # 2. Fallback: if throttled or primary yielded no direct URL, retry with fallback options
     if not info or not info.get("url"):
         safe_log(f"[yt-dlp fallback] attempting player_client fallback for video_id={video_id}")
         fallback_opts = {
@@ -714,13 +722,18 @@ def get_audio_metadata(
             'no_warnings': True,
             'skip_download': True,
             'noplaylist': True,
-            'extractor_args': YTDL_FALLBACK_CLIENT_ARGS,
+            'extractor_args': YTDL_CLIENT_ARGS,
         }
         if cookie_file:
             fallback_opts['cookiefile'] = cookie_file
         try:
             with yt_dlp.YoutubeDL(fallback_opts) as ydl:
                 info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+                if info and info.get("url"):
+                    vcodec = str(info.get("vcodec") or "none").lower()
+                    if vcodec != "none":
+                        safe_log(f"[Rejecting Video Stream in Fallback] video_id={video_id} format={info.get('format_id')} vcodec={vcodec}")
+                        info = None
         except Exception as ex:
             safe_log(f"[yt-dlp multi-client failed] video_id={video_id}: {ex}")
 
@@ -746,7 +759,16 @@ def get_audio_metadata(
 
     # 3. Search fallback if specific video ID is completely blocked/unavailable
     try:
-        fallback_query = search_query_hint or f"{video_id} audio song"
+        query_hint = search_query_hint
+        if not query_hint:
+            for lang_tracks in CURATED_TRACKS.values():
+                for track in lang_tracks:
+                    if track.get("id") == video_id or track.get("videoId") == video_id:
+                        query_hint = f"{track.get('title', '')} {track.get('artist', '')}".strip()
+                        break
+                if query_hint:
+                    break
+        fallback_query = query_hint or f"{video_id} audio song"
         search_opts = {
             'format': AUDIO_FORMAT_SELECTOR,
             'quiet': True,
@@ -754,6 +776,7 @@ def get_audio_metadata(
             'default_search': 'ytsearch1:',
             'skip_download': True,
             'noplaylist': True,
+            'extractor_args': YTDL_CLIENT_ARGS,
         }
         if cookie_file:
             search_opts['cookiefile'] = cookie_file
@@ -762,7 +785,8 @@ def get_audio_metadata(
             if res and 'entries' in res and len(res['entries']) > 0:
                 entry = res['entries'][0]
                 url = entry.get('url')
-                if url:
+                vcodec = str(entry.get("vcodec") or "none").lower()
+                if url and vcodec == "none":
                     ext = entry.get("ext", "m4a")
                     raw_acodec = str(entry.get("acodec") or "").lower()
                     content_type = "audio/webm" if (ext == "webm" or "opus" in raw_acodec) else "audio/mp4"
@@ -781,6 +805,8 @@ def get_audio_metadata(
                     }
                     AUDIO_URL_CACHE[video_id] = meta
                     return meta
+                elif url:
+                    safe_log(f"[Rejecting Search Video Stream] video_id={video_id} format={entry.get('format_id')} vcodec={vcodec}")
     except Exception as ex:
         safe_log(f"[yt-dlp search fallback failed] video_id={video_id}: {ex}")
 
@@ -1245,12 +1271,6 @@ def stream_audio(video_id: str, request: Request, title: Optional[str] = None):
         safe_log(f"[Stream Upstream Failed] video_id={video_id} status={status_code}")
         return JSONResponse(status_code=status_code, content={"error": "Failed to stream audio", "videoId": video_id})
 
-    # Forward the upstream status code (206 vs 200).
-    # If the browser asks for bytes=0-, pass the Range header upstream and mirror the 206 response.
-    res_status = upstream_resp.status_code
-    if range_header and res_status == 200:
-        res_status = 206
-
     # Determine container & Content-Type
     ext = meta.get("ext", "m4a").lower()
     raw_ct = (upstream_resp.headers.get("Content-Type") or meta.get("content_type") or "").lower()
@@ -1259,6 +1279,7 @@ def stream_audio(video_id: str, request: Request, title: Optional[str] = None):
     else:
         content_type = "audio/mp4"
 
+    res_status = upstream_resp.status_code
     res_headers = {
         "Content-Type": content_type,
         "Accept-Ranges": "bytes",
@@ -1266,15 +1287,22 @@ def stream_audio(video_id: str, request: Request, title: Optional[str] = None):
         "Cache-Control": "public, max-age=1800",
     }
 
-    # Forward Content-Range (if 206)
+    # RFC 7233 compliant Content-Range handling:
+    # 206 Partial Content MUST have Content-Range header.
     if "Content-Range" in upstream_resp.headers:
         res_headers["Content-Range"] = upstream_resp.headers["Content-Range"]
-    elif res_status == 206 and range_header and "Content-Length" in upstream_resp.headers:
-        try:
-            cl = int(upstream_resp.headers["Content-Length"])
-            res_headers["Content-Range"] = f"bytes 0-{cl - 1}/{cl}"
-        except Exception:
-            pass
+        res_status = 206
+    elif range_header:
+        cl_val = upstream_resp.headers.get("Content-Length") or meta.get("filesize")
+        if cl_val:
+            try:
+                cl = int(cl_val)
+                # Synthesize Content-Range if starting from byte 0
+                if range_header.strip() in ("bytes=0-", "bytes=0"):
+                    res_headers["Content-Range"] = f"bytes 0-{cl - 1}/{cl}"
+                    res_status = 206
+            except Exception:
+                pass
 
     # Forward Content-Length
     if "Content-Length" in upstream_resp.headers:
@@ -1305,6 +1333,11 @@ def stream_audio(video_id: str, request: Request, title: Optional[str] = None):
                 safe_log(f"[Client Disconnected] video_id={video_id} after {bytes_streamed} bytes: {ex}")
             else:
                 safe_log(f"[Stream Exception] video_id={video_id} after {bytes_streamed} bytes: {ex}")
+        finally:
+            try:
+                upstream_resp.close()
+            except Exception:
+                pass
 
     return StreamingResponse(
         iterfile(),

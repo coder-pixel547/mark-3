@@ -353,6 +353,15 @@
       }
     }
 
+    // Before skipping, attempt seamless YouTube fallback player
+    if (state.audioMode !== 'video' && !curTrack._triedYtFallback) {
+      curTrack._triedYtFallback = true;
+      console.warn(`[Audio Error] Falling back to backup player for "${curTrack.title}" (${trackId})...`);
+      showToast(`Switching to backup player for "${curTrack.title}"...`, 2500);
+      playViaYouTube(trackId);
+      return;
+    }
+
     // If retry already failed or track unavailable, show user-facing toast before advancing
     showToast(`This track is unavailable, skipping…`, 3500);
 

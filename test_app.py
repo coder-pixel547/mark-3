@@ -98,9 +98,9 @@ def test_parse_duration_edge_cases():
     assert parse_duration_to_seconds("2:46") == 166
 
 def test_audio_metadata_format_fallback():
-    """Verify audio format selector matches required order: bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best."""
+    """Verify audio format selector prioritizes pure audio formats 140/251 without video fallback."""
     from app import AUDIO_FORMAT_SELECTOR, AUDIO_CACHE_TTL
-    assert AUDIO_FORMAT_SELECTOR == "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best"
+    assert AUDIO_FORMAT_SELECTOR == "140/251/bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio[acodec!=none][vcodec=none]/bestaudio"
     assert AUDIO_CACHE_TTL == 1800
 
 def test_stream_audio_partial_content():
