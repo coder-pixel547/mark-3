@@ -2,14 +2,31 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Swarify — Free Ad-Free Music Streaming</title>
+  <meta name="description" content="Stream Indian & Global chartbusters ad-free with smart AI playlists and background audio." />
+  <meta name="theme-color" content="#10b981" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Swarify" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="/static/icons/icon.svg" />
+  <link rel="apple-touch-icon" href="/static/icons/icon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
   <link rel="stylesheet" href="/static/styles.css" />
+  <style>
+    /* Critical 0ms render styles */
+    body { background-color: #0c0e12; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Plus Jakarta Sans', system-ui, sans-serif; margin: 0; padding: 0; }
+  </style>
 </head>
 <body>
+  <!-- Offline Status Banner -->
+  <div id="offline-banner" class="offline-banner hidden" role="alert">
+    <span>📡 You are offline. Cached tracks & library remain playable.</span>
+  </div>
   <div class="app-container">
     <!-- Sidebar Navigation -->
     <aside class="sidebar">
@@ -195,7 +212,7 @@
     <!-- Left Track Info -->
     <div class="player-track-info" id="player-track-info">
       <div class="track-thumb-wrapper">
-        <img id="player-thumb" src="https://i.ytimg.com/vi/g44VQxMcFH4/hqdefault.jpg" alt="Track Art" />
+        <img id="player-thumb" src="https://i.ytimg.com/vi/g44VQxMcFH4/hqdefault.jpg" alt="Track Art" loading="lazy" decoding="async" />
         <div class="playing-indicator-overlay hidden" id="playing-indicator-overlay">
           <span></span><span></span><span></span>
         </div>
@@ -296,6 +313,7 @@
 
   <!-- Full-Screen Mobile Now-Playing Sheet (Slides up on tap) -->
   <div class="mobile-now-playing-sheet hidden" id="mobile-now-playing-sheet">
+    <div class="sheet-drag-pill" id="sheet-drag-pill" title="Swipe down to close"></div>
     <div class="sheet-header">
       <button type="button" class="btn-icon sheet-collapse-btn" id="btn-collapse-mobile-player" title="Collapse Player">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
@@ -310,7 +328,7 @@
     </div>
 
     <div class="sheet-artwork-container">
-      <img id="sheet-thumb" src="https://i.ytimg.com/vi/g44VQxMcFH4/hqdefault.jpg" alt="Now Playing Album Art" />
+      <img id="sheet-thumb" src="https://i.ytimg.com/vi/g44VQxMcFH4/hqdefault.jpg" alt="Now Playing Album Art" loading="lazy" decoding="async" />
     </div>
 
     <div class="sheet-meta-row">
@@ -719,7 +737,7 @@
   <div class="toast hidden" id="toast"></div>
 
   <!-- Native HTML5 Audio Engine for Background & Screen-Off Playback -->
-  <audio id="native-audio" preload="auto"></audio>
+  <audio id="native-audio" preload="metadata"></audio>
 
   <!-- YouTube IFrame API Script (Secondary Video Dock) -->
   <script src="https://www.youtube.com/iframe_api"></script>

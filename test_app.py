@@ -124,3 +124,20 @@ def test_stream_audio_404_json():
     data = resp.json()
     assert "error" in data
     assert data["videoId"] == "invalid_fake_vid_xyz999"
+
+def test_pwa_manifest():
+    """Verify /manifest.json is served with correct JSON content and standalone display."""
+    resp = client.get("/manifest.json")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data.get("short_name") == "Swarify"
+    assert data.get("display") == "standalone"
+
+def test_service_worker_route():
+    """Verify /sw.js is served with Service-Worker-Allowed header and no-cache policy."""
+    resp = client.get("/sw.js")
+    assert resp.status_code == 200
+    assert "javascript" in resp.headers.get("content-type", "")
+    assert resp.headers.get("service-worker-allowed") == "/"
+    assert "no-cache" in resp.headers.get("cache-control", "")
+

@@ -38,12 +38,15 @@
 }
 
 body {
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Plus Jakarta Sans', system-ui, sans-serif;
   background-color: var(--bg-main);
   color: var(--text-main);
   overflow: hidden;
   height: 100vh;
+  height: 100dvh;
   user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -51,6 +54,7 @@ body {
 .app-container {
   display: flex;
   height: calc(100vh - var(--player-height));
+  height: calc(100dvh - var(--player-height));
   width: 100vw;
   position: relative;
   overflow: hidden;
@@ -2316,6 +2320,98 @@ kbd {
 }
 
 /* ==========================================================================
+   Offline Status Banner & Shimmer Skeleton Loaders (Mobile-First Performance)
+   ========================================================================== */
+.offline-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(90deg, #dc2626, #b91c1c);
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-align: center;
+  padding: calc(env(safe-area-inset-top, 0px) + 8px) 16px 8px;
+  z-index: 9999;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(0);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.offline-banner.hidden {
+  transform: translateY(-100%) !important;
+  pointer-events: none !important;
+}
+
+/* Skeleton Loading Grid & Shimmer (Zero Layout Shift - CLS) */
+.skeleton-card {
+  padding: 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+}
+
+.skeleton-thumb-box {
+  aspect-ratio: 1 / 1;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  margin-bottom: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-line {
+  height: 12px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  margin-bottom: 6px;
+  overflow: hidden;
+  position: relative;
+}
+
+.skeleton-line.short {
+  width: 60%;
+  height: 10px;
+}
+
+.shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+
+/* Drag Pill for Sheet */
+.sheet-drag-pill {
+  width: 44px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.28);
+  border-radius: 3px;
+  margin: 0 auto 10px;
+  cursor: grab;
+  flex-shrink: 0;
+  transition: background 0.2s ease, transform 0.2s ease;
+  touch-action: none;
+}
+
+.sheet-drag-pill:active {
+  background: rgba(255, 255, 255, 0.55);
+  transform: scaleX(1.15);
+}
+
+/* ==========================================================================
    Full Mobile Phone & Small Screen Experience (Screen <= 768px)
    ========================================================================== */
 @media (max-width: 768px) {
@@ -2472,19 +2568,19 @@ kbd {
     margin-bottom: 4px !important;
   }
 
-  /* Floating Mini Player (Positioned above bottom nav bar) */
+  /* Floating Mini Player (Positioned above bottom nav bar with safe area) */
   .player-bar {
     position: fixed !important;
-    bottom: 62px !important;
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 8px) !important;
     left: 8px !important;
     right: 8px !important;
     width: auto !important;
-    height: 60px !important;
+    height: 64px !important;
     background: rgba(20, 24, 34, 0.96) !important;
     backdrop-filter: blur(24px) !important;
     -webkit-backdrop-filter: blur(24px) !important;
     border: 1px solid rgba(255, 255, 255, 0.12) !important;
-    border-radius: 14px !important;
+    border-radius: 16px !important;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7) !important;
     padding: 0 12px !important;
     z-index: 110 !important;
@@ -2492,6 +2588,8 @@ kbd {
     align-items: center !important;
     justify-content: space-between !important;
     cursor: pointer !important;
+    -webkit-tap-highlight-color: transparent !important;
+    user-select: none !important;
   }
 
   /* Slim Animated Progress Line on Top of Mini Player */
@@ -2554,13 +2652,24 @@ kbd {
     display: none !important;
   }
 
+  #player-like-btn {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+
   .player-center {
     width: auto !important;
-    gap: 6px !important;
+    gap: 8px !important;
   }
 
   .player-buttons {
-    gap: 6px !important;
+    gap: 8px !important;
   }
 
   #btn-prev, #btn-shuffle, #btn-repeat {
@@ -2568,21 +2677,38 @@ kbd {
   }
 
   .btn-play-pause {
-    width: 38px !important;
-    height: 38px !important;
+    width: 46px !important;
+    height: 46px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
     background: var(--primary) !important;
     color: #0c0e12 !important;
     border-radius: 50% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    -webkit-tap-highlight-color: transparent !important;
   }
 
   .btn-play-pause svg {
-    width: 18px !important;
-    height: 18px !important;
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  #btn-next {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    -webkit-tap-highlight-color: transparent !important;
   }
 
   #btn-next svg {
-    width: 18px !important;
-    height: 18px !important;
+    width: 20px !important;
+    height: 20px !important;
   }
 
   .scrubber-container {
@@ -2600,15 +2726,15 @@ kbd {
     bottom: 0 !important;
     left: 0 !important;
     right: 0 !important;
-    height: 56px !important;
+    height: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
     background: #0e1117 !important;
     backdrop-filter: blur(20px) !important;
     -webkit-backdrop-filter: blur(20px) !important;
     border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
     z-index: 120 !important;
-    align-items: center !important;
+    align-items: flex-start !important;
     justify-content: space-around !important;
-    padding: 0 4px calc(env(safe-area-inset-bottom, 0px)) !important;
+    padding: 6px 4px calc(env(safe-area-inset-bottom, 0px) + 2px) !important;
   }
 
   .mobile-nav-tab {
@@ -2625,9 +2751,12 @@ kbd {
     cursor: pointer !important;
     flex: 1 !important;
     height: 100% !important;
+    min-height: 48px !important;
+    min-width: 48px !important;
     padding: 4px 0 !important;
     transition: all 0.15s ease !important;
     -webkit-tap-highlight-color: transparent !important;
+    user-select: none !important;
   }
 
   .mobile-nav-tab svg {
@@ -2659,15 +2788,20 @@ kbd {
   .mobile-now-playing-sheet {
     position: fixed !important;
     inset: 0 !important;
+    height: 100vh !important;
+    height: 100dvh !important;
     z-index: 200 !important;
     background: linear-gradient(180deg, #181d2a 0%, #0c0e14 100%) !important;
     display: flex !important;
     flex-direction: column !important;
     justify-content: space-between !important;
-    padding: 20px 20px calc(24px + env(safe-area-inset-bottom, 16px)) !important;
-    transform: translateY(0) !important;
-    transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1) !important;
+    padding: calc(12px + env(safe-area-inset-top, 0px)) 20px calc(24px + env(safe-area-inset-bottom, 16px)) !important;
+    transform: translateY(0);
+    transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
     overflow-y: auto !important;
+    touch-action: pan-y !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
   }
 
   .mobile-now-playing-sheet.hidden {
@@ -2685,9 +2819,26 @@ kbd {
   .sheet-collapse-btn {
     color: #fff !important;
     background: rgba(255, 255, 255, 0.08) !important;
-    width: 36px !important;
-    height: 36px !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
     border-radius: 50% !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+
+  #sheet-btn-queue, #sheet-like-btn {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    -webkit-tap-highlight-color: transparent !important;
   }
 
   .sheet-header-title {
@@ -2754,8 +2905,8 @@ kbd {
   }
 
   .sheet-scrubber-box .progress-bar-wrapper {
-    height: 8px !important;
-    border-radius: 4px !important;
+    height: 10px !important;
+    border-radius: 5px !important;
   }
 
   .sheet-time-labels {
@@ -2773,11 +2924,25 @@ kbd {
     justify-content: space-between !important;
     margin-bottom: 16px !important;
     padding: 0 4px !important;
+    gap: 8px !important;
+  }
+
+  .sheet-controls-row .btn-ctrl {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    -webkit-tap-highlight-color: transparent !important;
   }
 
   .sheet-play-btn {
-    width: 62px !important;
-    height: 62px !important;
+    width: 64px !important;
+    height: 64px !important;
+    min-width: 64px !important;
+    min-height: 64px !important;
     background: var(--primary) !important;
     color: #0c0e12 !important;
     border-radius: 50% !important;
@@ -2785,8 +2950,8 @@ kbd {
   }
 
   .sheet-play-btn svg {
-    width: 26px !important;
-    height: 26px !important;
+    width: 28px !important;
+    height: 28px !important;
   }
 
   .sheet-bottom-actions {
@@ -2795,20 +2960,24 @@ kbd {
     justify-content: space-around !important;
     padding-top: 10px !important;
     border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+    gap: 12px !important;
   }
 
   .sheet-action-btn {
     display: flex !important;
     align-items: center !important;
-    gap: 6px !important;
+    justify-content: center !important;
+    gap: 8px !important;
     background: rgba(255, 255, 255, 0.06) !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
     border-radius: var(--radius-full) !important;
-    padding: 8px 16px !important;
+    padding: 10px 18px !important;
+    min-height: 44px !important;
     color: #fff !important;
-    font-size: 0.82rem !important;
+    font-size: 0.84rem !important;
     font-weight: 600 !important;
     cursor: pointer !important;
+    -webkit-tap-highlight-color: transparent !important;
   }
 
   /* AI Modal as a Mobile Bottom Sheet */

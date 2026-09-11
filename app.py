@@ -13,10 +13,11 @@ import httpx
 import yt_dlp
 from dotenv import load_dotenv
 
-from fastapi import FastAPI, Query, Request, HTTPException
+from fastapi import FastAPI, Query, Request, Response, HTTPException
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 # Load environment variables
 load_dotenv()
@@ -27,6 +28,9 @@ app = FastAPI(
     version="4.0"
 )
 
+# GZip compression for mobile network efficiency (compresses all responses > 500 bytes)
+app.add_middleware(GZipMiddleware, minimum_size=500)
+
 # Enable CORS
 app.add_middleware(
     CORSMiddleware,
@@ -35,6 +39,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Request performance & latency monitoring middleware
+@app.middleware("http")
+async def monitor_request_performance(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    if process_time > 1.0 and not request.url.path.startswith("/api/stream"):
+        safe_log(f"[Slow Request] {request.method} {request.url.path} took {process_time:.2f}s")
+    return response
 
 # Safe console logging helper for Windows cp1252 character map safety
 def safe_log(msg: str):
@@ -1109,8 +1123,9 @@ async def api_get_ai_playlist(
     return await create_ai_playlist_unified(lang_list, mood, era, prompt, count)
 
 @app.get("/api/trending")
-def get_trending(lang: str = Query("all", description="telugu | hindi | english | tamil | punjabi | all")):
-    """Returns trending chartbusters with support for all major languages."""
+def get_trending(response: Response, lang: str = Query("all", description="telugu | hindi | english | tamil | punjabi | all")):
+    """Returns trending chartbusters with support for all major languages and HTTP caching."""
+    response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
     lang = lang.lower().strip()
     if lang == "all":
         all_tracks = []
@@ -1131,14 +1146,16 @@ def get_trending(lang: str = Query("all", description="telugu | hindi | english 
         return {"language": lang, "tracks": tracks}
 
 @app.get("/api/search")
-async def search(q: str = Query(..., min_length=1, description="Search query for song, artist or album")):
-    """Asynchronous instant YouTube song search."""
+async def search(response: Response, q: str = Query(..., min_length=1, description="Search query for song, artist or album")):
+    """Asynchronous instant YouTube song search with HTTP caching."""
+    response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
     results = await async_search_youtube(q, max_results=15, filter_long=True)
     return {"query": q, "results": results}
 
 @app.get("/api/suggestions")
-async def suggestions(q: str = Query(..., min_length=1)):
-    """Auto-suggestions as user types."""
+async def suggestions(response: Response, q: str = Query(..., min_length=1)):
+    """Auto-suggestions as user types with HTTP caching."""
+    response.headers["Cache-Control"] = "public, max-age=1800, stale-while-revalidate=86400"
     encoded = urllib.parse.quote(q)
     url = f"https://suggestqueries.google.com/complete/search?client=youtube&ds=yt&q={encoded}"
     try:
@@ -1306,6 +1323,27 @@ def serve_index():
     if os.path.exists(index_path):
         return FileResponse(index_path)
     return {"message": "Swarify Music API is running."}
+
+@app.get("/manifest.json")
+def serve_manifest():
+    manifest_path = os.path.join(STATIC_DIR, "manifest.json")
+    if os.path.exists(manifest_path):
+        return FileResponse(manifest_path, media_type="application/manifest+json")
+    return JSONResponse(status_code=404, content={"error": "manifest not found"})
+
+@app.get("/sw.js")
+def serve_service_worker():
+    sw_path = os.path.join(STATIC_DIR, "sw.js")
+    if os.path.exists(sw_path):
+        return FileResponse(
+            sw_path,
+            media_type="application/javascript",
+            headers={
+                "Service-Worker-Allowed": "/",
+                "Cache-Control": "no-cache, no-store, must-revalidate"
+            }
+        )
+    return JSONResponse(status_code=404, content={"error": "service worker not found"})
 
 @app.api_route("/health", methods=["GET", "HEAD"])
 @app.api_route("/ping", methods=["GET", "HEAD"])

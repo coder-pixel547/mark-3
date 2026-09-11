@@ -228,7 +228,7 @@
   // 1. Native HTML5 Audio Setup (Spotify Style)
   // ==========================================
   const audio = el.nativeAudio;
-  audio.preload = "auto";
+  audio.preload = "metadata";
   audio.volume = state.volume / 100;
 
   audio.addEventListener('play', () => {
@@ -434,14 +434,68 @@
 
   function updateMediaSessionPosition() {
     if ('mediaSession' in navigator && 'setPositionState' in navigator.mediaSession) {
-      if (audio.duration && !isNaN(audio.duration)) {
-        navigator.mediaSession.setPositionState({
-          duration: audio.duration,
-          playbackRate: audio.playbackRate || 1,
-          position: Math.min(audio.currentTime, audio.duration)
-        });
+      if (Number.isFinite(audio.duration) && audio.duration > 0 && Number.isFinite(audio.currentTime)) {
+        try {
+          navigator.mediaSession.setPositionState({
+            duration: Math.max(0, audio.duration),
+            playbackRate: audio.playbackRate || 1,
+            position: Math.min(Math.max(0, audio.currentTime), audio.duration)
+          });
+        } catch (e) {
+          // Silently ignore browser-level position state rejections
+        }
       }
     }
+  }
+
+  // Battery & Background Optimization (Pause UI intervals & animations when document.hidden)
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      // Pause visualizer animation to conserve mobile battery
+      if (el.audioVisualizer) {
+        el.audioVisualizer.classList.add('paused');
+      }
+      if (ytProgressInterval) {
+        stopYtProgressTracking();
+      }
+    } else {
+      // Resume visualizer if actively playing
+      if (state.isPlaying && el.audioVisualizer) {
+        el.audioVisualizer.classList.remove('paused');
+      }
+      if (state.isPlaying && state.audioMode === 'video') {
+        startYtProgressTracking();
+      }
+      updateMediaSessionPosition();
+    }
+  });
+
+  // Offline & Online Network Detection
+  function updateOnlineStatus() {
+    const banner = document.getElementById('offline-banner');
+    if (!banner) return;
+    if (navigator.onLine) {
+      banner.classList.add('hidden');
+    } else {
+      banner.classList.remove('hidden');
+      showToast('You are currently offline. Library is still playable.');
+    }
+  }
+  window.addEventListener('online', updateOnlineStatus);
+  window.addEventListener('offline', updateOnlineStatus);
+  setTimeout(updateOnlineStatus, 300);
+
+  // PWA Service Worker Registration
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        .then((reg) => {
+          console.log('[Swarify PWA] Service Worker registered:', reg.scope);
+        })
+        .catch((err) => {
+          console.warn('[Swarify PWA] Service Worker registration failed:', err);
+        });
+    });
   }
 
   // ==========================================
@@ -675,10 +729,21 @@
 
     try {
       const streamUrl = `/api/stream/${track.id}?title=${encodeURIComponent(track.title)}`;
-      audio.preload = "auto";
+      audio.preload = "metadata";
       audio.src = streamUrl;
       audio.load();
-      await audio.play();
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        await playPromise.catch((err) => {
+          if (err.name === 'NotAllowedError') {
+            console.warn('[iOS Autoplay Restriction] User interaction required to start audio.');
+            updatePlayPauseUI(false);
+            showToast('Tap play to start listening ▶');
+          } else {
+            throw err;
+          }
+        });
+      }
     } catch (err) {
       console.warn('Direct stream failed, falling back to YouTube player:', err);
       if (streamTimeout) clearTimeout(streamTimeout);
@@ -965,17 +1030,60 @@
     });
   }
 
-  // Mobile Sheet Expand & Collapse
+  // Mobile Sheet Expand & Collapse with Touch Gesture Swipe-Down to Dismiss
   function openMobilePlayerSheet() {
     if (window.innerWidth <= 768 && el.mobileNowPlayingSheet) {
+      el.mobileNowPlayingSheet.style.transform = '';
       el.mobileNowPlayingSheet.classList.remove('hidden');
     }
   }
 
   function closeMobilePlayerSheet() {
     if (el.mobileNowPlayingSheet) {
+      el.mobileNowPlayingSheet.style.transform = '';
       el.mobileNowPlayingSheet.classList.add('hidden');
     }
+  }
+
+  // Touch Gestures: Swipe-Down to Dismiss Mobile Sheet
+  if (el.mobileNowPlayingSheet) {
+    let touchStartY = 0;
+    let touchCurrentY = 0;
+    let isDraggingSheet = false;
+
+    el.mobileNowPlayingSheet.addEventListener('touchstart', (e) => {
+      // Only drag if scrolled at top of the sheet or touching the drag handle/header
+      if (el.mobileNowPlayingSheet.scrollTop <= 0 || e.target.closest('#sheet-drag-pill') || e.target.closest('.sheet-header')) {
+        touchStartY = e.touches[0].clientY;
+        touchCurrentY = touchStartY;
+        isDraggingSheet = true;
+        el.mobileNowPlayingSheet.style.transition = 'none';
+      }
+    }, { passive: true });
+
+    el.mobileNowPlayingSheet.addEventListener('touchmove', (e) => {
+      if (!isDraggingSheet) return;
+      touchCurrentY = e.touches[0].clientY;
+      const deltaY = touchCurrentY - touchStartY;
+      if (deltaY > 0) {
+        // Dragging downward
+        el.mobileNowPlayingSheet.style.transform = `translateY(${deltaY}px)`;
+      }
+    }, { passive: true });
+
+    el.mobileNowPlayingSheet.addEventListener('touchend', () => {
+      if (!isDraggingSheet) return;
+      isDraggingSheet = false;
+      el.mobileNowPlayingSheet.style.transition = 'transform 0.32s cubic-bezier(0.32, 0.72, 0, 1)';
+      const deltaY = touchCurrentY - touchStartY;
+      if (deltaY > 80) {
+        // Swipe threshold reached: dismiss sheet
+        closeMobilePlayerSheet();
+      } else {
+        // Snap back to open position
+        el.mobileNowPlayingSheet.style.transform = 'translateY(0)';
+      }
+    }, { passive: true });
   }
 
   if (el.playerTrackInfo) {
@@ -1586,7 +1694,7 @@
       const item = document.createElement('div');
       item.className = 'result-track-item';
       item.innerHTML = `
-        <img class="result-track-thumb" src="${t.thumbnail || 'https://i.ytimg.com/vi/' + t.id + '/hqdefault.jpg'}" alt="${t.title}" />
+        <img class="result-track-thumb" src="${t.thumbnail || 'https://i.ytimg.com/vi/' + t.id + '/hqdefault.jpg'}" alt="${t.title}" loading="lazy" decoding="async" />
         <div class="result-track-info">
           <div class="result-track-title">${t.title}</div>
           <div class="result-track-artist">${t.artist || 'Unknown Artist'}</div>
@@ -1671,7 +1779,7 @@
       const item = document.createElement('div');
       item.className = `queue-item ${i === state.currentIndex ? 'active' : ''}`;
       item.innerHTML = `
-        <img class="queue-thumb" src="${track.thumbnail}" alt="" />
+        <img class="queue-thumb" src="${track.thumbnail}" alt="" loading="lazy" decoding="async" />
         <div class="queue-info">
           <div class="queue-title">${track.title}</div>
           <div class="queue-artist">${track.artist}</div>
@@ -1759,7 +1867,7 @@
 
     card.innerHTML = `
       <div class="card-thumb-wrapper">
-        <img src="${track.thumbnail}" alt="${track.title}" loading="lazy" />
+        <img src="${track.thumbnail}" alt="${track.title}" loading="lazy" decoding="async" />
         <span class="card-duration-tag">${track.duration || '3:30'}</span>
         <button class="card-play-btn" title="Play">
           <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
@@ -1863,29 +1971,37 @@
     });
   }
 
-  // Search & Suggestions
+  // Search & Suggestions with 250ms Debounce & AbortController
   let searchDebounce;
+  let currentSearchAbortController = null;
+  let currentSuggestionsAbortController = null;
+
   el.searchInput.addEventListener('input', function() {
     const query = el.searchInput.value.trim();
     el.clearSearchBtn.classList.toggle('hidden', query.length === 0);
 
     if (query.length === 0) {
       el.suggestionsDropdown.classList.add('hidden');
+      if (currentSuggestionsAbortController) {
+        currentSuggestionsAbortController.abort();
+        currentSuggestionsAbortController = null;
+      }
       return;
     }
 
     clearTimeout(searchDebounce);
     searchDebounce = setTimeout(() => {
       fetchSuggestions(query);
-    }, 200);
+    }, 250);
   });
 
   el.searchInput.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') {
       const q = el.searchInput.value.trim();
       if (q) {
-        performSearch(q);
+        clearTimeout(searchDebounce);
         el.suggestionsDropdown.classList.add('hidden');
+        performSearch(q);
       }
     }
   });
@@ -1894,12 +2010,22 @@
     el.searchInput.value = '';
     el.clearSearchBtn.classList.add('hidden');
     el.suggestionsDropdown.classList.add('hidden');
+    if (currentSearchAbortController) {
+      currentSearchAbortController.abort();
+      currentSearchAbortController = null;
+    }
     switchView('home');
   });
 
   async function fetchSuggestions(query) {
+    if (currentSuggestionsAbortController) {
+      currentSuggestionsAbortController.abort();
+    }
+    currentSuggestionsAbortController = new AbortController();
     try {
-      const res = await fetch(`/api/suggestions?q=${encodeURIComponent(query)}`);
+      const res = await fetch(`/api/suggestions?q=${encodeURIComponent(query)}`, {
+        signal: currentSuggestionsAbortController.signal
+      });
       const data = await res.json();
       if (data.suggestions && data.suggestions.length > 0) {
         renderSuggestions(data.suggestions);
@@ -1907,7 +2033,11 @@
         el.suggestionsDropdown.classList.add('hidden');
       }
     } catch (e) {
-      el.suggestionsDropdown.classList.add('hidden');
+      if (e.name !== 'AbortError') {
+        el.suggestionsDropdown.classList.add('hidden');
+      }
+    } finally {
+      currentSuggestionsAbortController = null;
     }
   }
 
@@ -1936,17 +2066,60 @@
     }
   });
 
+  function renderSearchSkeletons(query) {
+    let existingSearch = document.getElementById('search-results-section');
+    if (!existingSearch) {
+      existingSearch = document.createElement('div');
+      existingSearch.className = 'content-section';
+      existingSearch.id = 'search-results-section';
+      el.songsContainer.prepend(existingSearch);
+    }
+    existingSearch.classList.remove('hidden');
+    existingSearch.innerHTML = `
+      <div class="section-header">
+        <div class="section-title-group">
+          <h2>Searching for "${query}"...</h2>
+          <span class="section-subtitle">Finding top music tracks</span>
+        </div>
+      </div>
+      <div class="song-grid">
+        ${Array.from({ length: 8 }).map(() => `
+          <div class="skeleton-card">
+            <div class="skeleton-thumb-box shimmer"></div>
+            <div class="skeleton-line shimmer"></div>
+            <div class="skeleton-line shimmer short"></div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    el.teluguSection.classList.add('hidden');
+    el.hindiSection.classList.add('hidden');
+    el.englishSection.classList.add('hidden');
+  }
+
   async function performSearch(query) {
-    showToast(`Searching for "${query}"...`);
+    if (currentSearchAbortController) {
+      currentSearchAbortController.abort();
+    }
+    currentSearchAbortController = new AbortController();
+
+    // Render skeleton placeholders immediately for zero layout shift (CLS)
+    renderSearchSkeletons(query);
+
     try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+      const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`, {
+        signal: currentSearchAbortController.signal
+      });
       const data = await res.json();
       const results = data.results || [];
-
       renderSearchResultsView(query, results);
     } catch (err) {
-      console.error('Search failed:', err);
-      showToast('Search failed. Please try again.');
+      if (err.name !== 'AbortError') {
+        console.error('Search failed:', err);
+        showToast('Search failed. Please try again.');
+      }
+    } finally {
+      currentSearchAbortController = null;
     }
   }
 

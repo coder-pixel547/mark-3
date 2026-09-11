@@ -1,0 +1,39 @@
+{
+  "name": "Swarify \u2014 Free Ad-Free Music",
+  "short_name": "Swarify",
+  "description": "Stream Indian & Global chartbusters ad-free with smart AI playlists and background audio.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0c0e12",
+  "theme_color": "#10b981",
+  "icons": [
+    {
+      "src": "/static/icons/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": [
+    "music",
+    "entertainment"
+  ],
+  "shortcuts": [
+    {
+      "name": "Telugu Hits",
+      "url": "/?lang=telugu",
+      "description": "Telugu Blockbusters"
+    },
+    {
+      "name": "Bollywood Hits",
+      "url": "/?lang=hindi",
+      "description": "Bollywood Top Hits"
+    },
+    {
+      "name": "AI Playlist",
+      "url": "/?action=ai",
+      "description": "Smart AI Playlist Generator"
+    }
+  ]
+}
