@@ -1198,6 +1198,36 @@ async def suggestions(response: Response, q: str = Query(..., min_length=1)):
         safe_log(f"Suggestions error: {e}")
     return {"suggestions": []}
 
+@app.get("/api/debug-extract/{video_id}")
+def debug_extract(video_id: str):
+    import traceback
+    logs = []
+    for client_name in ['tv_embedded', 'android_creator', 'android_music', 'ios_music', 'visionos']:
+        opts = {
+            'format': 'bestaudio/best',
+            'quiet': True,
+            'no_warnings': True,
+            'skip_download': True,
+            'noplaylist': True,
+            'extractor_args': {'youtube': {'player_client': [client_name]}}
+        }
+        try:
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+                formats = info.get('formats', [])
+                audio_fmts = [f for f in formats if f.get('vcodec') == 'none' and f.get('acodec') != 'none']
+                logs.append({
+                    "client": client_name,
+                    "success": True,
+                    "has_url": bool(info.get('url')),
+                    "format_id": info.get('format_id'),
+                    "audio_formats": len(audio_fmts)
+                })
+                break
+        except Exception as e:
+            logs.append({"client": client_name, "success": False, "error": str(e)[:150]})
+    return {"video_id": video_id, "logs": logs}
+
 @app.get("/api/audio-info/{video_id}")
 def get_audio_info(video_id: str, title: Optional[str] = None):
     """Returns direct audio stream URL and proxied stream URL."""
