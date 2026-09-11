@@ -823,6 +823,22 @@ def get_audio_metadata(
             if query_hint:
                 break
 
+    if not query_hint:
+        try:
+            oembed_url = f"https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={video_id}&format=json"
+            oe_resp = STREAM_SESSION.get(oembed_url, timeout=2.5)
+            if oe_resp.status_code == 200:
+                oe_data = oe_resp.json()
+                t = oe_data.get("title", "")
+                a = oe_data.get("author_name", "")
+                query_hint = f"{t} {a}".strip()
+                if query_hint:
+                    trim_cache_if_needed(VIDEO_TITLE_MAP, max_size=MAX_TITLE_MAP_ENTRIES)
+                    VIDEO_TITLE_MAP[video_id] = query_hint
+                    safe_log(f"[oEmbed Title Resolved] video_id={video_id} -> '{query_hint}'")
+        except Exception:
+            pass
+
     if query_hint:
         saavn_meta = resolve_saavn_stream(query_hint)
         if saavn_meta:

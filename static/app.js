@@ -2,6 +2,15 @@
 (function() {
   'use strict';
 
+  function safeLoadStorage(key, fallback = []) {
+    try {
+      const item = localStorage.getItem(key);
+      return item ? JSON.parse(item) : fallback;
+    } catch (e) {
+      return fallback;
+    }
+  }
+
   // Application State
   const state = {
     queue: [],
@@ -12,8 +21,8 @@
     repeatMode: 'off', // 'off' | 'all' | 'one'
     volume: 80,
     isMuted: false,
-    likedSongs: JSON.parse(localStorage.getItem('mark3_liked') || '[]'),
-    playlists: JSON.parse(localStorage.getItem('mark3_playlists') || '[]'),
+    likedSongs: safeLoadStorage('mark3_liked', []),
+    playlists: safeLoadStorage('mark3_playlists', []),
     activeView: 'home',
     activeLangChip: 'all',
     activePlaylistId: null,
@@ -194,10 +203,12 @@
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   }
 
-  // Parse Duration String (e.g. "3:45") to Seconds
+  // Parse Duration String (e.g. "3:45" or 195) to Seconds
   function parseDurationToSeconds(durStr) {
     if (!durStr) return 210;
+    if (typeof durStr === 'number' && Number.isFinite(durStr) && durStr > 0) return Math.floor(durStr);
     const parts = String(durStr).split(':').map(Number);
+    if (parts.length === 1 && !isNaN(parts[0]) && parts[0] > 0) return parts[0];
     if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) return parts[0] * 60 + parts[1];
     if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) return parts[0] * 3600 + parts[1] * 60 + parts[2];
     return 210;
@@ -238,9 +249,11 @@
     const current = audio.currentTime || 0;
     const total = getEffectiveDuration();
     const fmtCurrent = formatTime(current);
+    const durRaw = state.queue[state.currentIndex]?.duration;
+    const fallbackFmt = typeof durRaw === 'number' ? formatTime(durRaw) : (durRaw || formatTime(total));
     const fmtTotal = (Number.isFinite(audio.duration) && audio.duration > 0)
       ? formatTime(audio.duration)
-      : (state.queue[state.currentIndex]?.duration || formatTime(total));
+      : fallbackFmt;
 
     el.currentTime.textContent = fmtCurrent;
     el.totalDuration.textContent = fmtTotal;
@@ -263,8 +276,9 @@
     } else {
       const cur = state.queue[state.currentIndex];
       if (cur && cur.duration) {
-        el.totalDuration.textContent = cur.duration;
-        if (el.sheetTotalDuration) el.sheetTotalDuration.textContent = cur.duration;
+        const fmtCur = typeof cur.duration === 'number' ? formatTime(cur.duration) : cur.duration;
+        el.totalDuration.textContent = fmtCur;
+        if (el.sheetTotalDuration) el.sheetTotalDuration.textContent = fmtCur;
       }
     }
   }
@@ -609,7 +623,8 @@
     const title = track.title || 'Unknown Title';
     const artist = track.artist || 'Swarify';
     const thumbUrl = track.thumbnail || `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg`;
-    const dur = track.duration || '3:30';
+    const rawDur = track.duration || '3:30';
+    const dur = typeof rawDur === 'number' ? formatTime(rawDur) : rawDur;
 
     el.playerTitle.textContent = title;
     el.playerArtist.textContent = artist;
@@ -645,19 +660,49 @@
     }
   }
 
-  // Seeker Scrubber
-  el.progressWrapper.addEventListener('click', function(e) {
-    const rect = el.progressWrapper.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const fraction = Math.max(0, Math.min(1, clickX / rect.width));
+  // Universal Seeker Scrubber (Click & Touch Drag)
+  function setupScrubber(wrapper, fillElements) {
+    if (!wrapper) return;
+    let isDragging = false;
 
-    const total = getEffectiveDuration();
-    if (total > 0 && Number.isFinite(total)) {
-      audio.currentTime = fraction * total;
-      updateMediaSessionPosition();
+    function seekFromEvent(e) {
+      const clientX = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
+      const rect = wrapper.getBoundingClientRect();
+      if (!rect.width) return;
+      const clickX = clientX - rect.left;
+      const fraction = Math.max(0, Math.min(1, clickX / rect.width));
+
+      const total = getEffectiveDuration();
+      if (total > 0 && Number.isFinite(total)) {
+        audio.currentTime = fraction * total;
+        updateMediaSessionPosition();
+      }
+      fillElements.forEach(f => {
+        if (f) f.style.width = `${fraction * 100}%`;
+      });
     }
-    el.progressFill.style.width = `${fraction * 100}%`;
-  });
+
+    wrapper.addEventListener('click', seekFromEvent);
+
+    wrapper.addEventListener('touchstart', (e) => {
+      isDragging = true;
+      seekFromEvent(e);
+    }, { passive: true });
+
+    window.addEventListener('touchmove', (e) => {
+      if (!isDragging) return;
+      seekFromEvent(e);
+    }, { passive: true });
+
+    window.addEventListener('touchend', () => {
+      isDragging = false;
+    });
+  }
+
+  setupScrubber(el.progressWrapper, [el.progressFill, el.mobileMiniProgressFill]);
+  if (el.sheetProgressWrapper) {
+    setupScrubber(el.sheetProgressWrapper, [el.sheetProgressFill, el.progressFill, el.mobileMiniProgressFill]);
+  }
 
   // Volume Slider
   el.volumeSlider.addEventListener('input', function(e) {
@@ -715,23 +760,6 @@
     }
   });
 
-  // Mobile Sheet Scrubber
-  if (el.sheetProgressWrapper) {
-    el.sheetProgressWrapper.addEventListener('click', function(e) {
-      const rect = el.sheetProgressWrapper.getBoundingClientRect();
-      const clickX = e.clientX - rect.left;
-      const fraction = Math.max(0, Math.min(1, clickX / rect.width));
-
-      const total = getEffectiveDuration();
-      if (total > 0 && Number.isFinite(total)) {
-        audio.currentTime = fraction * total;
-        updateMediaSessionPosition();
-      }
-      if (el.sheetProgressFill) el.sheetProgressFill.style.width = `${fraction * 100}%`;
-      if (el.mobileMiniProgressFill) el.mobileMiniProgressFill.style.width = `${fraction * 100}%`;
-      el.progressFill.style.width = `${fraction * 100}%`;
-    });
-  }
 
   // Mobile Sheet Expand & Collapse with Touch Gesture Swipe-Down to Dismiss
   function openMobilePlayerSheet() {
@@ -1399,7 +1427,7 @@
           <div class="result-track-artist">${t.artist || 'Unknown Artist'}</div>
         </div>
         <span class="result-track-lang-pill">${t.language || 'Mix'}</span>
-        <span class="result-track-duration">${t.duration || '3:30'}</span>
+        <span class="result-track-duration">${typeof t.duration === 'number' ? formatTime(t.duration) : (t.duration || '3:30')}</span>
       `;
       item.style.cursor = 'pointer';
       item.addEventListener('click', () => {
@@ -1534,7 +1562,7 @@
     card.innerHTML = `
       <div class="card-thumb-wrapper">
         <img src="${track.thumbnail}" alt="${track.title}" loading="lazy" decoding="async" />
-        <span class="card-duration-tag">${track.duration || '3:30'}</span>
+        <span class="card-duration-tag">${typeof track.duration === 'number' ? formatTime(track.duration) : (track.duration || '3:30')}</span>
         <button class="card-play-btn" title="Play">
           <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
         </button>
