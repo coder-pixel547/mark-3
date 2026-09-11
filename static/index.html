@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="/static/styles.css?v=5.0" />
+  <link rel="stylesheet" href="/static/styles.css?v=6.0" />
   <style>
     /* Critical 0ms render styles & zero overflow-x */
     *, *::before, *::after { box-sizing: border-box; }
@@ -265,15 +265,11 @@
       </div>
     </div>
 
-    <!-- Right Controls: Visualizer, Video toggle, Queue, Volume -->
+    <!-- Right Controls: Visualizer, Queue, Volume -->
     <div class="player-right">
       <div class="equalizer-bars" id="audio-visualizer">
         <span></span><span></span><span></span><span></span>
       </div>
-
-      <button class="btn-icon" id="btn-toggle-video" title="Toggle Mini Video / Audio Mode">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
-      </button>
 
       <button class="btn-icon" id="btn-toggle-queue" title="View Queue">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
@@ -379,21 +375,6 @@
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 11H5M19 16H5M11 6H5M19 6h-4"></path></svg>
         <span>Add to Playlist</span>
       </button>
-      <button type="button" class="sheet-action-btn" id="sheet-btn-toggle-video">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
-        <span>Video View</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- Embedded Mini Video Dock (Collapsible) -->
-  <div class="mini-video-dock hidden" id="video-dock">
-    <div class="video-dock-header">
-      <span>Video Player</span>
-      <button class="dock-close-btn" id="dock-close-btn">&times;</button>
-    </div>
-    <div id="yt-player-container">
-      <div id="yt-player"></div>
     </div>
   </div>
 
@@ -741,8 +722,6 @@
   <!-- Native HTML5 Audio Engine for Background & Screen-Off Playback -->
   <audio id="native-audio" preload="metadata"></audio>
 
-  <!-- YouTube IFrame API Script (Secondary Video Dock) -->
-  <script src="https://www.youtube.com/iframe_api"></script>
-  <script src="/static/app.js?v=5.0"></script>
+  <script src="/static/app.js?v=6.0"></script>
 </body>
 </html>

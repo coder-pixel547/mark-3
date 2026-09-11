@@ -664,7 +664,7 @@ def search_youtube(query: str, max_results: int = 10) -> List[Dict[str, Any]]:
 AUDIO_FORMAT_SELECTOR = "140/251/bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio[acodec!=none][vcodec=none]/bestaudio"
 YTDL_CLIENT_ARGS = {
     'youtube': {
-        'player_client': ['visionos', 'android', 'web']
+        'player_client': ['tv_embedded', 'android_creator', 'android_music', 'ios_music', 'visionos']
     }
 }
 COOKIE_FILE_PATH = os.path.join(os.path.dirname(__file__), "cookies.txt")
