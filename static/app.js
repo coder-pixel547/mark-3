@@ -335,34 +335,16 @@
     if (!curTrack) return;
     const trackId = curTrack.id || curTrack.videoId;
 
-    // Do not auto-skip on the first error; retry once by re-requesting /api/stream/{id} before giving up
-    if (!curTrack._retryAttempted) {
-      curTrack._retryAttempted = true;
-      console.warn(`[Audio Error] Retrying stream once for "${curTrack.title}" (${trackId})...`);
-      showToast(`Retrying stream for "${curTrack.title}"...`, 2000);
-      try {
-        const streamUrl = `/api/stream/${trackId}?title=${encodeURIComponent(curTrack.title)}&retry=1&t=${Date.now()}`;
-        audio.src = streamUrl;
-        audio.load();
-        audio.play().catch(playErr => {
-          console.warn('[Audio Retry Play Error]', playErr);
-        });
-        return;
-      } catch (retryErr) {
-        console.error('[Audio Retry Setup Error]', retryErr);
-      }
-    }
-
-    // Before skipping, attempt seamless YouTube fallback player
+    // Immediately switch to YouTube backup player if direct stream encounters an error
     if (state.audioMode !== 'video' && !curTrack._triedYtFallback) {
       curTrack._triedYtFallback = true;
       console.warn(`[Audio Error] Falling back to backup player for "${curTrack.title}" (${trackId})...`);
-      showToast(`Switching to backup player for "${curTrack.title}"...`, 2500);
+      showToast(`Playing "${curTrack.title}" via backup player 🎵`, 2000);
       playViaYouTube(trackId);
       return;
     }
 
-    // If retry already failed or track unavailable, show user-facing toast before advancing
+    // If backup player also failed or not possible, show user-facing toast before advancing
     showToast(`This track is unavailable, skipping…`, 3500);
 
     // Skip to next available track

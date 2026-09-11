@@ -1198,61 +1198,6 @@ async def suggestions(response: Response, q: str = Query(..., min_length=1)):
         safe_log(f"Suggestions error: {e}")
     return {"suggestions": []}
 
-@app.get("/api/debug-extract/{video_id}")
-def debug_extract(video_id: str, title: Optional[str] = "Fear Song"):
-    """Temporary diagnostic endpoint to identify exact yt-dlp client errors in production environment."""
-    import yt_dlp
-    results = {}
-    clients_to_check = ['tv', 'tv_downgraded', 'tv_simply', 'android_vr', 'web_embedded', 'web_safari']
-    for client in clients_to_check:
-        opts = {
-            'format': AUDIO_FORMAT_SELECTOR,
-            'quiet': True,
-            'no_warnings': True,
-            'skip_download': True,
-            'noplaylist': True,
-            'extractor_args': {'youtube': {'player_client': [client]}}
-        }
-        try:
-            with yt_dlp.YoutubeDL(opts) as ydl:
-                info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
-                results[client] = {
-                    "success": True,
-                    "format_id": info.get("format_id"),
-                    "vcodec": info.get("vcodec"),
-                    "acodec": info.get("acodec"),
-                    "has_url": bool(info.get("url"))
-                }
-        except Exception as e:
-            results[client] = {"success": False, "error": str(e)}
-
-    # Also test search fallback with various clients
-    search_query = f"{title} audio song"
-    for client in ['tv', 'web_embedded', 'android', 'web']:
-        s_opts = {
-            'format': AUDIO_FORMAT_SELECTOR,
-            'quiet': True,
-            'no_warnings': True,
-            'default_search': 'ytsearch1:',
-            'skip_download': True,
-            'noplaylist': True,
-            'extractor_args': {'youtube': {'player_client': [client]}}
-        }
-        try:
-            with yt_dlp.YoutubeDL(s_opts) as ydl:
-                res = ydl.extract_info(f"ytsearch1:{search_query}", download=False)
-                entry = res['entries'][0] if res and res.get('entries') else None
-                results[f"search_{client}"] = {
-                    "success": bool(entry and entry.get('url')),
-                    "format_id": entry.get("format_id") if entry else None,
-                    "vcodec": entry.get("vcodec") if entry else None,
-                    "has_url": bool(entry and entry.get('url'))
-                }
-        except Exception as e:
-            results[f"search_{client}"] = {"success": False, "error": str(e)}
-
-    return results
-
 @app.get("/api/audio-info/{video_id}")
 def get_audio_info(video_id: str, title: Optional[str] = None):
     """Returns direct audio stream URL and proxied stream URL."""
