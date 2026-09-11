@@ -1199,15 +1199,15 @@ async def suggestions(response: Response, q: str = Query(..., min_length=1)):
     return {"suggestions": []}
 
 @app.get("/api/debug-extract/{video_id}")
-def debug_extract(video_id: str):
+def debug_extract(video_id: str, use_cookies: bool = False):
     import traceback
     logs = []
-    cookie_file = COOKIE_FILE_PATH if os.path.exists(COOKIE_FILE_PATH) else None
-    cookie_exists = bool(cookie_file)
-    cookie_size = os.path.getsize(cookie_file) if cookie_exists else 0
+    cookie_file = COOKIE_FILE_PATH if (use_cookies and os.path.exists(COOKIE_FILE_PATH)) else None
+    cookie_exists = bool(os.path.exists(COOKIE_FILE_PATH))
+    cookie_size = os.path.getsize(COOKIE_FILE_PATH) if cookie_exists else 0
     env_cookie = bool(os.environ.get("YTDL_COOKIES"))
 
-    for client_name in ['tv_embedded', 'android_creator', 'android_music', 'ios_music', 'visionos']:
+    for client_name in ['visionos', 'android', 'android_vr', 'mweb', 'tv', 'web_embedded']:
         opts = {
             'format': 'bestaudio/best',
             'quiet': True,
@@ -1227,10 +1227,10 @@ def debug_extract(video_id: str):
                     "client": client_name,
                     "success": True,
                     "has_url": bool(info.get('url')),
+                    "vcodec": info.get('vcodec'),
                     "format_id": info.get('format_id'),
                     "audio_formats": len(audio_fmts)
                 })
-                break
         except Exception as e:
             logs.append({"client": client_name, "success": False, "error": str(e)[:150]})
     return {
@@ -1238,6 +1238,7 @@ def debug_extract(video_id: str):
         "cookie_file_exists": cookie_exists,
         "cookie_file_size": cookie_size,
         "env_cookie_present": env_cookie,
+        "used_cookies": bool(cookie_file),
         "logs": logs
     }
 
