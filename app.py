@@ -1480,6 +1480,39 @@ def debug_extract(video_id: str, use_cookies: bool = False):
         "logs": logs
     }
 
+@app.get("/api/debug-trace/{video_id}")
+def debug_trace(video_id: str, title: Optional[str] = None):
+    t0 = time.time()
+    steps = []
+    
+    curated_info = VIDEO_INFO_MAP.get(video_id)
+    steps.append({"step": "curated_lookup", "curated": curated_info, "elapsed": time.time() - t0})
+    
+    query_hint = (title or "").strip()
+    if not query_hint:
+        query_hint = VIDEO_TITLE_MAP.get(video_id, "")
+    if not query_hint and curated_info:
+        query_hint = f"{curated_info.get('title', '')} {curated_info.get('artist', '')}".strip()
+    steps.append({"step": "query_hint", "query_hint": query_hint, "elapsed": time.time() - t0})
+    
+    exp_dur = curated_info.get("duration") if curated_info else None
+    exp_art = curated_info.get("artist") if curated_info else None
+    saavn_t0 = time.time()
+    saavn_res = resolve_saavn_stream(query_hint, expected_duration=exp_dur, expected_artist=exp_art)
+    steps.append({
+        "step": "saavn",
+        "has_result": bool(saavn_res),
+        "source": saavn_res.get("source") if saavn_res else None,
+        "duration": saavn_res.get("duration") if saavn_res else None,
+        "elapsed": time.time() - saavn_t0
+    })
+    
+    return {
+        "video_id": video_id,
+        "total_time": time.time() - t0,
+        "steps": steps
+    }
+
 @app.get("/api/audio-info/{video_id}")
 def get_audio_info(
     video_id: str,
