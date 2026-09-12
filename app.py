@@ -704,7 +704,7 @@ def unpad_pkcs5(data: bytes) -> bytes:
         return data[:-pad_len]
     return data
 
-def extract_clean_queries(title: str) -> List[str]:
+def extract_clean_queries(title: str, artist: Optional[str] = None) -> List[str]:
     # Strip marketing and format tags: (Official Music Video), [4K], etc.
     cleaned = re.sub(
         r'[\(\[\{](Official\s*(Video|Audio|Music\s*Video|Lyrical|4K|HD|8K)?|Full\s*(Video|Song|Audio)|Video\s*Song|Lyrical\s*Video|Teaser|Trailer|Audio|Lyrics|Visualizer)[\)\]\}]',
@@ -720,22 +720,32 @@ def extract_clean_queries(title: str) -> List[str]:
         parts = [p.strip() for p in cleaned.split('|') if p.strip()]
         if len(parts) >= 2:
             queries.append(f"{parts[0]} {parts[1]}")
+            queries.append(parts[0])
         elif parts:
             queries.append(parts[0])
 
-    if '-' in cleaned:
-        hparts = [p.strip() for p in cleaned.split('-') if p.strip()]
+    if '-' in cleaned or '—' in cleaned:
+        sep = '—' if '—' in cleaned else '-'
+        hparts = [p.strip() for p in cleaned.split(sep) if p.strip()]
         if len(hparts) >= 2:
             queries.append(f"{hparts[0]} {hparts[1]}")
             queries.append(f"{hparts[1]} {hparts[0]}")
-    elif '—' in cleaned:
-        hparts = [p.strip() for p in cleaned.split('—') if p.strip()]
-        if len(hparts) >= 2:
-            queries.append(f"{hparts[0]} {hparts[1]}")
-            queries.append(f"{hparts[1]} {hparts[0]}")
+            queries.append(hparts[0])
+            queries.append(hparts[1])
 
     queries.append(cleaned)
-    return list(dict.fromkeys([q for q in queries if len(q) > 2]))
+    if artist:
+        no_art = re.sub(re.escape(artist), '', cleaned, flags=re.IGNORECASE).strip()
+        if len(no_art) > 2:
+            queries.append(no_art)
+
+    clean_qs = []
+    for q in queries:
+        q_str = re.sub(r'^[\s\-–—]+|[\s\-–—]+$', '', q).strip()
+        if len(q_str) > 2 and (not artist or q_str.lower() != artist.strip().lower()):
+            clean_qs.append(q_str)
+
+    return list(dict.fromkeys(clean_qs))
 
 DISQUALIFIED_SAAVN_KEYWORDS = (
     'sped up', 'speed up', 'speedup', 'nightcore', 'slowed', 'reverb',
@@ -760,7 +770,7 @@ def resolve_saavn_stream(
     except ImportError:
         return None
 
-    queries_to_try = extract_clean_queries(query)
+    queries_to_try = extract_clean_queries(query, artist=expected_artist)
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Referer': 'https://www.jiosaavn.com/'
@@ -848,7 +858,7 @@ def resolve_saavn_stream(
 AUDIO_FORMAT_SELECTOR = "140/251/bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio[acodec!=none][vcodec=none]/bestaudio"
 YTDL_CLIENT_ARGS = {
     'youtube': {
-        'player_client': ['visionos', 'android', 'android_vr', 'mweb', 'web_embedded', 'tv']
+        'player_client': ['android', 'visionos']
     }
 }
 COOKIE_FILE_PATH = os.path.join(os.path.dirname(__file__), "cookies.txt")
@@ -915,7 +925,7 @@ def get_audio_metadata(
             AUDIO_URL_CACHE[video_id] = saavn_meta
             return saavn_meta
 
-    # 2. Secondary: pure audio extraction with visionos/android/tv clients
+    # 2. Secondary: pure audio extraction with visionos/android clients
     cookie_file = COOKIE_FILE_PATH if os.path.exists(COOKIE_FILE_PATH) else None
     info = None
     primary_opts = {
@@ -924,6 +934,7 @@ def get_audio_metadata(
         'no_warnings': True,
         'skip_download': True,
         'noplaylist': True,
+        'cachedir': False,
         'extractor_args': YTDL_CLIENT_ARGS,
     }
     if cookie_file:
@@ -933,6 +944,8 @@ def get_audio_metadata(
             info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
     except Exception as e:
         safe_log(f"[yt-dlp primary failed] video_id={video_id}: {e}")
+    finally:
+        import gc; gc.collect()
 
     # Guard: verify pure audio (reject video streams which cause HTML5 <audio> to crash after 2-5s)
     if info and info.get("url"):
@@ -950,6 +963,7 @@ def get_audio_metadata(
             'no_warnings': True,
             'skip_download': True,
             'noplaylist': True,
+            'cachedir': False,
             'extractor_args': YTDL_CLIENT_ARGS,
         }
         if cookie_file:
@@ -964,6 +978,8 @@ def get_audio_metadata(
                         info = None
         except Exception as ex:
             safe_log(f"[yt-dlp multi-client failed] video_id={video_id}: {ex}")
+        finally:
+            import gc; gc.collect()
 
     if info and info.get("url"):
         ext = info.get("ext", "m4a")
