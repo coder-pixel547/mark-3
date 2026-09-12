@@ -68,6 +68,9 @@ STREAM_SESSION = requests.Session()
 _adapter = HTTPAdapter(pool_connections=50, pool_maxsize=50, max_retries=1)
 STREAM_SESSION.mount("https://", _adapter)
 STREAM_SESSION.mount("http://", _adapter)
+STREAM_SESSION.cookies.set("geo", "103.211.230.1%2CIN%2CTelangana%2CHyderabad%2C500028", domain=".jiosaavn.com")
+STREAM_SESSION.cookies.set("DL", "english", domain=".jiosaavn.com")
+STREAM_SESSION.cookies.set("mm_latlong", "17.3843%2C78.4583", domain=".jiosaavn.com")
 
 # In-memory caches with bounded size to prevent memory leaks in 24/7 deployments
 SEARCH_CACHE: Dict[str, Dict[str, Any]] = {}
@@ -773,7 +776,8 @@ def resolve_saavn_stream(
     queries_to_try = extract_clean_queries(query, artist=expected_artist)
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Referer': 'https://www.jiosaavn.com/'
+        'Referer': 'https://www.jiosaavn.com/',
+        'Cookie': 'geo=103.211.230.1%2CIN%2CTelangana%2CHyderabad%2C500028; DL=english; mm_latlong=17.3843%2C78.4583'
     }
     key = b'38346591'
     cipher = DES.new(key, DES.MODE_ECB)
@@ -785,7 +789,7 @@ def resolve_saavn_stream(
         for ctx in ('android', 'web6dot0'):
             try:
                 encoded = urllib.parse.quote(q)
-                url = f'https://www.jiosaavn.com/api.php?__call=search.getResults&_marker=0&q={encoded}&ctx={ctx}&_format=json&p=1&n=10'
+                url = f'https://www.jiosaavn.com/api.php?__call=search.getResults&_marker=0&q={encoded}&ctx={ctx}&_format=json&p=1&n=10&geo=in&country=in&cc=in'
                 resp = STREAM_SESSION.get(url, headers=headers, timeout=3.0)
                 if resp.status_code != 200:
                     continue
@@ -859,7 +863,7 @@ def resolve_saavn_stream(
 AUDIO_FORMAT_SELECTOR = "140/251/bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio[acodec!=none][vcodec=none]/bestaudio"
 YTDL_CLIENT_ARGS = {
     'youtube': {
-        'player_client': ['android', 'visionos']
+        'player_client': ['mweb', 'android', 'ios']
     }
 }
 COOKIE_FILE_PATH = os.path.join(os.path.dirname(__file__), "cookies.txt")
@@ -936,6 +940,7 @@ def get_audio_metadata(
         'noplaylist': True,
         'cachedir': False,
         'socket_timeout': 5,
+        'extractor_retries': 0,
         'extractor_args': YTDL_CLIENT_ARGS,
     }
     try:
@@ -964,6 +969,7 @@ def get_audio_metadata(
             'noplaylist': True,
             'cachedir': False,
             'socket_timeout': 5,
+            'extractor_retries': 0,
             'extractor_args': {'youtube': {'player_client': ['android', 'mweb']}},
         }
         try:
@@ -1013,6 +1019,7 @@ def get_audio_metadata(
             'noplaylist': True,
             'cachedir': False,
             'socket_timeout': 5,
+            'extractor_retries': 0,
             'extractor_args': YTDL_CLIENT_ARGS,
         }
         with yt_dlp.YoutubeDL(search_opts) as ydl:
@@ -1502,8 +1509,8 @@ def debug_trace(video_id: str, title: Optional[str] = None):
     raw_probe = []
     if not saavn_res:
         try:
-            probe_url = f'https://www.jiosaavn.com/api.php?__call=search.getResults&_marker=0&q={urllib.parse.quote(query_hint)}&ctx=android&_format=json&p=1&n=5'
-            pr = STREAM_SESSION.get(probe_url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=2.5)
+            probe_url = f'https://www.jiosaavn.com/api.php?__call=search.getResults&_marker=0&q={urllib.parse.quote(query_hint)}&ctx=android&_format=json&p=1&n=5&geo=in&country=in&cc=in'
+            pr = STREAM_SESSION.get(probe_url, headers={'User-Agent': 'Mozilla/5.0', 'Cookie': 'geo=103.211.230.1%2CIN%2CTelangana%2CHyderabad%2C500028; DL=english; mm_latlong=17.3843%2C78.4583'}, timeout=2.5)
             if pr.status_code == 200:
                 pdata = pr.json()
                 for s in pdata.get('results', [])[:5]:
@@ -1525,7 +1532,7 @@ def debug_trace(video_id: str, title: Optional[str] = None):
         "elapsed": time.time() - saavn_t0
     })
 
-    # yt-dlp test probe with 5s timeout
+    # yt-dlp test probe with 4s timeout and 0 retries
     ytdl_t0 = time.time()
     ytdl_res = None
     ytdl_err = None
@@ -1537,7 +1544,8 @@ def debug_trace(video_id: str, title: Optional[str] = None):
             'skip_download': True,
             'noplaylist': True,
             'cachedir': False,
-            'socket_timeout': 5,
+            'socket_timeout': 4,
+            'extractor_retries': 0,
             'extractor_args': YTDL_CLIENT_ARGS,
         }
         with yt_dlp.YoutubeDL(opts) as ydl:
