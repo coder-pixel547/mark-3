@@ -308,6 +308,8 @@
   audio.addEventListener('canplay', () => {
     console.log('[Audio Event: canplay] audio ready');
     if (el.playingIndicator) el.playingIndicator.classList.add('hidden');
+    audio.playbackRate = 1.0;
+    audio.defaultPlaybackRate = 1.0;
   });
 
   audio.addEventListener('stalled', () => {
@@ -317,6 +319,8 @@
   audio.addEventListener('playing', () => {
     console.log('[Audio Event: playing]');
     if (el.playingIndicator) el.playingIndicator.classList.add('hidden');
+    audio.playbackRate = 1.0;
+    audio.defaultPlaybackRate = 1.0;
     state.isPlaying = true;
     updatePlayPauseUI(true);
   });
@@ -339,7 +343,12 @@
       curTrack._retryAttempted = true;
       console.warn(`[Audio Error] Retrying "${curTrack.title}" with search title hint...`);
       const hint = encodeURIComponent(`${curTrack.title} ${curTrack.artist || ''}`.trim());
-      audio.src = `/api/stream/${trackId}?title=${hint}`;
+      const durSec = getTrackDurationSeconds(curTrack);
+      const durParam = durSec ? `&dur=${durSec}` : '';
+      const artistParam = curTrack.artist ? `&artist=${encodeURIComponent(curTrack.artist)}` : '';
+      audio.src = `/api/stream/${trackId}?title=${hint}${durParam}${artistParam}`;
+      audio.playbackRate = 1.0;
+      audio.defaultPlaybackRate = 1.0;
       audio.load();
       audio.play().catch(playErr => console.warn('Retry play caught:', playErr));
       return;
@@ -469,6 +478,19 @@
 
 
 
+  function getTrackDurationSeconds(track) {
+    if (!track || !track.duration) return null;
+    if (typeof track.duration === 'number' && track.duration > 0) {
+      return Math.round(track.duration);
+    }
+    if (typeof track.duration === 'string' && track.duration.includes(':')) {
+      const parts = track.duration.split(':').map(Number);
+      if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) return parts[0] * 60 + parts[1];
+      if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    }
+    return null;
+  }
+
   function preloadNextTrackSpeculative() {
     if (state.queue.length <= 1) return;
     const nextIdx = (state.currentIndex + 1) % state.queue.length;
@@ -477,7 +499,10 @@
       const nextId = nextTrack.id || nextTrack.videoId;
       if (nextId) {
         const hint = encodeURIComponent(`${nextTrack.title || ''} ${nextTrack.artist || ''}`.trim());
-        fetch(`/api/audio-info/${nextId}?title=${hint}`).catch(() => {});
+        const durSec = getTrackDurationSeconds(nextTrack);
+        const durParam = durSec ? `&dur=${durSec}` : '';
+        const artistParam = nextTrack.artist ? `&artist=${encodeURIComponent(nextTrack.artist)}` : '';
+        fetch(`/api/audio-info/${nextId}?title=${hint}${durParam}${artistParam}`).catch(() => {});
       }
     }
   }
@@ -517,7 +542,10 @@
 
     try {
       const hint = encodeURIComponent(`${track.title || ''} ${track.artist || ''}`.trim());
-      const streamUrl = `/api/stream/${track.id}?title=${hint}`;
+      const durSec = getTrackDurationSeconds(track);
+      const durParam = durSec ? `&dur=${durSec}` : '';
+      const artistParam = track.artist ? `&artist=${encodeURIComponent(track.artist)}` : '';
+      const streamUrl = `/api/stream/${track.id}?title=${hint}${durParam}${artistParam}`;
       audio.preload = "metadata";
       audio.src = streamUrl;
       audio.playbackRate = 1.0;

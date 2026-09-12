@@ -515,20 +515,15 @@ CURATED_TRACKS: Dict[str, List[Dict[str, Any]]] = {
     ]
 }
 
-VIDEO_TITLE_MAP: Dict[str, str] = {}
-for _lang, _track_list in CURATED_TRACKS.items():
-    for _trk in _track_list:
-        _tid = _trk.get("id") or _trk.get("videoId")
-        if _tid:
-            VIDEO_TITLE_MAP[_tid] = f"{_trk.get('title', '')} {_trk.get('artist', '')}".strip()
-
 # ==============================================================================
 # Helper Functions: Duration Parsing, Title Sanitization & Validation
 # ==============================================================================
-def parse_duration_to_seconds(dur_str: str) -> int:
-    """Parses '3:45' or '1:02:15' to integer seconds."""
+def parse_duration_to_seconds(dur_str: Any) -> int:
+    """Parses '3:45', '1:02:15', or integer to integer seconds."""
     if not dur_str:
         return 210
+    if isinstance(dur_str, (int, float)):
+        return int(dur_str)
     try:
         parts = [int(p) for p in str(dur_str).strip().split(':')]
         if len(parts) == 1:
@@ -540,6 +535,20 @@ def parse_duration_to_seconds(dur_str: str) -> int:
     except Exception:
         pass
     return 210
+
+VIDEO_TITLE_MAP: Dict[str, str] = {}
+VIDEO_INFO_MAP: Dict[str, Dict[str, Any]] = {}
+for _lang, _track_list in CURATED_TRACKS.items():
+    for _trk in _track_list:
+        _tid = _trk.get("id") or _trk.get("videoId")
+        if _tid:
+            VIDEO_TITLE_MAP[_tid] = f"{_trk.get('title', '')} {_trk.get('artist', '')}".strip()
+            VIDEO_INFO_MAP[_tid] = {
+                "title": _trk.get("title", ""),
+                "artist": _trk.get("artist", ""),
+                "duration": parse_duration_to_seconds(_trk.get("duration")),
+                "language": _lang
+            }
 
 def clean_song_title(title: str) -> str:
     """Removes annoying marketing tags like (Official Video), [4K], cast lists, etc."""
@@ -696,7 +705,14 @@ def unpad_pkcs5(data: bytes) -> bytes:
     return data
 
 def extract_clean_queries(title: str) -> List[str]:
-    cleaned = re.sub(r'\(.*?\)|\[.*?\]', '', title)
+    # Strip marketing and format tags: (Official Music Video), [4K], etc.
+    cleaned = re.sub(
+        r'[\(\[\{](Official\s*(Video|Audio|Music\s*Video|Lyrical|4K|HD|8K)?|Full\s*(Video|Song|Audio)|Video\s*Song|Lyrical\s*Video|Teaser|Trailer|Audio|Lyrics|Visualizer)[\)\]\}]',
+        '',
+        title,
+        flags=re.IGNORECASE
+    )
+    cleaned = re.sub(r'\(.*?\)|\[.*?\]', '', cleaned)
     cleaned = re.sub(r'\s+', ' ', cleaned).strip()
 
     queries = []
@@ -704,7 +720,6 @@ def extract_clean_queries(title: str) -> List[str]:
         parts = [p.strip() for p in cleaned.split('|') if p.strip()]
         if len(parts) >= 2:
             queries.append(f"{parts[0]} {parts[1]}")
-            queries.append(parts[0])
         elif parts:
             queries.append(parts[0])
 
@@ -712,13 +727,32 @@ def extract_clean_queries(title: str) -> List[str]:
         hparts = [p.strip() for p in cleaned.split('-') if p.strip()]
         if len(hparts) >= 2:
             queries.append(f"{hparts[0]} {hparts[1]}")
-            queries.append(hparts[0])
+            queries.append(f"{hparts[1]} {hparts[0]}")
+    elif '—' in cleaned:
+        hparts = [p.strip() for p in cleaned.split('—') if p.strip()]
+        if len(hparts) >= 2:
+            queries.append(f"{hparts[0]} {hparts[1]}")
+            queries.append(f"{hparts[1]} {hparts[0]}")
 
     queries.append(cleaned)
-    return list(dict.fromkeys([q for q in queries if len(q) > 1]))
+    return list(dict.fromkeys([q for q in queries if len(q) > 2]))
 
-def resolve_saavn_stream(query: str) -> Optional[Dict[str, Any]]:
-    """Resolves high-quality direct audio stream (160kbps AAC / MP4) via JioSaavn CDN without bot checks."""
+DISQUALIFIED_SAAVN_KEYWORDS = (
+    'sped up', 'speed up', 'speedup', 'nightcore', 'slowed', 'reverb',
+    'cover', 'karaoke', 'instrumental', 'tribute', 'tribute to',
+    'remix', 'mashup', 'tik tok', 'tiktok', 'ringtone', 'status',
+    'acoustic cover', 'chipmunk', 'lofi flip', 'lo-fi flip', '8d audio'
+)
+
+def resolve_saavn_stream(
+    query: str,
+    expected_duration: Optional[int] = None,
+    expected_artist: Optional[str] = None
+) -> Optional[Dict[str, Any]]:
+    """
+    Resolves high-quality direct audio stream (160kbps AAC / MP4) via JioSaavn CDN
+    with strict validation against sped-up remixes, covers, wrong artists, and duration drift.
+    """
     if not query or not query.strip():
         return None
     try:
@@ -734,10 +768,13 @@ def resolve_saavn_stream(query: str) -> Optional[Dict[str, Any]]:
     key = b'38346591'
     cipher = DES.new(key, DES.MODE_ECB)
 
+    query_lower = query.lower()
+    disqualified = [kw for kw in DISQUALIFIED_SAAVN_KEYWORDS if kw not in query_lower]
+
     for q in queries_to_try:
         try:
             encoded = urllib.parse.quote(q)
-            url = f'https://www.jiosaavn.com/api.php?__call=search.getResults&_marker=0&q={encoded}&ctx=web6dot0&_format=json&p=1&n=5'
+            url = f'https://www.jiosaavn.com/api.php?__call=search.getResults&_marker=0&q={encoded}&ctx=web6dot0&_format=json&p=1&n=10'
             resp = STREAM_SESSION.get(url, headers=headers, timeout=3.0)
             if resp.status_code != 200:
                 continue
@@ -746,7 +783,34 @@ def resolve_saavn_stream(query: str) -> Optional[Dict[str, Any]]:
             if not results:
                 continue
 
-            for song in results[:2]:
+            for song in results:
+                song_title = (song.get('song') or '').strip().lower()
+                song_artist = (song.get('primary_artists') or song.get('singers') or song.get('music') or '').strip().lower()
+                song_dur = int(song.get('duration') or 0)
+
+                # 1. Reject sped-up, nightcore, slowed, covers, remixes (unless query specifically requests them)
+                if any(kw in song_title for kw in disqualified):
+                    continue
+
+                # 2. Duration check: candidate must be within +/- 18 seconds of expected duration
+                if expected_duration and expected_duration > 30 and song_dur > 0:
+                    if abs(song_dur - expected_duration) > 18:
+                        continue
+
+                # 3. Artist check: if expected_artist is known, ensure compatibility
+                if expected_artist:
+                    exp_artist_clean = expected_artist.lower().strip()
+                    if exp_artist_clean not in song_artist and song_artist not in exp_artist_clean:
+                        exp_tokens = [tok for tok in exp_artist_clean.split() if len(tok) > 2]
+                        if exp_tokens and not any(tok in song_artist for tok in exp_tokens):
+                            continue
+
+                # 4. Title relevance check: candidate song title must share keywords with query
+                clean_title_toks = [t for t in re.sub(r'[^a-zA-Z0-9\s]', '', song_title).split() if len(t) > 2]
+                if clean_title_toks:
+                    if not any(t in query_lower for t in clean_title_toks):
+                        continue
+
                 enc_url = song.get('encrypted_media_url')
                 if not enc_url:
                     continue
@@ -760,12 +824,8 @@ def resolve_saavn_stream(query: str) -> Optional[Dict[str, Any]]:
                             filesize = int(head_resp.headers.get("Content-Length", 0))
                         except Exception:
                             pass
-                        duration = None
-                        try:
-                            duration = int(song.get("duration") or 0)
-                        except Exception:
-                            pass
-                        safe_log(f"[Saavn Stream Resolved] query='{q}' song='{song.get('song')}' size={filesize}")
+                        duration = song_dur or None
+                        safe_log(f"[Saavn Stream Validated] query='{q}' song='{song.get('song')}' artist='{song.get('primary_artists')}' dur={duration} size={filesize}")
                         return {
                             "url": url_160,
                             "headers": {},
@@ -802,7 +862,9 @@ if not os.path.exists(COOKIE_FILE_PATH) and os.environ.get("YTDL_COOKIES"):
 def get_audio_metadata(
     video_id: str,
     search_query_hint: Optional[str] = None,
-    force_refresh: bool = False
+    force_refresh: bool = False,
+    expected_duration: Optional[int] = None,
+    expected_artist: Optional[str] = None
 ) -> Optional[Dict[str, Any]]:
     """Extracts direct audio stream metadata with format fallback, caching, and diagnostics."""
     if not force_refresh and video_id in AUDIO_URL_CACHE:
@@ -810,18 +872,19 @@ def get_audio_metadata(
         if time.time() - item["timestamp"] < AUDIO_CACHE_TTL:
             return item
 
+    curated_info = VIDEO_INFO_MAP.get(video_id)
+    if curated_info:
+        if not expected_duration:
+            expected_duration = curated_info.get("duration")
+        if not expected_artist:
+            expected_artist = curated_info.get("artist")
+
     # 1. Primary: High-fidelity direct CDN resolution via JioSaavn (immune to bot checks)
     query_hint = (search_query_hint or "").strip()
     if not query_hint:
         query_hint = VIDEO_TITLE_MAP.get(video_id, "")
-    if not query_hint:
-        for lang_tracks in CURATED_TRACKS.values():
-            for track in lang_tracks:
-                if track.get("id") == video_id or track.get("videoId") == video_id:
-                    query_hint = f"{track.get('title', '')} {track.get('artist', '')}".strip()
-                    break
-            if query_hint:
-                break
+    if not query_hint and curated_info:
+        query_hint = f"{curated_info.get('title', '')} {curated_info.get('artist', '')}".strip()
 
     if not query_hint:
         try:
@@ -832,6 +895,8 @@ def get_audio_metadata(
                 t = oe_data.get("title", "")
                 a = oe_data.get("author_name", "")
                 query_hint = f"{t} {a}".strip()
+                if not expected_artist and a:
+                    expected_artist = a
                 if query_hint:
                     trim_cache_if_needed(VIDEO_TITLE_MAP, max_size=MAX_TITLE_MAP_ENTRIES)
                     VIDEO_TITLE_MAP[video_id] = query_hint
@@ -840,7 +905,11 @@ def get_audio_metadata(
             pass
 
     if query_hint:
-        saavn_meta = resolve_saavn_stream(query_hint)
+        saavn_meta = resolve_saavn_stream(
+            query_hint,
+            expected_duration=expected_duration,
+            expected_artist=expected_artist
+        )
         if saavn_meta:
             trim_cache_if_needed(AUDIO_URL_CACHE, max_size=MAX_CACHE_ENTRIES)
             AUDIO_URL_CACHE[video_id] = saavn_meta
@@ -1396,9 +1465,15 @@ def debug_extract(video_id: str, use_cookies: bool = False):
     }
 
 @app.get("/api/audio-info/{video_id}")
-def get_audio_info(video_id: str, title: Optional[str] = None):
+def get_audio_info(
+    video_id: str,
+    title: Optional[str] = None,
+    dur: Optional[str] = None,
+    artist: Optional[str] = None
+):
     """Returns direct audio stream URL and proxied stream URL."""
-    meta = get_audio_metadata(video_id, title)
+    expected_dur = parse_duration_to_seconds(dur) if dur else None
+    meta = get_audio_metadata(video_id, title, expected_duration=expected_dur, expected_artist=artist)
     if not meta:
         return JSONResponse(status_code=404, content={"error": "Audio stream not found", "videoId": video_id})
     return {
@@ -1412,12 +1487,19 @@ def get_audio_info(video_id: str, title: Optional[str] = None):
     }
 
 @app.get("/api/stream/{video_id}")
-def stream_audio(video_id: str, request: Request, title: Optional[str] = None):
+def stream_audio(
+    video_id: str,
+    request: Request,
+    title: Optional[str] = None,
+    dur: Optional[str] = None,
+    artist: Optional[str] = None
+):
     """
     Direct inline audio stream proxy with HTTP 206 Partial Content, Range headers,
     resilient chunk streaming, and clean client disconnect handling.
     """
-    meta = get_audio_metadata(video_id, title)
+    expected_dur = parse_duration_to_seconds(dur) if dur else None
+    meta = get_audio_metadata(video_id, title, expected_duration=expected_dur, expected_artist=artist)
     if not meta or not meta.get("url"):
         safe_log(f"[Stream 404] Audio stream metadata not found for video_id={video_id}")
         return JSONResponse(
@@ -1443,7 +1525,7 @@ def stream_audio(video_id: str, request: Request, title: Optional[str] = None):
         if upstream_resp.status_code in (403, 410):
             safe_log(f"[Stream Expired] Upstream HTTP {upstream_resp.status_code} for {video_id}, re-extracting fresh URL...")
             AUDIO_URL_CACHE.pop(video_id, None)
-            meta = get_audio_metadata(video_id, title, force_refresh=True)
+            meta = get_audio_metadata(video_id, title, force_refresh=True, expected_duration=expected_dur, expected_artist=artist)
             if not meta or not meta.get("url"):
                 return JSONResponse(status_code=404, content={"error": "Audio stream expired and re-extraction failed", "videoId": video_id})
             req_headers = dict(meta.get("headers", {}))
@@ -1454,7 +1536,7 @@ def stream_audio(video_id: str, request: Request, title: Optional[str] = None):
         safe_log(f"[Stream Connection Error] video_id={video_id}: {ex}")
         try:
             AUDIO_URL_CACHE.pop(video_id, None)
-            meta = get_audio_metadata(video_id, title, force_refresh=True)
+            meta = get_audio_metadata(video_id, title, force_refresh=True, expected_duration=expected_dur, expected_artist=artist)
             if meta and meta.get("url"):
                 req_headers = dict(meta.get("headers", {}))
                 if range_header:
