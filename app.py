@@ -782,77 +782,78 @@ def resolve_saavn_stream(
     disqualified = [kw for kw in DISQUALIFIED_SAAVN_KEYWORDS if kw not in query_lower]
 
     for q in queries_to_try:
-        try:
-            encoded = urllib.parse.quote(q)
-            url = f'https://www.jiosaavn.com/api.php?__call=search.getResults&_marker=0&q={encoded}&ctx=web6dot0&_format=json&p=1&n=10'
-            resp = STREAM_SESSION.get(url, headers=headers, timeout=3.0)
-            if resp.status_code != 200:
-                continue
-            data = resp.json()
-            results = data.get('results', [])
-            if not results:
-                continue
-
-            for song in results:
-                song_title = (song.get('song') or '').strip().lower()
-                song_artist = (song.get('primary_artists') or song.get('singers') or song.get('music') or '').strip().lower()
-                song_dur = int(song.get('duration') or 0)
-
-                # 1. Reject sped-up, nightcore, slowed, covers, remixes (unless query specifically requests them)
-                if any(kw in song_title for kw in disqualified):
+        for ctx in ('android', 'web6dot0'):
+            try:
+                encoded = urllib.parse.quote(q)
+                url = f'https://www.jiosaavn.com/api.php?__call=search.getResults&_marker=0&q={encoded}&ctx={ctx}&_format=json&p=1&n=10'
+                resp = STREAM_SESSION.get(url, headers=headers, timeout=3.0)
+                if resp.status_code != 200:
+                    continue
+                data = resp.json()
+                results = data.get('results', [])
+                if not results:
                     continue
 
-                # 2. Duration check: candidate must be within +/- 18 seconds of expected duration
-                if expected_duration and expected_duration > 30 and song_dur > 0:
-                    if abs(song_dur - expected_duration) > 18:
+                for song in results:
+                    song_title = (song.get('song') or '').strip().lower()
+                    song_artist = (song.get('primary_artists') or song.get('singers') or song.get('music') or '').strip().lower()
+                    song_dur = int(song.get('duration') or 0)
+
+                    # 1. Reject sped-up, nightcore, slowed, covers, remixes (unless query specifically requests them)
+                    if any(kw in song_title for kw in disqualified):
                         continue
 
-                # 3. Artist check: if expected_artist is known, ensure compatibility
-                if expected_artist:
-                    exp_artist_clean = expected_artist.lower().strip()
-                    if exp_artist_clean not in song_artist and song_artist not in exp_artist_clean:
-                        exp_tokens = [tok for tok in exp_artist_clean.split() if len(tok) > 2]
-                        if exp_tokens and not any(tok in song_artist for tok in exp_tokens):
+                    # 2. Duration check: candidate must be within +/- 18 seconds of expected duration
+                    if expected_duration and expected_duration > 30 and song_dur > 0:
+                        if abs(song_dur - expected_duration) > 18:
                             continue
 
-                # 4. Title relevance check: candidate song title must share keywords with query
-                clean_title_toks = [t for t in re.sub(r'[^a-zA-Z0-9\s]', '', song_title).split() if len(t) > 2]
-                if clean_title_toks:
-                    if not any(t in query_lower for t in clean_title_toks):
-                        continue
+                    # 3. Artist check: if expected_artist is known, ensure compatibility
+                    if expected_artist:
+                        exp_artist_clean = expected_artist.lower().strip()
+                        if exp_artist_clean not in song_artist and song_artist not in exp_artist_clean:
+                            exp_tokens = [tok for tok in exp_artist_clean.split() if len(tok) > 2]
+                            if exp_tokens and not any(tok in song_artist for tok in exp_tokens):
+                                continue
 
-                enc_url = song.get('encrypted_media_url')
-                if not enc_url:
-                    continue
-                try:
-                    dec = unpad_pkcs5(cipher.decrypt(base64.b64decode(enc_url))).decode('utf-8')
-                    url_160 = dec.replace('_96.mp4', '_160.mp4').replace('_320.mp4', '_160.mp4')
-                    head_resp = STREAM_SESSION.head(url_160, timeout=2.5)
-                    if head_resp.status_code == 200:
-                        filesize = None
-                        try:
-                            filesize = int(head_resp.headers.get("Content-Length", 0))
-                        except Exception:
-                            pass
-                        duration = song_dur or None
-                        safe_log(f"[Saavn Stream Validated] query='{q}' song='{song.get('song')}' artist='{song.get('primary_artists')}' dur={duration} size={filesize}")
-                        return {
-                            "url": url_160,
-                            "headers": {},
-                            "format_id": "saavn-160k",
-                            "content_type": "audio/mp4",
-                            "duration": duration,
-                            "filesize": filesize,
-                            "ext": "mp4",
-                            "vcodec": "none",
-                            "acodec": "aac",
-                            "source": "saavn",
-                            "timestamp": time.time()
-                        }
-                except Exception:
-                    continue
-        except Exception:
-            continue
+                    # 4. Title relevance check: candidate song title must share keywords with query
+                    clean_title_toks = [t for t in re.sub(r'[^a-zA-Z0-9\s]', '', song_title).split() if len(t) > 2]
+                    if clean_title_toks:
+                        if not any(t in query_lower for t in clean_title_toks):
+                            continue
+
+                    enc_url = song.get('encrypted_media_url')
+                    if not enc_url:
+                        continue
+                    try:
+                        dec = unpad_pkcs5(cipher.decrypt(base64.b64decode(enc_url))).decode('utf-8')
+                        url_160 = dec.replace('_96.mp4', '_160.mp4').replace('_320.mp4', '_160.mp4')
+                        head_resp = STREAM_SESSION.head(url_160, timeout=2.5)
+                        if head_resp.status_code == 200:
+                            filesize = None
+                            try:
+                                filesize = int(head_resp.headers.get("Content-Length", 0))
+                            except Exception:
+                                pass
+                            duration = song_dur or None
+                            safe_log(f"[Saavn Stream Validated] query='{q}' song='{song.get('song')}' artist='{song.get('primary_artists')}' dur={duration} size={filesize}")
+                            return {
+                                "url": url_160,
+                                "headers": {},
+                                "format_id": "saavn-160k",
+                                "content_type": "audio/mp4",
+                                "duration": duration,
+                                "filesize": filesize,
+                                "ext": "mp4",
+                                "vcodec": "none",
+                                "acodec": "aac",
+                                "source": "saavn",
+                                "timestamp": time.time()
+                            }
+                    except Exception:
+                        continue
+            except Exception:
+                continue
     return None
 
 AUDIO_FORMAT_SELECTOR = "140/251/bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio[acodec!=none][vcodec=none]/bestaudio"
@@ -926,7 +927,6 @@ def get_audio_metadata(
             return saavn_meta
 
     # 2. Secondary: pure audio extraction with visionos/android clients
-    cookie_file = COOKIE_FILE_PATH if os.path.exists(COOKIE_FILE_PATH) else None
     info = None
     primary_opts = {
         'format': AUDIO_FORMAT_SELECTOR,
@@ -935,6 +935,7 @@ def get_audio_metadata(
         'skip_download': True,
         'noplaylist': True,
         'cachedir': False,
+        'socket_timeout': 5,
         'extractor_args': YTDL_CLIENT_ARGS,
     }
     try:
@@ -962,10 +963,9 @@ def get_audio_metadata(
             'skip_download': True,
             'noplaylist': True,
             'cachedir': False,
-            'extractor_args': YTDL_CLIENT_ARGS,
+            'socket_timeout': 5,
+            'extractor_args': {'youtube': {'player_client': ['android', 'mweb']}},
         }
-        if cookie_file:
-            fallback_opts['cookiefile'] = cookie_file
         try:
             with yt_dlp.YoutubeDL(fallback_opts) as ydl:
                 info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
@@ -1011,10 +1011,10 @@ def get_audio_metadata(
             'default_search': 'ytsearch1:',
             'skip_download': True,
             'noplaylist': True,
+            'cachedir': False,
+            'socket_timeout': 5,
             'extractor_args': YTDL_CLIENT_ARGS,
         }
-        if cookie_file:
-            search_opts['cookiefile'] = cookie_file
         with yt_dlp.YoutubeDL(search_opts) as ydl:
             res = ydl.extract_info(f"ytsearch1:{fallback_query}", download=False)
             if res and 'entries' in res and len(res['entries']) > 0:
@@ -1497,14 +1497,72 @@ def debug_trace(video_id: str, title: Optional[str] = None):
     exp_art = curated_info.get("artist") if curated_info else None
     saavn_t0 = time.time()
     saavn_res = resolve_saavn_stream(query_hint, expected_duration=exp_dur, expected_artist=exp_art)
+    
+    # Candidate probe for diagnostics
+    raw_probe = []
+    if not saavn_res:
+        try:
+            probe_url = f'https://www.jiosaavn.com/api.php?__call=search.getResults&_marker=0&q={urllib.parse.quote(query_hint)}&ctx=android&_format=json&p=1&n=5'
+            pr = STREAM_SESSION.get(probe_url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=2.5)
+            if pr.status_code == 200:
+                pdata = pr.json()
+                for s in pdata.get('results', [])[:5]:
+                    raw_probe.append({
+                        "song": s.get("song"),
+                        "artist": s.get("primary_artists"),
+                        "duration": s.get("duration"),
+                        "has_enc": bool(s.get("encrypted_media_url"))
+                    })
+        except Exception as probe_ex:
+            raw_probe.append({"error": str(probe_ex)[:100]})
+
     steps.append({
         "step": "saavn",
         "has_result": bool(saavn_res),
         "source": saavn_res.get("source") if saavn_res else None,
         "duration": saavn_res.get("duration") if saavn_res else None,
+        "raw_probe": raw_probe,
         "elapsed": time.time() - saavn_t0
     })
-    
+
+    # yt-dlp test probe with 5s timeout
+    ytdl_t0 = time.time()
+    ytdl_res = None
+    ytdl_err = None
+    try:
+        opts = {
+            'format': AUDIO_FORMAT_SELECTOR,
+            'quiet': True,
+            'no_warnings': True,
+            'skip_download': True,
+            'noplaylist': True,
+            'cachedir': False,
+            'socket_timeout': 5,
+            'extractor_args': YTDL_CLIENT_ARGS,
+        }
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            inf = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+            if inf and inf.get("url"):
+                ytdl_res = {
+                    "format_id": inf.get("format_id"),
+                    "vcodec": inf.get("vcodec"),
+                    "acodec": inf.get("acodec"),
+                    "duration": inf.get("duration"),
+                    "has_url": bool(inf.get("url"))
+                }
+    except Exception as e:
+        ytdl_err = str(e)[:200]
+    finally:
+        import gc; gc.collect()
+
+    steps.append({
+        "step": "yt_dlp",
+        "has_result": bool(ytdl_res),
+        "info": ytdl_res,
+        "error": ytdl_err,
+        "elapsed": time.time() - ytdl_t0
+    })
+
     return {
         "video_id": video_id,
         "total_time": time.time() - t0,
