@@ -141,3 +141,26 @@ def test_service_worker_route():
     assert resp.headers.get("service-worker-allowed") == "/"
     assert "no-cache" in resp.headers.get("cache-control", "")
 
+def test_spotify_import_endpoints():
+    """Verify Spotify public playlist and album parsing and import endpoints."""
+    from app import extract_spotify_entity
+    assert extract_spotify_entity("https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M") == ("playlist", "37i9dQZF1DXcBWIGoYBM5M")
+    assert extract_spotify_entity("spotify:album:4yP0hdKO0NayF8ScNTb4vU") == ("album", "4yP0hdKO0NayF8ScNTb4vU")
+    assert extract_spotify_entity("invalid_link") is None
+
+    # Test error handling on bad URL
+    bad_resp = client.post("/api/spotify/import", json={"url": "https://not-spotify.com/xyz"})
+    assert bad_resp.status_code == 400
+    assert "Invalid Spotify URL" in bad_resp.json().get("error", "")
+
+    # Test valid import
+    resp = client.post("/api/spotify/import", json={"url": "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "Today" in data.get("name", "")
+    assert len(data.get("tracks", [])) > 0
+    first_track = data["tracks"][0]
+    assert first_track["source"] == "spotify"
+    assert first_track["id"].startswith("sp_")
+
+

@@ -7,7 +7,7 @@ import asyncio
 import random
 import urllib.parse
 import urllib.request
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 
 import requests
 import httpx
@@ -1055,6 +1055,19 @@ def get_audio_metadata(
             return saavn_meta
 
     # 2. Secondary: pure audio extraction with visionos/android clients
+    actual_yt_id = video_id
+    if (actual_yt_id.startswith("sp_") or len(actual_yt_id) != 11) and query_hint:
+        try:
+            yt_matches = search_youtube(query_hint, max_results=1)
+            if yt_matches and yt_matches[0].get("id"):
+                actual_yt_id = yt_matches[0]["id"]
+                safe_log(f"[Spotify YouTube Fallback] Resolved {video_id} -> {actual_yt_id} ('{query_hint}')")
+        except Exception as yt_err:
+            safe_log(f"[Spotify YouTube Fallback Error] {yt_err}")
+
+    if len(actual_yt_id) != 11:
+        return None
+
     info = None
     primary_opts = {
         'format': AUDIO_FORMAT_SELECTOR,
@@ -1069,9 +1082,9 @@ def get_audio_metadata(
     }
     try:
         with yt_dlp.YoutubeDL(primary_opts) as ydl:
-            info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+            info = ydl.extract_info(f"https://www.youtube.com/watch?v={actual_yt_id}", download=False)
     except Exception as e:
-        safe_log(f"[yt-dlp primary failed] video_id={video_id}: {e}")
+        safe_log(f"[yt-dlp primary failed] video_id={actual_yt_id}: {e}")
     finally:
         import gc; gc.collect()
 
@@ -1079,12 +1092,12 @@ def get_audio_metadata(
     if info and info.get("url"):
         vcodec = str(info.get("vcodec") or "none").lower()
         if vcodec != "none":
-            safe_log(f"[Rejecting Video Stream] video_id={video_id} format={info.get('format_id')} vcodec={vcodec}")
+            safe_log(f"[Rejecting Video Stream] video_id={actual_yt_id} format={info.get('format_id')} vcodec={vcodec}")
             info = None
 
     # 3. Fallback: if throttled or primary yielded no direct URL, retry with fallback options
     if not info or not info.get("url"):
-        safe_log(f"[yt-dlp fallback] attempting player_client fallback for video_id={video_id}")
+        safe_log(f"[yt-dlp fallback] attempting player_client fallback for video_id={actual_yt_id}")
         fallback_opts = {
             'format': AUDIO_FORMAT_SELECTOR,
             'quiet': True,
@@ -1098,11 +1111,11 @@ def get_audio_metadata(
         }
         try:
             with yt_dlp.YoutubeDL(fallback_opts) as ydl:
-                info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+                info = ydl.extract_info(f"https://www.youtube.com/watch?v={actual_yt_id}", download=False)
                 if info and info.get("url"):
                     vcodec = str(info.get("vcodec") or "none").lower()
                     if vcodec != "none":
-                        safe_log(f"[Rejecting Video Stream in Fallback] video_id={video_id} format={info.get('format_id')} vcodec={vcodec}")
+                        safe_log(f"[Rejecting Video Stream in Fallback] video_id={actual_yt_id} format={info.get('format_id')} vcodec={vcodec}")
                         info = None
         except Exception as ex:
             safe_log(f"[yt-dlp multi-client failed] video_id={video_id}: {ex}")
@@ -1514,6 +1527,154 @@ async def api_get_ai_playlist(
     """GET fallback for AI playlist generation."""
     lang_list = [l.strip() for l in langs.split(",") if l.strip()]
     return await create_ai_playlist_unified(lang_list, mood, era, prompt, count)
+
+# ==============================================================================
+# Spotify Playlist Importer Engine (Embed Scraper - No Auth Required)
+# ==============================================================================
+def extract_spotify_entity(url_or_uri: str) -> Optional[Tuple[str, str]]:
+    """Extracts entity type ('playlist', 'album', 'track') and Spotify ID from URL or URI."""
+    if not url_or_uri:
+        return None
+    url_or_uri = url_or_uri.strip()
+    match = re.search(r"open\.spotify\.com/(playlist|album|track)/([a-zA-Z0-9]+)", url_or_uri)
+    if match:
+        return match.group(1), match.group(2)
+    match_uri = re.search(r"spotify:(playlist|album|track):([a-zA-Z0-9]+)", url_or_uri)
+    if match_uri:
+        return match_uri.group(1), match_uri.group(2)
+    if re.match(r"^[a-zA-Z0-9]{22}$", url_or_uri):
+        return "playlist", url_or_uri
+    return None
+
+def fetch_spotify_playlist(entity_type: str, entity_id: str) -> Optional[Dict[str, Any]]:
+    """Fetches public playlist/album/track metadata and tracks from Spotify embed endpoint."""
+    embed_url = f"https://open.spotify.com/embed/{entity_type}/{entity_id}"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9"
+    }
+    try:
+        resp = STREAM_SESSION.get(embed_url, headers=headers, timeout=6.0)
+        if resp.status_code != 200:
+            safe_log(f"[Spotify Scrape] Failed status {resp.status_code} for {embed_url}")
+            return None
+
+        m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', resp.text, re.DOTALL)
+        if not m:
+            safe_log(f"[Spotify Scrape] __NEXT_DATA__ not found for {embed_url}")
+            return None
+
+        data = json.loads(m.group(1))
+        entity = data.get("props", {}).get("pageProps", {}).get("state", {}).get("data", {}).get("entity")
+        if not entity:
+            safe_log(f"[Spotify Scrape] entity not found in pageProps")
+            return None
+
+        title = entity.get("title") or entity.get("name") or "Spotify Playlist"
+        subtitle = entity.get("subtitle") or "Imported from Spotify"
+
+        cover_url = ""
+        cover_art = entity.get("coverArt") or {}
+        sources = cover_art.get("sources") or []
+        if sources and isinstance(sources, list) and sources[0].get("url"):
+            cover_url = sources[0]["url"]
+        if not cover_url:
+            vis_images = entity.get("visualIdentity", {}).get("image", [])
+            if vis_images and isinstance(vis_images, list):
+                cover_url = vis_images[-1].get("url") or vis_images[0].get("url", "")
+        if not cover_url:
+            cover_url = "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300"
+
+        raw_tracks = entity.get("trackList")
+        if raw_tracks is None:
+            raw_tracks = [entity]
+
+        tracks = []
+        for idx, tr in enumerate(raw_tracks):
+            track_title = (tr.get("title") or tr.get("name") or "").strip()
+            if not track_title:
+                continue
+            raw_artist = tr.get("subtitle") or ""
+            track_artist = raw_artist.replace("\u00a0", " ").strip()
+            if not track_artist:
+                track_artist = subtitle.replace("\u00a0", " ").strip()
+
+            dur_ms = tr.get("duration") or 0
+            dur_sec = max(1, int(dur_ms / 1000)) if dur_ms else 180
+            mins = dur_sec // 60
+            secs = dur_sec % 60
+            duration_str = f"{mins}:{secs:02d}"
+
+            track_uri = tr.get("uri") or ""
+            track_sp_id = track_uri.split(":")[-1] if ":" in track_uri else f"{entity_id}_{idx}"
+            synth_id = f"sp_{entity_id[:10]}_{idx}"
+
+            query_hint = f"{track_title} {track_artist}".strip()
+            trim_cache_if_needed(VIDEO_TITLE_MAP, max_size=MAX_TITLE_MAP_ENTRIES)
+            VIDEO_TITLE_MAP[synth_id] = query_hint
+
+            tracks.append({
+                "id": synth_id,
+                "title": track_title,
+                "artist": track_artist,
+                "duration": duration_str,
+                "duration_seconds": dur_sec,
+                "thumbnail": cover_url,
+                "source": "spotify",
+                "spotify_id": track_sp_id,
+                "query": query_hint
+            })
+
+        return {
+            "id": f"pl_spotify_{entity_id}",
+            "name": title,
+            "description": subtitle,
+            "cover": cover_url,
+            "type": entity_type,
+            "spotify_id": entity_id,
+            "track_count": len(tracks),
+            "tracks": tracks
+        }
+    except Exception as e:
+        safe_log(f"[Spotify Scrape Exception] {e}")
+        return None
+
+@app.post("/api/spotify/import")
+async def api_import_spotify_post(request: Request):
+    """Imports a public Spotify playlist, album, or track."""
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    url = data.get("url") or data.get("playlist_url") or ""
+    if not url:
+        return JSONResponse(status_code=400, content={"error": "Spotify playlist/album URL is required."})
+
+    extracted = extract_spotify_entity(url)
+    if not extracted:
+        return JSONResponse(status_code=400, content={"error": "Invalid Spotify URL. Please paste a valid link to a public Spotify playlist, album, or track."})
+
+    entity_type, entity_id = extracted
+    result = fetch_spotify_playlist(entity_type, entity_id)
+    if not result:
+        return JSONResponse(status_code=404, content={"error": "Unable to fetch Spotify playlist. Please ensure the playlist is public and the link is correct."})
+
+    return result
+
+@app.get("/api/spotify/import")
+async def api_import_spotify_get(url: str = Query(..., description="Public Spotify playlist or album URL")):
+    """GET endpoint for importing a public Spotify playlist, album, or track."""
+    extracted = extract_spotify_entity(url)
+    if not extracted:
+        return JSONResponse(status_code=400, content={"error": "Invalid Spotify URL. Please paste a valid link to a public Spotify playlist, album, or track."})
+
+    entity_type, entity_id = extracted
+    result = fetch_spotify_playlist(entity_type, entity_id)
+    if not result:
+        return JSONResponse(status_code=404, content={"error": "Unable to fetch Spotify playlist. Please ensure the playlist is public and the link is correct."})
+
+    return result
 
 @app.get("/api/trending")
 def get_trending(response: Response, lang: str = Query("all", description="telugu | hindi | english | tamil | punjabi | all")):

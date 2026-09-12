@@ -130,6 +130,16 @@
     addToPlSongTitle: document.getElementById('add-to-pl-song-title'),
     modalPlList: document.getElementById('modal-pl-list'),
     btnQuickCreatePl: document.getElementById('btn-quick-create-pl'),
+    // Spotify Import Modal
+    btnOpenSpotifyImport: document.getElementById('btn-open-spotify-import'),
+    spotifyImportModal: document.getElementById('spotify-import-modal'),
+    closeSpotifyModal: document.getElementById('close-spotify-modal'),
+    cancelSpotifyBtn: document.getElementById('cancel-spotify-btn'),
+    confirmSpotifyImportBtn: document.getElementById('confirm-spotify-import-btn'),
+    spotifyUrlInput: document.getElementById('spotify-url-input'),
+    btnPasteSpotify: document.getElementById('btn-paste-spotify'),
+    spotifyImportStatus: document.getElementById('spotify-import-status'),
+    spotifyStatusText: document.getElementById('spotify-status-text'),
     // Mobile Controls & Full-Screen Sheet
     playerTrackInfo: document.getElementById('player-track-info'),
     mobileMiniProgressFill: document.getElementById('mobile-mini-progress-fill'),
@@ -1163,6 +1173,123 @@
       el.confirmCreatePlBtn.click();
     }
   });
+
+  // Spotify Modal Controller
+  function openSpotifyModal() {
+    if (el.spotifyImportModal) {
+      if (el.spotifyUrlInput) el.spotifyUrlInput.value = '';
+      if (el.spotifyImportStatus) el.spotifyImportStatus.classList.add('hidden');
+      if (el.confirmSpotifyImportBtn) el.confirmSpotifyImportBtn.disabled = false;
+      el.spotifyImportModal.classList.remove('hidden');
+      setTimeout(() => {
+        if (el.spotifyUrlInput) el.spotifyUrlInput.focus();
+      }, 60);
+    }
+  }
+
+  function closeSpotifyModal() {
+    if (el.spotifyImportModal) {
+      el.spotifyImportModal.classList.add('hidden');
+    }
+    if (el.spotifyImportStatus) el.spotifyImportStatus.classList.add('hidden');
+    if (el.confirmSpotifyImportBtn) el.confirmSpotifyImportBtn.disabled = false;
+  }
+
+  async function importSpotifyPlaylist(rawUrl) {
+    const url = (rawUrl || '').trim();
+    if (!url) {
+      showToast('Please paste a Spotify playlist or album URL');
+      return;
+    }
+
+    if (el.spotifyImportStatus) el.spotifyImportStatus.classList.remove('hidden');
+    if (el.spotifyStatusText) el.spotifyStatusText.textContent = 'Importing tracks from Spotify...';
+    if (el.confirmSpotifyImportBtn) el.confirmSpotifyImportBtn.disabled = true;
+
+    try {
+      const resp = await fetch('/api/spotify/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+
+      const data = await resp.json();
+      if (!resp.ok || data.error) {
+        showToast(data.error || 'Failed to import playlist');
+        return;
+      }
+
+      const importedPl = {
+        id: data.id || ('pl_spotify_' + Date.now()),
+        name: data.name || 'Spotify Playlist',
+        description: data.description || 'Imported from Spotify',
+        cover: data.cover || '',
+        createdAt: Date.now(),
+        tracks: (data.tracks || []).map(t => ({
+          ...t,
+          id: t.id,
+          videoId: t.id
+        }))
+      };
+
+      const existingIndex = state.playlists.findIndex(p => p.id === importedPl.id);
+      if (existingIndex >= 0) {
+        state.playlists[existingIndex] = importedPl;
+      } else {
+        state.playlists.push(importedPl);
+      }
+
+      savePlaylists();
+      closeSpotifyModal();
+      showToast(`Imported "${importedPl.name}" (${importedPl.tracks.length} tracks)! 🟢`);
+      viewPlaylist(importedPl.id);
+    } catch (err) {
+      console.error('Spotify import error:', err);
+      showToast('Connection error importing Spotify playlist');
+    } finally {
+      if (el.spotifyImportStatus) el.spotifyImportStatus.classList.add('hidden');
+      if (el.confirmSpotifyImportBtn) el.confirmSpotifyImportBtn.disabled = false;
+    }
+  }
+
+  if (el.btnOpenSpotifyImport) el.btnOpenSpotifyImport.addEventListener('click', openSpotifyModal);
+  if (el.closeSpotifyModal) el.closeSpotifyModal.addEventListener('click', closeSpotifyModal);
+  if (el.cancelSpotifyBtn) el.cancelSpotifyBtn.addEventListener('click', closeSpotifyModal);
+
+  if (el.confirmSpotifyImportBtn) {
+    el.confirmSpotifyImportBtn.addEventListener('click', () => {
+      if (el.spotifyUrlInput) importSpotifyPlaylist(el.spotifyUrlInput.value);
+    });
+  }
+
+  if (el.spotifyUrlInput) {
+    el.spotifyUrlInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        if (el.confirmSpotifyImportBtn) el.confirmSpotifyImportBtn.click();
+      }
+    });
+  }
+
+  if (el.btnPasteSpotify) {
+    el.btnPasteSpotify.addEventListener('click', async () => {
+      try {
+        const clipText = await navigator.clipboard.readText();
+        if (clipText && el.spotifyUrlInput) {
+          el.spotifyUrlInput.value = clipText.trim();
+          showToast('Link pasted from clipboard! 📋');
+          el.spotifyUrlInput.focus();
+        }
+      } catch (err) {
+        showToast('Clipboard access unavailable. Please paste manually (Ctrl+V).');
+      }
+    });
+  }
+
+  if (el.spotifyImportModal) {
+    el.spotifyImportModal.addEventListener('click', (e) => {
+      if (e.target === el.spotifyImportModal) closeSpotifyModal();
+    });
+  }
 
   function openAddToPlaylistModal(track) {
     state.selectedTrackForPlaylist = track;
