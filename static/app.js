@@ -2179,16 +2179,6 @@
     requestWakeLock();
   });
 
-  // Keep-alive ping every 10 minutes (600,000 ms)
-  setInterval(async () => {
-    try {
-      await fetch('/api/trending?lang=all');
-      console.log('[Swarify] 10-minute keep-alive ping succeeded at', new Date().toLocaleTimeString());
-    } catch (e) {
-      console.warn('[Swarify] Keep-alive error:', e);
-    }
-  }, 10 * 60 * 1000);
-
   // Initialize
   updateLikedCountUI();
   updatePlaylistsSidebar();
