@@ -786,9 +786,79 @@ def resolve_saavn_stream(
     disqualified = [kw for kw in DISQUALIFIED_SAAVN_KEYWORDS if kw not in query_lower]
 
     for q in queries_to_try:
+        encoded = urllib.parse.quote(q)
+
+        # 1. First attempt: canonical autocomplete + song.getDetails (global index, bypasses regional catalog filtering)
+        try:
+            ac_url = f'https://www.jiosaavn.com/api.php?__call=autocomplete.get&_marker=0&query={encoded}&ctx=android&_format=json'
+            ac_resp = STREAM_SESSION.get(ac_url, headers=headers, timeout=2.5)
+            if ac_resp.status_code == 200:
+                ac_songs = ac_resp.json().get('songs', {}).get('data', [])
+                pids = [s.get('id') for s in ac_songs[:6] if s.get('id')]
+                if pids:
+                    pid_str = ','.join(pids)
+                    det_url = f'https://www.jiosaavn.com/api.php?__call=song.getDetails&pids={pid_str}&_format=json'
+                    det_resp = STREAM_SESSION.get(det_url, headers=headers, timeout=2.5)
+                    if det_resp.status_code == 200:
+                        det_data = det_resp.json()
+                        ac_results = [det_data[pid] for pid in pids if pid in det_data]
+                        for song in ac_results:
+                            song_title = (song.get('song') or '').strip().lower()
+                            song_artist = (song.get('primary_artists') or song.get('singers') or song.get('music') or '').strip().lower()
+                            song_dur = int(song.get('duration') or 0)
+
+                            if any(kw in song_title for kw in disqualified):
+                                continue
+                            if expected_duration and expected_duration > 30 and song_dur > 0:
+                                if abs(song_dur - expected_duration) > 18:
+                                    continue
+                            if expected_artist:
+                                exp_artist_clean = expected_artist.lower().strip()
+                                if exp_artist_clean not in song_artist and song_artist not in exp_artist_clean:
+                                    exp_tokens = [tok for tok in exp_artist_clean.split() if len(tok) > 2]
+                                    if exp_tokens and not any(tok in song_artist for tok in exp_tokens):
+                                        continue
+                            clean_title_toks = [t for t in re.sub(r'[^a-zA-Z0-9\s]', '', song_title).split() if len(t) > 2]
+                            if clean_title_toks:
+                                if not any(t in query_lower for t in clean_title_toks):
+                                    continue
+
+                            enc_url = song.get('encrypted_media_url')
+                            if not enc_url:
+                                continue
+                            try:
+                                dec = unpad_pkcs5(cipher.decrypt(base64.b64decode(enc_url))).decode('utf-8')
+                                url_160 = dec.replace('_96.mp4', '_160.mp4').replace('_320.mp4', '_160.mp4')
+                                head_resp = STREAM_SESSION.head(url_160, timeout=2.5)
+                                if head_resp.status_code == 200:
+                                    filesize = None
+                                    try:
+                                        filesize = int(head_resp.headers.get("Content-Length", 0))
+                                    except Exception:
+                                        pass
+                                    duration = song_dur or None
+                                    safe_log(f"[Saavn Stream Validated (Autocomplete)] query='{q}' song='{song.get('song')}' artist='{song.get('primary_artists')}' dur={duration} size={filesize}")
+                                    return {
+                                        "url": url_160,
+                                        "headers": {},
+                                        "format_id": "saavn-160k",
+                                        "content_type": "audio/mp4",
+                                        "duration": duration,
+                                        "filesize": filesize,
+                                        "ext": "mp4",
+                                        "vcodec": "none",
+                                        "acodec": "aac",
+                                        "source": "saavn",
+                                        "timestamp": time.time()
+                                    }
+                            except Exception:
+                                continue
+        except Exception:
+            pass
+
+        # 2. Second attempt: search.getResults across android and web contexts
         for ctx in ('android', 'web6dot0'):
             try:
-                encoded = urllib.parse.quote(q)
                 url = f'https://www.jiosaavn.com/api.php?__call=search.getResults&_marker=0&q={encoded}&ctx={ctx}&_format=json&p=1&n=10&geo=in&country=in&cc=in'
                 resp = STREAM_SESSION.get(url, headers=headers, timeout=3.0)
                 if resp.status_code != 200:
@@ -863,7 +933,7 @@ def resolve_saavn_stream(
 AUDIO_FORMAT_SELECTOR = "140/251/bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio[acodec!=none][vcodec=none]/bestaudio"
 YTDL_CLIENT_ARGS = {
     'youtube': {
-        'player_client': ['mweb', 'android', 'ios']
+        'player_client': ['visionos']
     }
 }
 COOKIE_FILE_PATH = os.path.join(os.path.dirname(__file__), "cookies.txt")
