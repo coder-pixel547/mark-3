@@ -937,8 +937,6 @@ def get_audio_metadata(
         'cachedir': False,
         'extractor_args': YTDL_CLIENT_ARGS,
     }
-    if cookie_file:
-        primary_opts['cookiefile'] = cookie_file
     try:
         with yt_dlp.YoutubeDL(primary_opts) as ydl:
             info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
