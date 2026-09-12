@@ -760,7 +760,8 @@ DISQUALIFIED_SAAVN_KEYWORDS = (
 def resolve_saavn_stream(
     query: str,
     expected_duration: Optional[int] = None,
-    expected_artist: Optional[str] = None
+    expected_artist: Optional[str] = None,
+    debug_logs: Optional[List[str]] = None
 ) -> Optional[Dict[str, Any]]:
     """
     Resolves high-quality direct audio stream (160kbps AAC / MP4) via JioSaavn CDN
@@ -770,7 +771,9 @@ def resolve_saavn_stream(
         return None
     try:
         from Crypto.Cipher import DES
-    except ImportError:
+    except ImportError as ie:
+        if debug_logs is not None:
+            debug_logs.append(f"Crypto.Cipher ImportError: {ie}")
         return None
 
     queries_to_try = extract_clean_queries(query, artist=expected_artist)
@@ -787,18 +790,26 @@ def resolve_saavn_stream(
 
     for q in queries_to_try:
         encoded = urllib.parse.quote(q)
+        if debug_logs is not None:
+            debug_logs.append(f"trying q='{q}'")
 
         # 1. First attempt: canonical autocomplete + song.getDetails (global index, bypasses regional catalog filtering)
         try:
             ac_url = f'https://www.jiosaavn.com/api.php?__call=autocomplete.get&_marker=0&query={encoded}&ctx=android&_format=json'
             ac_resp = STREAM_SESSION.get(ac_url, headers=headers, timeout=2.5)
+            if debug_logs is not None:
+                debug_logs.append(f"autocomplete status={ac_resp.status_code}")
             if ac_resp.status_code == 200:
                 ac_songs = ac_resp.json().get('songs', {}).get('data', [])
+                if debug_logs is not None:
+                    debug_logs.append(f"autocomplete total songs={len(ac_songs)}")
                 pids = [s.get('id') for s in ac_songs[:6] if s.get('id')]
                 if pids:
                     pid_str = ','.join(pids)
                     det_url = f'https://www.jiosaavn.com/api.php?__call=song.getDetails&pids={pid_str}&_format=json'
                     det_resp = STREAM_SESSION.get(det_url, headers=headers, timeout=2.5)
+                    if debug_logs is not None:
+                        debug_logs.append(f"getDetails status={det_resp.status_code}")
                     if det_resp.status_code == 200:
                         det_data = det_resp.json()
                         ac_results = [det_data[pid] for pid in pids if pid in det_data]
@@ -807,29 +818,44 @@ def resolve_saavn_stream(
                             song_artist = (song.get('primary_artists') or song.get('singers') or song.get('music') or '').strip().lower()
                             song_dur = int(song.get('duration') or 0)
 
+                            if debug_logs is not None:
+                                debug_logs.append(f"evaluating ac song='{song_title}' artist='{song_artist}' dur={song_dur}")
+
                             if any(kw in song_title for kw in disqualified):
+                                if debug_logs is not None:
+                                    debug_logs.append(f"reject kw '{song_title}'")
                                 continue
                             if expected_duration and expected_duration > 30 and song_dur > 0:
                                 if abs(song_dur - expected_duration) > 18:
+                                    if debug_logs is not None:
+                                        debug_logs.append(f"reject dur diff={abs(song_dur-expected_duration)}")
                                     continue
                             if expected_artist:
                                 exp_artist_clean = expected_artist.lower().strip()
                                 if exp_artist_clean not in song_artist and song_artist not in exp_artist_clean:
                                     exp_tokens = [tok for tok in exp_artist_clean.split() if len(tok) > 2]
                                     if exp_tokens and not any(tok in song_artist for tok in exp_tokens):
+                                        if debug_logs is not None:
+                                            debug_logs.append(f"reject artist mismatch: exp='{exp_artist_clean}' act='{song_artist}'")
                                         continue
                             clean_title_toks = [t for t in re.sub(r'[^a-zA-Z0-9\s]', '', song_title).split() if len(t) > 2]
                             if clean_title_toks:
                                 if not any(t in query_lower for t in clean_title_toks):
+                                    if debug_logs is not None:
+                                        debug_logs.append(f"reject title tokens '{clean_title_toks}'")
                                     continue
 
                             enc_url = song.get('encrypted_media_url')
                             if not enc_url:
+                                if debug_logs is not None:
+                                    debug_logs.append("no encrypted_media_url")
                                 continue
                             try:
                                 dec = unpad_pkcs5(cipher.decrypt(base64.b64decode(enc_url))).decode('utf-8')
                                 url_160 = dec.replace('_96.mp4', '_160.mp4').replace('_320.mp4', '_160.mp4')
                                 head_resp = STREAM_SESSION.head(url_160, timeout=2.5)
+                                if debug_logs is not None:
+                                    debug_logs.append(f"head status={head_resp.status_code}")
                                 if head_resp.status_code == 200:
                                     filesize = None
                                     try:
@@ -851,9 +877,13 @@ def resolve_saavn_stream(
                                         "source": "saavn",
                                         "timestamp": time.time()
                                     }
-                            except Exception:
+                            except Exception as dex:
+                                if debug_logs is not None:
+                                    debug_logs.append(f"decrypt ex={dex}")
                                 continue
-        except Exception:
+        except Exception as acex:
+            if debug_logs is not None:
+                debug_logs.append(f"ac loop ex={acex}")
             pass
 
         # 2. Second attempt: search.getResults across android and web contexts
@@ -1573,7 +1603,8 @@ def debug_trace(video_id: str, title: Optional[str] = None):
     exp_dur = curated_info.get("duration") if curated_info else None
     exp_art = curated_info.get("artist") if curated_info else None
     saavn_t0 = time.time()
-    saavn_res = resolve_saavn_stream(query_hint, expected_duration=exp_dur, expected_artist=exp_art)
+    saavn_logs = []
+    saavn_res = resolve_saavn_stream(query_hint, expected_duration=exp_dur, expected_artist=exp_art, debug_logs=saavn_logs)
     
     # Candidate probe for diagnostics
     raw_probe = []
@@ -1598,6 +1629,7 @@ def debug_trace(video_id: str, title: Optional[str] = None):
         "has_result": bool(saavn_res),
         "source": saavn_res.get("source") if saavn_res else None,
         "duration": saavn_res.get("duration") if saavn_res else None,
+        "logs": saavn_logs,
         "raw_probe": raw_probe,
         "elapsed": time.time() - saavn_t0
     })
