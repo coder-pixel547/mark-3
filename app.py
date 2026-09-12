@@ -553,6 +553,17 @@ for _lang, _track_list in CURATED_TRACKS.items():
                 "language": _lang
             }
 
+CURATED_MAP_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "curated_stream_map.json")
+CURATED_STREAM_MAP: Dict[str, Dict[str, Any]] = {}
+if os.path.exists(CURATED_MAP_FILE):
+    try:
+        with open(CURATED_MAP_FILE, "r", encoding="utf-8") as _f:
+            CURATED_STREAM_MAP = json.load(_f)
+        safe_log(f"[CuratedMap] Loaded {len(CURATED_STREAM_MAP)} pre-resolved studio stream entries.")
+    except Exception as _e:
+        safe_log(f"[CuratedMap] Error reading stream map: {_e}")
+
+
 def clean_song_title(title: str) -> str:
     """Removes annoying marketing tags like (Official Video), [4K], cast lists, etc."""
     if not title:
@@ -826,7 +837,7 @@ def resolve_saavn_stream(
                                     debug_logs.append(f"reject kw '{song_title}'")
                                 continue
                             if expected_duration and expected_duration > 30 and song_dur > 0:
-                                if abs(song_dur - expected_duration) > 18:
+                                if abs(song_dur - expected_duration) > 25:
                                     if debug_logs is not None:
                                         debug_logs.append(f"reject dur diff={abs(song_dur-expected_duration)}")
                                     continue
@@ -840,7 +851,9 @@ def resolve_saavn_stream(
                                         continue
                             clean_title_toks = [t for t in re.sub(r'[^a-zA-Z0-9\s]', '', song_title).split() if len(t) > 2]
                             if clean_title_toks:
-                                if not any(t in query_lower for t in clean_title_toks):
+                                clean_q_joined = re.sub(r'[^a-z0-9]', '', query_lower)
+                                clean_title_joined = re.sub(r'[^a-z0-9]', '', song_title)
+                                if not (any(t in query_lower for t in clean_title_toks) or clean_q_joined in clean_title_joined or clean_title_joined in clean_q_joined):
                                     if debug_logs is not None:
                                         debug_logs.append(f"reject title tokens '{clean_title_toks}'")
                                     continue
@@ -907,9 +920,9 @@ def resolve_saavn_stream(
                     if any(kw in song_title for kw in disqualified):
                         continue
 
-                    # 2. Duration check: candidate must be within +/- 18 seconds of expected duration
+                    # 2. Duration check: candidate must be within +/- 25 seconds of expected duration
                     if expected_duration and expected_duration > 30 and song_dur > 0:
-                        if abs(song_dur - expected_duration) > 18:
+                        if abs(song_dur - expected_duration) > 25:
                             continue
 
                     # 3. Artist check: if expected_artist is known, ensure compatibility
@@ -923,7 +936,9 @@ def resolve_saavn_stream(
                     # 4. Title relevance check: candidate song title must share keywords with query
                     clean_title_toks = [t for t in re.sub(r'[^a-zA-Z0-9\s]', '', song_title).split() if len(t) > 2]
                     if clean_title_toks:
-                        if not any(t in query_lower for t in clean_title_toks):
+                        clean_q_joined = re.sub(r'[^a-z0-9]', '', query_lower)
+                        clean_title_joined = re.sub(r'[^a-z0-9]', '', song_title)
+                        if not (any(t in query_lower for t in clean_title_toks) or clean_q_joined in clean_title_joined or clean_title_joined in clean_q_joined):
                             continue
 
                     enc_url = song.get('encrypted_media_url')
@@ -986,6 +1001,15 @@ def get_audio_metadata(
         item = AUDIO_URL_CACHE[video_id]
         if time.time() - item["timestamp"] < AUDIO_CACHE_TTL:
             return item
+
+    if not force_refresh and video_id in CURATED_STREAM_MAP:
+        curated_entry = dict(CURATED_STREAM_MAP[video_id])
+        curated_entry["timestamp"] = time.time()
+        curated_entry["headers"] = {}
+        trim_cache_if_needed(AUDIO_URL_CACHE, max_size=MAX_CACHE_ENTRIES)
+        AUDIO_URL_CACHE[video_id] = curated_entry
+        safe_log(f"[Curated Fast-Path] video_id={video_id} resolved from pre-validated studio stream map.")
+        return curated_entry
 
     curated_info = VIDEO_INFO_MAP.get(video_id)
     if curated_info:
@@ -1591,7 +1615,8 @@ def debug_trace(video_id: str, title: Optional[str] = None):
     steps = []
     
     curated_info = VIDEO_INFO_MAP.get(video_id)
-    steps.append({"step": "curated_lookup", "curated": curated_info, "elapsed": time.time() - t0})
+    curated_map_entry = CURATED_STREAM_MAP.get(video_id)
+    steps.append({"step": "curated_lookup", "curated": curated_info, "in_stream_map": bool(curated_map_entry), "elapsed": time.time() - t0})
     
     query_hint = (title or "").strip()
     if not query_hint:
