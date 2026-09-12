@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Swarify — Free Ad-Free Music Streaming</title>
-  <meta name="description" content="Stream Indian & Global chartbusters ad-free with smart AI playlists and background audio." />
+  <meta name="description" content="Stream Indian & Global chartbusters ad-free with crystal clarity, offline playback, and background audio." />
   <meta name="theme-color" content="#10b981" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -46,13 +46,6 @@
           </div>
         </div>
       </div>
-
-        <div class="nav-section-title">AI STUDIO</div>
-        <button class="nav-item btn-ai-nav" id="btn-open-ai-creator">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
-          <span>✨ AI Playlist Creator</span>
-          <span class="badge-ai-new">AI</span>
-        </button>
 
         <div class="nav-section-title">DISCOVER</div>
         <button class="nav-item active" data-view="home">
@@ -144,10 +137,6 @@
               <button class="btn-secondary" id="hero-shuffle-btn">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="21 16 21 21 16 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line><line x1="4" y1="4" x2="9" y2="9"></line></svg>
                 <span>Shuffle Play</span>
-              </button>
-              <button class="btn-ai-hero" id="hero-ai-btn">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
-                <span>✨ AI Playlist</span>
               </button>
             </div>
           </div>
@@ -299,10 +288,6 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
       <span>Hindi</span>
     </button>
-    <button type="button" class="mobile-nav-tab mobile-ai-tab" id="mobile-nav-ai-btn">
-      <span class="mobile-ai-sparkle">✨</span>
-      <span>AI Mix</span>
-    </button>
     <button type="button" class="mobile-nav-tab" data-view="liked">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
       <span>Library</span>
@@ -421,307 +406,12 @@
     </div>
   </div>
 
-  <!-- AI Playlist Creator Modal (Multi-step Wizard) -->
-  <div class="modal-overlay hidden" id="ai-playlist-modal">
-    <div class="modal-card ai-modal-card">
-      <div class="modal-header ai-modal-header">
-        <div class="ai-header-title">
-          <span class="ai-header-badge">✨ AI STUDIO</span>
-          <h3>Smart Playlist Generator</h3>
-        </div>
-        <button class="modal-close-btn" id="close-ai-modal">&times;</button>
-      </div>
-
-      <!-- Step Progress Bar -->
-      <div class="wizard-progress-bar" id="wizard-progress">
-        <div class="wizard-step active" data-step="1">
-          <div class="step-circle">1</div>
-          <span class="step-label">Languages</span>
-        </div>
-        <div class="wizard-step-line"></div>
-        <div class="wizard-step" data-step="2">
-          <div class="step-circle">2</div>
-          <span class="step-label">Vibe & Mood</span>
-        </div>
-        <div class="wizard-step-line"></div>
-        <div class="wizard-step" data-step="3">
-          <div class="step-circle">3</div>
-          <span class="step-label">Era & Prompt</span>
-        </div>
-        <div class="wizard-step-line"></div>
-        <div class="wizard-step" data-step="4">
-          <div class="step-circle">4</div>
-          <span class="step-label">Playlist</span>
-        </div>
-      </div>
-
-      <div class="modal-body ai-modal-body">
-        <!-- Step 1: Languages (Multi-language selection) -->
-        <div class="wizard-page" id="wizard-step-1">
-          <div class="step-intro">
-            <h4>Choose Your Languages</h4>
-            <p>Select one or combine multiple languages for an eclectic mix</p>
-          </div>
-
-          <!-- Quick Presets -->
-          <div class="lang-presets-container">
-            <span class="presets-label">Quick Mixes:</span>
-            <button type="button" class="btn-preset-chip" data-preset="telugu,hindi">🔥 Telugu + Hindi</button>
-            <button type="button" class="btn-preset-chip" data-preset="telugu,hindi,english">🌐 All Three</button>
-            <button type="button" class="btn-preset-chip" data-preset="telugu,tamil">🌴 South Cinema</button>
-            <button type="button" class="btn-preset-chip" data-preset="hindi,punjabi">🥁 Bollywood + Punjabi</button>
-          </div>
-
-          <div class="lang-grid" id="lang-grid">
-            <div class="lang-card selected" data-lang="telugu">
-              <span class="lang-flag">🇮🇳</span>
-              <div class="lang-info">
-                <span class="lang-name">Telugu</span>
-                <span class="lang-native">తెలుగు</span>
-              </div>
-              <div class="lang-check">✓</div>
-            </div>
-            <div class="lang-card selected" data-lang="hindi">
-              <span class="lang-flag">🇮🇳</span>
-              <div class="lang-info">
-                <span class="lang-name">Hindi</span>
-                <span class="lang-native">हिंदी</span>
-              </div>
-              <div class="lang-check">✓</div>
-            </div>
-            <div class="lang-card" data-lang="english">
-              <span class="lang-flag">🌍</span>
-              <div class="lang-info">
-                <span class="lang-name">English</span>
-                <span class="lang-native">Global Hits</span>
-              </div>
-              <div class="lang-check">✓</div>
-            </div>
-            <div class="lang-card" data-lang="tamil">
-              <span class="lang-flag">🇮🇳</span>
-              <div class="lang-info">
-                <span class="lang-name">Tamil</span>
-                <span class="lang-native">தமிழ்</span>
-              </div>
-              <div class="lang-check">✓</div>
-            </div>
-            <div class="lang-card" data-lang="punjabi">
-              <span class="lang-flag">🇮🇳</span>
-              <div class="lang-info">
-                <span class="lang-name">Punjabi</span>
-                <span class="lang-native">ਪੰਜਾਬੀ</span>
-              </div>
-              <div class="lang-check">✓</div>
-            </div>
-            <div class="lang-card" data-lang="malayalam">
-              <span class="lang-flag">🇮🇳</span>
-              <div class="lang-info">
-                <span class="lang-name">Malayalam</span>
-                <span class="lang-native">മലയാളം</span>
-              </div>
-              <div class="lang-check">✓</div>
-            </div>
-            <div class="lang-card" data-lang="kannada">
-              <span class="lang-flag">🇮🇳</span>
-              <div class="lang-info">
-                <span class="lang-name">Kannada</span>
-                <span class="lang-native">ಕನ್ನಡ</span>
-              </div>
-              <div class="lang-check">✓</div>
-            </div>
-          </div>
-          <div class="step-footer">
-            <span class="selected-counter" id="lang-selected-counter">2 languages selected</span>
-            <button type="button" class="btn-primary" id="btn-next-to-step-2">Continue to Mood &rarr;</button>
-          </div>
-        </div>
-
-        <!-- Step 2: Mood & Vibe Selection -->
-        <div class="wizard-page hidden" id="wizard-step-2">
-          <div class="step-intro">
-            <h4>Select Your Mood & Vibe</h4>
-            <p>How do you want this playlist to feel?</p>
-          </div>
-
-          <div class="mood-grid" id="mood-grid">
-            <div class="mood-card selected" data-mood="romantic">
-              <span class="mood-emoji">💖</span>
-              <div class="mood-info">
-                <div class="mood-title">Romantic & Soulful</div>
-                <div class="mood-desc">Heartfelt love melodies, soft vocals & duets</div>
-              </div>
-            </div>
-            <div class="mood-card" data-mood="energetic">
-              <span class="mood-emoji">⚡</span>
-              <div class="mood-info">
-                <div class="mood-title">Workout & High Energy</div>
-                <div class="mood-desc">Heavy bass, fast tempo & gym adrenaline</div>
-              </div>
-            </div>
-            <div class="mood-card" data-mood="chill">
-              <span class="mood-emoji">☕</span>
-              <div class="mood-info">
-                <div class="mood-title">Lo-Fi & Chill Vibes</div>
-                <div class="mood-desc">Relaxing beats, study/work focus & rain vibes</div>
-              </div>
-            </div>
-            <div class="mood-card" data-mood="party">
-              <span class="mood-emoji">🎉</span>
-              <div class="mood-info">
-                <div class="mood-title">Party & Club Bangers</div>
-                <div class="mood-desc">Mass dance beats, bass drops & festival hype</div>
-              </div>
-            </div>
-            <div class="mood-card" data-mood="late_night">
-              <span class="mood-emoji">🌙</span>
-              <div class="mood-info">
-                <div class="mood-title">Late Night Drive</div>
-                <div class="mood-desc">Atmospheric melodies & highway cruising</div>
-              </div>
-            </div>
-            <div class="mood-card" data-mood="sad">
-              <span class="mood-emoji">💔</span>
-              <div class="mood-info">
-                <div class="mood-title">Heartbreak & Melancholy</div>
-                <div class="mood-desc">Emotional acoustic, pain & reflective moments</div>
-              </div>
-            </div>
-            <div class="mood-card" data-mood="acoustic">
-              <span class="mood-emoji">🎸</span>
-              <div class="mood-info">
-                <div class="mood-title">Acoustic & Unplugged</div>
-                <div class="mood-desc">Pure guitars, sweet vocal harmony & simplicity</div>
-              </div>
-            </div>
-            <div class="mood-card" data-mood="devotional">
-              <span class="mood-emoji">🪔</span>
-              <div class="mood-info">
-                <div class="mood-title">Devotional & Peaceful</div>
-                <div class="mood-desc">Spiritual chants, morning peace & meditation</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="step-footer space-between">
-            <button type="button" class="btn-secondary" id="btn-back-to-step-1">&larr; Back</button>
-            <button type="button" class="btn-primary" id="btn-next-to-step-3">Continue to Era &rarr;</button>
-          </div>
-        </div>
-
-        <!-- Step 3: Era & Custom Prompt -->
-        <div class="wizard-page hidden" id="wizard-step-3">
-          <div class="step-intro">
-            <h4>Fine-Tune the Flavor</h4>
-            <p>Customize era and optionally name your favorite artists or themes</p>
-          </div>
-
-          <div class="form-section">
-            <label class="section-label">Music Era</label>
-            <div class="era-options" id="era-options">
-              <button type="button" class="era-chip active" data-era="latest">🌟 Latest Blockbusters (2023-2025)</button>
-              <button type="button" class="era-chip" data-era="2010s">📻 2010s Golden Era</button>
-              <button type="button" class="era-chip" data-era="2000s">📼 2000s Nostalgia</button>
-              <button type="button" class="era-chip" data-era="90s">🎵 90s Vintage Gold</button>
-              <button type="button" class="era-chip" data-era="all_time">👑 All-Time Classics</button>
-            </div>
-          </div>
-
-          <div class="form-section">
-            <label class="section-label">Playlist Size</label>
-            <div class="count-options" id="count-options">
-              <button type="button" class="count-chip" data-count="6">6 Songs (Quick EP)</button>
-              <button type="button" class="count-chip active" data-count="12">12 Songs (Full Album)</button>
-              <button type="button" class="count-chip" data-count="18">18 Songs (Mega Mix)</button>
-              <button type="button" class="count-chip" data-count="24">24 Songs (Grand Mix)</button>
-            </div>
-          </div>
-
-          <div class="form-section">
-            <label class="section-label" for="ai-custom-prompt">Natural Language Vibe or Artists (Optional)</label>
-            <input type="text" id="ai-custom-prompt" placeholder="e.g. Sid Sriram, Arijit Singh, rainy night highway drive, bass drops..." autocomplete="off" />
-            <div class="prompt-chips-row" id="prompt-chips-row">
-              <button type="button" class="prompt-chip" data-prompt="🌧️ Rainy Night Highway Drive">🌧️ Rainy Drive</button>
-              <button type="button" class="prompt-chip" data-prompt="⚡ High Adrenaline Gym Workout">⚡ Gym Pump</button>
-              <button type="button" class="prompt-chip" data-prompt="💖 Soulful Romantic Duets">💖 Romantic Duets</button>
-              <button type="button" class="prompt-chip" data-prompt="☕ Lo-Fi Late Night Study Chill">☕ Lo-Fi Chill</button>
-              <button type="button" class="prompt-chip" data-prompt="🔥 Anirudh & Devi Sri Prasad Mass Hits">🔥 Mass Beats</button>
-            </div>
-          </div>
-
-          <div class="step-footer space-between">
-            <button type="button" class="btn-secondary" id="btn-back-to-step-2">&larr; Back</button>
-            <button type="button" class="btn-primary btn-generate-magic" id="btn-generate-ai">
-              <span>✨ Generate AI Playlist</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Step 4: Loading State -->
-        <div class="wizard-page hidden" id="wizard-step-loading">
-          <div class="ai-loading-container">
-            <div class="ai-orb">
-              <div class="orb-core"></div>
-              <div class="orb-ring ring-1"></div>
-              <div class="orb-ring ring-2"></div>
-            </div>
-            <h3 class="loading-title">AI is crafting your playlist...</h3>
-            <p class="loading-status" id="ai-loading-status">Curating chartbuster tracks across your chosen languages...</p>
-            <div class="loading-dots">
-              <span></span><span></span><span></span>
-            </div>
-            <!-- Loading Skeletons -->
-            <div class="skeleton-tracks-preview">
-              <div class="skeleton-track-row"><div class="skeleton-thumb shimmer"></div><div class="skeleton-text-group"><div class="skeleton-line shimmer line-wide"></div><div class="skeleton-line shimmer line-short"></div></div></div>
-              <div class="skeleton-track-row"><div class="skeleton-thumb shimmer"></div><div class="skeleton-text-group"><div class="skeleton-line shimmer line-wide"></div><div class="skeleton-line shimmer line-short"></div></div></div>
-              <div class="skeleton-track-row"><div class="skeleton-thumb shimmer"></div><div class="skeleton-text-group"><div class="skeleton-line shimmer line-wide"></div><div class="skeleton-line shimmer line-short"></div></div></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Step 5: Results & Preview -->
-        <div class="wizard-page hidden" id="wizard-step-result">
-          <div class="result-header">
-            <div class="result-badge-row">
-              <span class="ai-badge">✨ AI GENERATED</span>
-              <span class="result-lang-badge" id="result-langs-badge">Telugu + Hindi</span>
-              <span class="result-count-badge" id="result-count-badge">12 Tracks</span>
-            </div>
-            <h3 class="result-title" id="result-pl-title">Telugu x Hindi: Monsoon Romance</h3>
-            <p class="result-desc" id="result-pl-desc">Handpicked soulful hits from Telugu & Bollywood cinema.</p>
-          </div>
-
-          <div class="result-actions-bar">
-            <button type="button" class="btn-primary" id="btn-ai-play-now">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-              <span>Play Entire Mix</span>
-            </button>
-            <button type="button" class="btn-secondary" id="btn-ai-save-playlist">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 11H5M19 16H5M11 6H5M19 6h-4"></path></svg>
-              <span>Save to My Playlists</span>
-            </button>
-            <button type="button" class="btn-secondary" id="btn-ai-share-playlist" title="Share Playlist Link">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
-              <span>Share Mix</span>
-            </button>
-            <button type="button" class="btn-secondary-subtle" id="btn-ai-tweak">
-              <span>✏️ Tweak Options</span>
-            </button>
-          </div>
-
-          <div class="result-tracks-preview" id="result-tracks-preview">
-            <!-- Dynamically populated tracks -->
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- Toast Notification -->
   <div class="toast hidden" id="toast"></div>
 
   <!-- Native HTML5 Audio Engine for Background & Screen-Off Playback -->
   <audio id="native-audio" preload="metadata"></audio>
 
-  <script src="/static/app.js?v=6.8"></script>
+  <script src="/static/app.js?v=6.9"></script>
 </body>
 </html>
