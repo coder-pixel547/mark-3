@@ -988,9 +988,7 @@ def resolve_saavn_stream(
                             if not is_valid:
                                 continue
                             if not matches_art:
-                                # ONLY store for fallback if expected_artist was NOT specified
-                                if not expected_artist:
-                                    unmatched_artist_candidates.append(song)
+                                unmatched_artist_candidates.append(song)
                                 continue
                             meta = verify_and_build_meta(song, "Autocomplete")
                             if meta:
@@ -1016,8 +1014,7 @@ def resolve_saavn_stream(
                     if not is_valid:
                         continue
                     if not matches_art:
-                        if not expected_artist:
-                            unmatched_artist_candidates.append(song)
+                        unmatched_artist_candidates.append(song)
                         continue
                     meta = verify_and_build_meta(song, f"Search-{ctx}")
                     if meta:
@@ -1025,11 +1022,11 @@ def resolve_saavn_stream(
             except Exception:
                 continue
 
-    # 3. Fallback: ONLY IF expected_artist was NOT provided by user
-    if not expected_artist and unmatched_artist_candidates:
-        safe_log(f"[Saavn Artist Fallback] Evaluating {len(unmatched_artist_candidates)} candidate songs (no expected artist specified)...")
+    # 3. Fallback: if no exact artist match found, use title-matched valid studio candidates
+    if unmatched_artist_candidates:
+        safe_log(f"[Saavn Artist Fallback] Evaluating {len(unmatched_artist_candidates)} candidate songs...")
         for candidate in unmatched_artist_candidates:
-            meta = verify_and_build_meta(candidate, "Fallback-NoExpectedArtist")
+            meta = verify_and_build_meta(candidate, "Fallback-Candidate")
             if meta:
                 return meta
 
@@ -1129,6 +1126,20 @@ def get_audio_metadata(
                 expected_duration=expected_duration,
                 expected_artist=expected_artist
             )
+
+        if not saavn_meta and expected_artist:
+            # Fallback attempt ignoring expected_artist (often inaccurate YouTube channel name)
+            saavn_meta = resolve_saavn_stream(
+                sanitized_hint,
+                expected_duration=expected_duration,
+                expected_artist=None
+            )
+            if not saavn_meta and sanitized_hint != query_hint:
+                saavn_meta = resolve_saavn_stream(
+                    query_hint,
+                    expected_duration=expected_duration,
+                    expected_artist=None
+                )
 
         if saavn_meta:
             trim_cache_if_needed(AUDIO_URL_CACHE, max_size=MAX_CACHE_ENTRIES)
