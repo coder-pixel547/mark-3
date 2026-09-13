@@ -1056,8 +1056,15 @@ def get_audio_metadata(
     """Extracts direct audio stream metadata with format fallback, caching, and diagnostics."""
     if not force_refresh and video_id in AUDIO_URL_CACHE:
         item = AUDIO_URL_CACHE[video_id]
-        if time.time() - item["timestamp"] < AUDIO_CACHE_TTL:
+        item_dur = int(item.get("duration") or 0)
+        is_dur_mismatch = False
+        if expected_duration and expected_duration > 60 and item_dur > 0:
+            if abs(item_dur - expected_duration) > 75:
+                is_dur_mismatch = True
+        if not is_dur_mismatch and (time.time() - item["timestamp"] < AUDIO_CACHE_TTL):
             return item
+        else:
+            AUDIO_URL_CACHE.pop(video_id, None)
 
     if not force_refresh and video_id in CURATED_STREAM_MAP:
         curated_entry = dict(CURATED_STREAM_MAP[video_id])
