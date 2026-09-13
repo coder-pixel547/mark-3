@@ -802,6 +802,12 @@ def extract_clean_queries(title: str, artist: Optional[str] = None) -> List[str]
                 queries.append(f"{h1} {h0}")
             if h1 and len(h1) > 2:
                 queries.append(h1)
+    if re.search(r'\b(ft\.?|feat\.?|featuring)\b', cleaned, flags=re.IGNORECASE):
+        base = re.split(r'\b(ft\.?|feat\.?|featuring)\b', cleaned, flags=re.IGNORECASE)[0].strip()
+        if len(base) > 2:
+            queries.append(base)
+            san_base = sanitize_search_query(base)
+            if san_base: queries.append(san_base)
 
     queries.append(cleaned)
     if real_artist:
@@ -943,9 +949,11 @@ def resolve_saavn_stream(
         # 4. Query token coverage: candidate title + artist + album MUST contain key terms from query
         combined_meta = f"{song_title} {song_artist} {song_album}".lower()
         clean_combined = re.sub(r'[^a-zA-Z0-9\s]', '', combined_meta)
-        if q_meaningful_toks:
-            matched_toks = [t for t in q_meaningful_toks if t in clean_combined]
-            min_required = max(1, int(len(q_meaningful_toks) * 0.55))
+        is_title_in_query = bool(song_title and len(song_title) > 2 and (song_title in query_lower or query_lower in song_title))
+        if not is_title_in_query and q_meaningful_toks:
+            unique_q_toks = list(set(q_meaningful_toks))
+            matched_toks = [t for t in unique_q_toks if t in clean_combined]
+            min_required = max(1, int(len(unique_q_toks) * 0.45))
             if len(matched_toks) < min_required:
                 return False, False
 
