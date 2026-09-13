@@ -811,7 +811,8 @@ def extract_clean_queries(title: str, artist: Optional[str] = None) -> List[str]
 
     clean_qs = []
     for q in queries:
-        q_str = re.sub(r'^[\s\-–—:]+|[\s\-–—:]+$', '', q).strip()
+        # Strip leading/trailing punctuation including commas, colons, hyphens
+        q_str = re.sub(r'^[,\s\-–—:]+|[,\s\-–—:]+$', '', q).strip()
         if len(q_str) > 2 and (not real_artist or q_str.lower() != real_artist.strip().lower()):
             clean_qs.append(q_str)
 
@@ -822,6 +823,12 @@ DISQUALIFIED_SAAVN_KEYWORDS = (
     'nightcore', 'slowed', 'reverb', 'cover', 'karaoke', 'instrumental', 'tribute', 'tribute to',
     'remix', 'mashup', 'tik tok', 'tiktok', 'ringtone', 'status', 'acoustic cover', 'chipmunk',
     'lofi flip', 'lo-fi flip', '8d audio', 'backing version', 'party tyme', 'dialogue', 'scene', 'clip'
+)
+
+COVER_ARTIST_BLACKLIST = (
+    'i prevail', 'the piano guys', 'the piano bar', 'ronald meirs', 'halifa kiz',
+    'joshua bibber', 'party tyme', 'sing2piano', 'acoustic paradise', 'karaoke',
+    'tribute', 'tribute band', 'instrumental', 'cover band', 'sound-a-like'
 )
 
 def resolve_saavn_stream(
@@ -908,21 +915,12 @@ def resolve_saavn_stream(
             if kw in song_title or kw in song_album or kw in song_artist:
                 return False, False
 
-        # 2. Strict duration check if expected duration is known
-        if expected_duration and expected_duration > 30 and song_dur > 0:
-            if abs(song_dur - expected_duration) > 35:
+        # Reject known cover / soundalike / tribute artists
+        for black_artist in COVER_ARTIST_BLACKLIST:
+            if black_artist in song_artist:
                 return False, False
 
-        # 3. Meaningful Title Check: candidate title must match meaningful words from query
-        clean_title_toks = [t for t in re.sub(r'[^a-zA-Z0-9\s]', '', song_title).split() if len(t) > 2 and t not in stop_words]
-        if q_meaningful_toks and clean_title_toks:
-            has_overlap = any(t in query_lower for t in clean_title_toks) or any(t in song_title for t in q_meaningful_toks)
-            clean_q_joined = re.sub(r'[^a-z0-9]', '', query_lower)
-            clean_title_joined = re.sub(r'[^a-z0-9]', '', song_title)
-            if not (has_overlap or clean_q_joined in clean_title_joined or clean_title_joined in clean_q_joined):
-                return False, False
-
-        # 4. Artist compatibility check
+        # 2. Artist compatibility check
         matches_artist = True
         if expected_artist:
             exp_artist_clean = expected_artist.lower().strip()
@@ -930,6 +928,23 @@ def resolve_saavn_stream(
                 exp_tokens = [tok for tok in exp_artist_clean.split() if len(tok) > 2]
                 if exp_tokens and not any(tok in song_artist for tok in exp_tokens):
                     matches_artist = False
+
+        # 3. Duration check:
+        # If artist matches, allow up to +-75s to account for YouTube music video intro/outro sketches/dialogues
+        # If artist does not match, require strict +-35s
+        max_dur_tol = 75 if matches_artist else 35
+        if expected_duration and expected_duration > 30 and song_dur > 0:
+            if abs(song_dur - expected_duration) > max_dur_tol:
+                return False, False
+
+        # 4. Meaningful Title Check: candidate title must match meaningful words from query
+        clean_title_toks = [t for t in re.sub(r'[^a-zA-Z0-9\s]', '', song_title).split() if len(t) > 2 and t not in stop_words]
+        if q_meaningful_toks and clean_title_toks:
+            has_overlap = any(t in query_lower for t in clean_title_toks) or any(t in song_title for t in q_meaningful_toks)
+            clean_q_joined = re.sub(r'[^a-z0-9]', '', query_lower)
+            clean_title_joined = re.sub(r'[^a-z0-9]', '', song_title)
+            if not (has_overlap or clean_q_joined in clean_title_joined or clean_title_joined in clean_q_joined):
+                return False, False
 
         return True, matches_artist
 
@@ -961,7 +976,9 @@ def resolve_saavn_stream(
                             if not is_valid:
                                 continue
                             if not matches_art:
-                                unmatched_artist_candidates.append(song)
+                                # ONLY store for fallback if expected_artist was NOT specified
+                                if not expected_artist:
+                                    unmatched_artist_candidates.append(song)
                                 continue
                             meta = verify_and_build_meta(song, "Autocomplete")
                             if meta:
@@ -987,7 +1004,8 @@ def resolve_saavn_stream(
                     if not is_valid:
                         continue
                     if not matches_art:
-                        unmatched_artist_candidates.append(song)
+                        if not expected_artist:
+                            unmatched_artist_candidates.append(song)
                         continue
                     meta = verify_and_build_meta(song, f"Search-{ctx}")
                     if meta:
@@ -995,11 +1013,11 @@ def resolve_saavn_stream(
             except Exception:
                 continue
 
-    # 3. Fallback: evaluate candidate songs that passed title + duration checks with relaxed artist match
-    if unmatched_artist_candidates:
-        safe_log(f"[Saavn Artist Fallback] Evaluating {len(unmatched_artist_candidates)} candidate songs with relaxed artist matching...")
+    # 3. Fallback: ONLY IF expected_artist was NOT provided by user
+    if not expected_artist and unmatched_artist_candidates:
+        safe_log(f"[Saavn Artist Fallback] Evaluating {len(unmatched_artist_candidates)} candidate songs (no expected artist specified)...")
         for candidate in unmatched_artist_candidates:
-            meta = verify_and_build_meta(candidate, "Fallback-RelaxedArtist")
+            meta = verify_and_build_meta(candidate, "Fallback-NoExpectedArtist")
             if meta:
                 return meta
 
@@ -2078,7 +2096,7 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 def serve_index():
     index_path = os.path.join(STATIC_DIR, "index.html")
     if os.path.exists(index_path):
-        return FileResponse(index_path)
+        return FileResponse(index_path, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
     return {"message": "Swarify Music API is running."}
 
 @app.get("/manifest.json")
