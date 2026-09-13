@@ -486,11 +486,13 @@
   }
 
   function getCleanTrackHintAndArtist(track) {
-    const rawTitle = track.title || '';
-    const rawArtist = track.artist || '';
+    const rawTitle = (track.title || '').trim();
+    const rawArtist = (track.artist || '').trim();
+    // Clean bracketed marketing noise like (Official Video), [4K], etc.
+    const cleanTitle = rawTitle.replace(/[\(\[\{].*?[\)\]\}]/g, '').replace(/[-–—|:]+/g, ' ').replace(/\s+/g, ' ').trim();
     const isLabel = isChannelOrLabel(rawArtist);
     const cleanArtist = isLabel ? '' : rawArtist;
-    const cleanHint = cleanArtist ? `${rawTitle} ${cleanArtist}`.trim() : rawTitle.trim();
+    const cleanHint = cleanArtist ? `${cleanTitle} ${cleanArtist}`.trim() : (cleanTitle || rawTitle);
     return {
       hint: encodeURIComponent(cleanHint),
       artistParam: cleanArtist ? `&artist=${encodeURIComponent(cleanArtist)}` : ''
@@ -515,7 +517,7 @@
   // ==========================================
   // 4. Playback Controllers
   // ==========================================
-  async function loadAndPlayTrack(track, addToQueue = true) {
+  function loadAndPlayTrack(track, addToQueue = true) {
     if (!track) return;
     track.id = track.id || track.videoId;
     track.videoId = track.videoId || track.id;
@@ -534,11 +536,6 @@
     updateCurrentTrackUI(track);
     updateQueueUI();
     setupMediaSession(track);
-
-    audio.pause();
-    try {
-      audio.currentTime = 0;
-    } catch (_) {}
 
     if (activeOnPlayingListener) {
       audio.removeEventListener('playing', activeOnPlayingListener);
@@ -561,20 +558,21 @@
       const durSec = getTrackDurationSeconds(track);
       const durParam = durSec ? `&dur=${durSec}` : '';
       const streamUrl = `/api/stream/${track.id}?title=${hint}${durParam}${artistParam}`;
-      audio.preload = "metadata";
+      audio.preload = "auto";
       audio.src = streamUrl;
       audio.playbackRate = 1.0;
       audio.defaultPlaybackRate = 1.0;
       if ('preservesPitch' in audio) audio.preservesPitch = true;
+      audio.load();
       const playPromise = audio.play();
       if (playPromise !== undefined) {
-        await playPromise.catch((err) => {
+        playPromise.catch((err) => {
           if (err.name === 'NotAllowedError') {
-            console.warn('[iOS Autoplay Restriction] User interaction required to start audio.');
+            console.warn('[Autoplay Restriction] User interaction required to start audio.');
             updatePlayPauseUI(false);
             showToast('Tap play to start listening ▶');
           } else if (err.name === 'AbortError') {
-            // Rapid track skip: user skipped before previous track finished loading (normal!)
+            // Rapid track skip: user skipped before previous track finished loading (normal)
           } else {
             console.warn('Audio play error:', err);
           }
