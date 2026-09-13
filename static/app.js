@@ -377,19 +377,25 @@
 
       navigator.mediaSession.setActionHandler('seekto', (details) => {
         if (details.seekTime !== undefined) {
-          audio.currentTime = details.seekTime;
-          updateMediaSessionPosition();
+          try {
+            audio.currentTime = details.seekTime;
+            updateMediaSessionPosition();
+          } catch (_) {}
         }
       });
 
       navigator.mediaSession.setActionHandler('seekforward', () => {
-        audio.currentTime = Math.min(audio.duration || 9999, audio.currentTime + 10);
-        updateMediaSessionPosition();
+        try {
+          audio.currentTime = Math.min(audio.duration || 9999, (audio.currentTime || 0) + 10);
+          updateMediaSessionPosition();
+        } catch (_) {}
       });
 
       navigator.mediaSession.setActionHandler('seekbackward', () => {
-        audio.currentTime = Math.max(0, audio.currentTime - 10);
-        updateMediaSessionPosition();
+        try {
+          audio.currentTime = Math.max(0, (audio.currentTime || 0) - 10);
+          updateMediaSessionPosition();
+        } catch (_) {}
       });
     }
   }
@@ -534,13 +540,21 @@
       audio.currentTime = 0;
     } catch (_) {}
 
-    const onPlaying = () => {
-      audio.removeEventListener('playing', onPlaying);
+    if (activeOnPlayingListener) {
+      audio.removeEventListener('playing', activeOnPlayingListener);
+      activeOnPlayingListener = null;
+    }
+
+    const currentTrackId = track.id;
+    activeOnPlayingListener = () => {
+      audio.removeEventListener('playing', activeOnPlayingListener);
+      activeOnPlayingListener = null;
+      if (state.queue[state.currentIndex]?.id !== currentTrackId) return;
       if (el.playingIndicator) el.playingIndicator.classList.add('hidden');
       showToast(`Now Playing: ${track.title} 🎵`);
       preloadNextTrackSpeculative();
     };
-    audio.addEventListener('playing', onPlaying);
+    audio.addEventListener('playing', activeOnPlayingListener);
 
     try {
       const { hint, artistParam } = getCleanTrackHintAndArtist(track);
@@ -609,11 +623,13 @@
 
   function playPrev() {
     if (state.queue.length === 0) return;
-    if (audio.currentTime > 4) {
-      audio.currentTime = 0;
-      updateMediaSessionPosition();
-      return;
-    }
+    try {
+      if ((audio.currentTime || 0) > 4) {
+        audio.currentTime = 0;
+        updateMediaSessionPosition();
+        return;
+      }
+    } catch (_) {}
     if (state.currentIndex > 0) {
       playTrackAtIndex(state.currentIndex - 1);
     } else {
@@ -636,7 +652,7 @@
 
   function handleTrackEnded() {
     if (state.repeatMode === 'one') {
-      audio.currentTime = 0;
+      try { audio.currentTime = 0; } catch (_) {}
       audio.play().catch(e => console.warn('Repeat play caught:', e));
     } else {
       playNext(true);
@@ -736,8 +752,10 @@
     function commitSeek(fraction) {
       const total = getEffectiveDuration();
       if (total > 0 && Number.isFinite(total)) {
-        audio.currentTime = fraction * total;
-        updateMediaSessionPosition();
+        try {
+          audio.currentTime = fraction * total;
+          updateMediaSessionPosition();
+        } catch (_) {}
       }
       applyVisualProgress(fraction);
     }
@@ -1922,12 +1940,17 @@
       togglePlayPause();
     } else if (e.key === 'ArrowRight') {
       e.preventDefault();
-      audio.currentTime = Math.min(audio.duration || 9999, audio.currentTime + 5);
-      updateMediaSessionPosition();
+      try {
+        const total = getEffectiveDuration();
+        audio.currentTime = Math.min(total || 9999, (audio.currentTime || 0) + 5);
+        updateMediaSessionPosition();
+      } catch (_) {}
     } else if (e.key === 'ArrowLeft') {
       e.preventDefault();
-      audio.currentTime = Math.max(0, audio.currentTime - 5);
-      updateMediaSessionPosition();
+      try {
+        audio.currentTime = Math.max(0, (audio.currentTime || 0) - 5);
+        updateMediaSessionPosition();
+      } catch (_) {}
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       const newVol = Math.min(100, state.volume + 5);
