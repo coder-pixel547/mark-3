@@ -563,6 +563,39 @@ if os.path.exists(CURATED_MAP_FILE):
     except Exception as _e:
         safe_log(f"[CuratedMap] Error reading stream map: {_e}")
 
+KNOWN_LABEL_KEYWORDS = (
+    't-series', 'tseries', 't series', 'sony music', 'sonymusic', 'zee music', 'zeemusic',
+    'aditya music', 'adityamusic', 'saregama', 'lahari', 'tips', 'yrf', 'speed records',
+    'white hill', 'geetha arts', 'mythri', 'dvv', 'harika', 'svcc', 'sithara',
+    'annapurna', 'lyca', 'sun pictures', 'rajshri', 'times music', 'eros', 'pen movies',
+    'venus', 'think music', 'music company', 'official', 'vevo', 'lyrics', 'lyrical',
+    'records', 'entertainment', 'films', 'channel', 'audio', 'topic', 'media',
+    '7clouds', 'dan music', 'taz network', 'pizzazz', 'shadow music', 'chill nation',
+    'desi music factory', 'dmk', 'speed audio', 'mango music', 'madhura audio'
+)
+
+def is_music_label_or_channel(name: Optional[str]) -> bool:
+    """Checks if the given name is a YouTube music distribution channel or record label."""
+    if not name:
+        return False
+    name_clean = name.lower().strip()
+    return any(kw in name_clean for kw in KNOWN_LABEL_KEYWORDS)
+
+def sanitize_search_query(query: str, artist: Optional[str] = None) -> str:
+    """Strips label channel noise, format tags, and brackets for clean JioSaavn music resolution."""
+    if not query:
+        return ""
+    q = query
+    # Remove bracketed and parenthesized tags: [8K], (Official Video), (Lyrics), etc.
+    q = re.sub(r'[\(\[\{].*?[\)\]\}]', ' ', q)
+    if artist:
+        q = re.sub(re.escape(artist), ' ', q, flags=re.IGNORECASE)
+    for kw in KNOWN_LABEL_KEYWORDS:
+        q = re.sub(rf'\b{re.escape(kw)}\b', ' ', q, flags=re.IGNORECASE)
+    q = re.sub(r'\b(8k|4k|hd|official|promo|teaser|trailer|video)\b', ' ', q, flags=re.IGNORECASE)
+    q = re.sub(r'[-–—|:]+', ' ', q)
+    q = re.sub(r'\s+', ' ', q).strip()
+    return q
 
 def clean_song_title(title: str) -> str:
     """Removes annoying marketing tags like (Official Video), [4K], cast lists, etc."""
@@ -675,7 +708,10 @@ async def async_search_youtube(
 
                             clean_title = clean_song_title(raw_title)
                             trim_cache_if_needed(VIDEO_TITLE_MAP, max_size=MAX_TITLE_MAP_ENTRIES)
-                            VIDEO_TITLE_MAP[vid_id] = f"{clean_title} {channel}".strip()
+                            if is_music_label_or_channel(channel):
+                                VIDEO_TITLE_MAP[vid_id] = clean_title
+                            else:
+                                VIDEO_TITLE_MAP[vid_id] = f"{clean_title} {channel}".strip()
                             results.append({
                                 "id": vid_id,
                                 "videoId": vid_id,
@@ -719,7 +755,19 @@ def unpad_pkcs5(data: bytes) -> bytes:
     return data
 
 def extract_clean_queries(title: str, artist: Optional[str] = None) -> List[str]:
-    # Strip marketing and format tags: (Official Music Video), [4K], etc.
+    queries = []
+
+    # If artist is a distribution label/channel, don't couple it to search queries
+    real_artist = None if is_music_label_or_channel(artist) else artist
+
+    # 1. Fully sanitized search query (strips label noise, 8K, lyrics, etc.)
+    sanitized = sanitize_search_query(title, artist)
+    if sanitized:
+        queries.append(sanitized)
+        if real_artist and real_artist.lower() not in sanitized.lower():
+            queries.append(f"{sanitized} {real_artist}".strip())
+
+    # 2. Standard bracketed tags strip
     cleaned = re.sub(
         r'[\(\[\{](Official\s*(Video|Audio|Music\s*Video|Lyrical|4K|HD|8K)?|Full\s*(Video|Song|Audio)|Video\s*Song|Lyrical\s*Video|Teaser|Trailer|Audio|Lyrics|Visualizer)[\)\]\}]',
         '',
@@ -729,34 +777,39 @@ def extract_clean_queries(title: str, artist: Optional[str] = None) -> List[str]
     cleaned = re.sub(r'\(.*?\)|\[.*?\]', '', cleaned)
     cleaned = re.sub(r'\s+', ' ', cleaned).strip()
 
-    queries = []
     if '|' in cleaned:
         parts = [p.strip() for p in cleaned.split('|') if p.strip()]
         if len(parts) >= 2:
-            queries.append(f"{parts[0]} {parts[1]}")
-            queries.append(parts[0])
+            p0 = sanitize_search_query(parts[0])
+            p1 = sanitize_search_query(parts[1])
+            if p0: queries.append(p0)
+            if p0 and p1: queries.append(f"{p0} {p1}")
         elif parts:
-            queries.append(parts[0])
+            p0 = sanitize_search_query(parts[0])
+            if p0: queries.append(p0)
 
     if '-' in cleaned or '—' in cleaned:
         sep = '—' if '—' in cleaned else '-'
         hparts = [p.strip() for p in cleaned.split(sep) if p.strip()]
         if len(hparts) >= 2:
-            queries.append(f"{hparts[0]} {hparts[1]}")
-            queries.append(f"{hparts[1]} {hparts[0]}")
-            queries.append(hparts[0])
-            queries.append(hparts[1])
+            h0 = sanitize_search_query(hparts[0])
+            h1 = sanitize_search_query(hparts[1])
+            if h0 and h1:
+                queries.append(f"{h0} {h1}")
+                queries.append(f"{h1} {h0}")
+            if h1: queries.append(h1)
+            if h0: queries.append(h0)
 
     queries.append(cleaned)
-    if artist:
-        no_art = re.sub(re.escape(artist), '', cleaned, flags=re.IGNORECASE).strip()
+    if real_artist:
+        no_art = re.sub(re.escape(real_artist), '', cleaned, flags=re.IGNORECASE).strip()
         if len(no_art) > 2:
             queries.append(no_art)
 
     clean_qs = []
     for q in queries:
-        q_str = re.sub(r'^[\s\-–—]+|[\s\-–—]+$', '', q).strip()
-        if len(q_str) > 2 and (not artist or q_str.lower() != artist.strip().lower()):
+        q_str = re.sub(r'^[\s\-–—:]+|[\s\-–—:]+$', '', q).strip()
+        if len(q_str) > 2 and (not real_artist or q_str.lower() != real_artist.strip().lower()):
             clean_qs.append(q_str)
 
     return list(dict.fromkeys(clean_qs))
@@ -787,6 +840,10 @@ def resolve_saavn_stream(
             debug_logs.append(f"Crypto.Cipher ImportError: {ie}")
         return None
 
+    # Ignore distribution channel / record label names for artist checks
+    if is_music_label_or_channel(expected_artist):
+        expected_artist = None
+
     queries_to_try = extract_clean_queries(query, artist=expected_artist)
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -798,13 +855,47 @@ def resolve_saavn_stream(
 
     query_lower = query.lower()
     disqualified = [kw for kw in DISQUALIFIED_SAAVN_KEYWORDS if kw not in query_lower]
+    unmatched_artist_candidates: List[Dict[str, Any]] = []
+
+    def verify_and_build_meta(song_obj, source_name="saavn") -> Optional[Dict[str, Any]]:
+        enc_url = song_obj.get('encrypted_media_url')
+        if not enc_url:
+            return None
+        try:
+            dec = unpad_pkcs5(cipher.decrypt(base64.b64decode(enc_url))).decode('utf-8')
+            url_160 = dec.replace('_96.mp4', '_160.mp4').replace('_320.mp4', '_160.mp4')
+            head_resp = STREAM_SESSION.head(url_160, timeout=2.5)
+            if head_resp.status_code == 200:
+                filesize = None
+                try:
+                    filesize = int(head_resp.headers.get("Content-Length", 0))
+                except Exception:
+                    pass
+                duration = int(song_obj.get('duration') or 0) or None
+                safe_log(f"[Saavn Stream Validated ({source_name})] song='{song_obj.get('song')}' artist='{song_obj.get('primary_artists')}' dur={duration} size={filesize}")
+                return {
+                    "url": url_160,
+                    "headers": {},
+                    "format_id": "saavn-160k",
+                    "content_type": "audio/mp4",
+                    "duration": duration,
+                    "filesize": filesize,
+                    "ext": "mp4",
+                    "vcodec": "none",
+                    "acodec": "aac",
+                    "source": "saavn",
+                    "timestamp": time.time()
+                }
+        except Exception:
+            pass
+        return None
 
     for q in queries_to_try:
         encoded = urllib.parse.quote(q)
         if debug_logs is not None:
             debug_logs.append(f"trying q='{q}'")
 
-        # 1. First attempt: canonical autocomplete + song.getDetails (global index, bypasses regional catalog filtering)
+        # 1. First attempt: canonical autocomplete + song.getDetails
         try:
             ac_url = f'https://www.jiosaavn.com/api.php?__call=autocomplete.get&_marker=0&query={encoded}&ctx=android&_format=json'
             ac_resp = STREAM_SESSION.get(ac_url, headers=headers, timeout=2.5)
@@ -812,8 +903,6 @@ def resolve_saavn_stream(
                 debug_logs.append(f"autocomplete status={ac_resp.status_code}")
             if ac_resp.status_code == 200:
                 ac_songs = ac_resp.json().get('songs', {}).get('data', [])
-                if debug_logs is not None:
-                    debug_logs.append(f"autocomplete total songs={len(ac_songs)}")
                 pids = [s.get('id') for s in ac_songs[:6] if s.get('id')]
                 if pids:
                     pid_str = ','.join(pids)
@@ -829,75 +918,33 @@ def resolve_saavn_stream(
                             song_artist = (song.get('primary_artists') or song.get('singers') or song.get('music') or '').strip().lower()
                             song_dur = int(song.get('duration') or 0)
 
-                            if debug_logs is not None:
-                                debug_logs.append(f"evaluating ac song='{song_title}' artist='{song_artist}' dur={song_dur}")
-
                             if any(kw in song_title for kw in disqualified):
-                                if debug_logs is not None:
-                                    debug_logs.append(f"reject kw '{song_title}'")
                                 continue
                             if expected_duration and expected_duration > 30 and song_dur > 0:
-                                if abs(song_dur - expected_duration) > 25:
-                                    if debug_logs is not None:
-                                        debug_logs.append(f"reject dur diff={abs(song_dur-expected_duration)}")
+                                if abs(song_dur - expected_duration) > 28:
                                     continue
+
                             if expected_artist:
                                 exp_artist_clean = expected_artist.lower().strip()
                                 if exp_artist_clean not in song_artist and song_artist not in exp_artist_clean:
                                     exp_tokens = [tok for tok in exp_artist_clean.split() if len(tok) > 2]
                                     if exp_tokens and not any(tok in song_artist for tok in exp_tokens):
-                                        if debug_logs is not None:
-                                            debug_logs.append(f"reject artist mismatch: exp='{exp_artist_clean}' act='{song_artist}'")
+                                        unmatched_artist_candidates.append(song)
                                         continue
+
                             clean_title_toks = [t for t in re.sub(r'[^a-zA-Z0-9\s]', '', song_title).split() if len(t) > 2]
                             if clean_title_toks:
                                 clean_q_joined = re.sub(r'[^a-z0-9]', '', query_lower)
                                 clean_title_joined = re.sub(r'[^a-z0-9]', '', song_title)
                                 if not (any(t in query_lower for t in clean_title_toks) or clean_q_joined in clean_title_joined or clean_title_joined in clean_q_joined):
-                                    if debug_logs is not None:
-                                        debug_logs.append(f"reject title tokens '{clean_title_toks}'")
                                     continue
 
-                            enc_url = song.get('encrypted_media_url')
-                            if not enc_url:
-                                if debug_logs is not None:
-                                    debug_logs.append("no encrypted_media_url")
-                                continue
-                            try:
-                                dec = unpad_pkcs5(cipher.decrypt(base64.b64decode(enc_url))).decode('utf-8')
-                                url_160 = dec.replace('_96.mp4', '_160.mp4').replace('_320.mp4', '_160.mp4')
-                                head_resp = STREAM_SESSION.head(url_160, timeout=2.5)
-                                if debug_logs is not None:
-                                    debug_logs.append(f"head status={head_resp.status_code}")
-                                if head_resp.status_code == 200:
-                                    filesize = None
-                                    try:
-                                        filesize = int(head_resp.headers.get("Content-Length", 0))
-                                    except Exception:
-                                        pass
-                                    duration = song_dur or None
-                                    safe_log(f"[Saavn Stream Validated (Autocomplete)] query='{q}' song='{song.get('song')}' artist='{song.get('primary_artists')}' dur={duration} size={filesize}")
-                                    return {
-                                        "url": url_160,
-                                        "headers": {},
-                                        "format_id": "saavn-160k",
-                                        "content_type": "audio/mp4",
-                                        "duration": duration,
-                                        "filesize": filesize,
-                                        "ext": "mp4",
-                                        "vcodec": "none",
-                                        "acodec": "aac",
-                                        "source": "saavn",
-                                        "timestamp": time.time()
-                                    }
-                            except Exception as dex:
-                                if debug_logs is not None:
-                                    debug_logs.append(f"decrypt ex={dex}")
-                                continue
+                            meta = verify_and_build_meta(song, "Autocomplete")
+                            if meta:
+                                return meta
         except Exception as acex:
             if debug_logs is not None:
                 debug_logs.append(f"ac loop ex={acex}")
-            pass
 
         # 2. Second attempt: search.getResults across android and web contexts
         for ctx in ('android', 'web6dot0'):
@@ -916,24 +963,20 @@ def resolve_saavn_stream(
                     song_artist = (song.get('primary_artists') or song.get('singers') or song.get('music') or '').strip().lower()
                     song_dur = int(song.get('duration') or 0)
 
-                    # 1. Reject sped-up, nightcore, slowed, covers, remixes (unless query specifically requests them)
                     if any(kw in song_title for kw in disqualified):
                         continue
-
-                    # 2. Duration check: candidate must be within +/- 25 seconds of expected duration
                     if expected_duration and expected_duration > 30 and song_dur > 0:
-                        if abs(song_dur - expected_duration) > 25:
+                        if abs(song_dur - expected_duration) > 28:
                             continue
 
-                    # 3. Artist check: if expected_artist is known, ensure compatibility
                     if expected_artist:
                         exp_artist_clean = expected_artist.lower().strip()
                         if exp_artist_clean not in song_artist and song_artist not in exp_artist_clean:
                             exp_tokens = [tok for tok in exp_artist_clean.split() if len(tok) > 2]
                             if exp_tokens and not any(tok in song_artist for tok in exp_tokens):
+                                unmatched_artist_candidates.append(song)
                                 continue
 
-                    # 4. Title relevance check: candidate song title must share keywords with query
                     clean_title_toks = [t for t in re.sub(r'[^a-zA-Z0-9\s]', '', song_title).split() if len(t) > 2]
                     if clean_title_toks:
                         clean_q_joined = re.sub(r'[^a-z0-9]', '', query_lower)
@@ -941,38 +984,20 @@ def resolve_saavn_stream(
                         if not (any(t in query_lower for t in clean_title_toks) or clean_q_joined in clean_title_joined or clean_title_joined in clean_q_joined):
                             continue
 
-                    enc_url = song.get('encrypted_media_url')
-                    if not enc_url:
-                        continue
-                    try:
-                        dec = unpad_pkcs5(cipher.decrypt(base64.b64decode(enc_url))).decode('utf-8')
-                        url_160 = dec.replace('_96.mp4', '_160.mp4').replace('_320.mp4', '_160.mp4')
-                        head_resp = STREAM_SESSION.head(url_160, timeout=2.5)
-                        if head_resp.status_code == 200:
-                            filesize = None
-                            try:
-                                filesize = int(head_resp.headers.get("Content-Length", 0))
-                            except Exception:
-                                pass
-                            duration = song_dur or None
-                            safe_log(f"[Saavn Stream Validated] query='{q}' song='{song.get('song')}' artist='{song.get('primary_artists')}' dur={duration} size={filesize}")
-                            return {
-                                "url": url_160,
-                                "headers": {},
-                                "format_id": "saavn-160k",
-                                "content_type": "audio/mp4",
-                                "duration": duration,
-                                "filesize": filesize,
-                                "ext": "mp4",
-                                "vcodec": "none",
-                                "acodec": "aac",
-                                "source": "saavn",
-                                "timestamp": time.time()
-                            }
-                    except Exception:
-                        continue
+                    meta = verify_and_build_meta(song, f"Search-{ctx}")
+                    if meta:
+                        return meta
             except Exception:
                 continue
+
+    # 3. Fallback: evaluate candidate songs that matched title + duration with relaxed artist match
+    if unmatched_artist_candidates:
+        safe_log(f"[Saavn Artist Fallback] Evaluating {len(unmatched_artist_candidates)} candidate songs with relaxed artist matching...")
+        for candidate in unmatched_artist_candidates:
+            meta = verify_and_build_meta(candidate, "Fallback-RelaxedArtist")
+            if meta:
+                return meta
+
     return None
 
 AUDIO_FORMAT_SELECTOR = "140/251/bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio[acodec!=none][vcodec=none]/bestaudio"
@@ -1044,11 +1069,25 @@ def get_audio_metadata(
             pass
 
     if query_hint:
+        # Ignore distribution channel / record label names for artist checks
+        if expected_artist and is_music_label_or_channel(expected_artist):
+            safe_log(f"[Stream Match] Ignoring label/channel '{expected_artist}' from expected_artist filter")
+            expected_artist = None
+
+        sanitized_hint = sanitize_search_query(query_hint, expected_artist)
         saavn_meta = resolve_saavn_stream(
-            query_hint,
+            sanitized_hint,
             expected_duration=expected_duration,
             expected_artist=expected_artist
         )
+        if not saavn_meta and sanitized_hint != query_hint:
+            # Fallback attempt with raw query_hint if sanitized did not yield
+            saavn_meta = resolve_saavn_stream(
+                query_hint,
+                expected_duration=expected_duration,
+                expected_artist=expected_artist
+            )
+
         if saavn_meta:
             trim_cache_if_needed(AUDIO_URL_CACHE, max_size=MAX_CACHE_ENTRIES)
             AUDIO_URL_CACHE[video_id] = saavn_meta
@@ -1076,7 +1115,7 @@ def get_audio_metadata(
         'skip_download': True,
         'noplaylist': True,
         'cachedir': False,
-        'socket_timeout': 5,
+        'socket_timeout': 4,
         'extractor_retries': 0,
         'extractor_args': YTDL_CLIENT_ARGS,
     }

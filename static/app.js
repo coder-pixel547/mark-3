@@ -463,6 +463,25 @@
     return null;
   }
 
+  function isChannelOrLabel(name) {
+    if (!name) return false;
+    const s = name.toLowerCase().trim();
+    return /^(t-series|sony music|zee music|aditya music|lahari|saregama|tips|speed records|dan music|7clouds|vevo|times music|geetha arts|mythri|dharma|yrf|yash raj)/i.test(s)
+      || /\b(music|records|company|channel|media|entertainment|production|studio|official|audios)\b/i.test(s);
+  }
+
+  function getCleanTrackHintAndArtist(track) {
+    const rawTitle = track.title || '';
+    const rawArtist = track.artist || '';
+    const isLabel = isChannelOrLabel(rawArtist);
+    const cleanArtist = isLabel ? '' : rawArtist;
+    const cleanHint = cleanArtist ? `${rawTitle} ${cleanArtist}`.trim() : rawTitle.trim();
+    return {
+      hint: encodeURIComponent(cleanHint),
+      artistParam: cleanArtist ? `&artist=${encodeURIComponent(cleanArtist)}` : ''
+    };
+  }
+
   function preloadNextTrackSpeculative() {
     if (state.queue.length <= 1) return;
     const nextIdx = (state.currentIndex + 1) % state.queue.length;
@@ -470,10 +489,9 @@
     if (nextTrack) {
       const nextId = nextTrack.id || nextTrack.videoId;
       if (nextId) {
-        const hint = encodeURIComponent(`${nextTrack.title || ''} ${nextTrack.artist || ''}`.trim());
+        const { hint, artistParam } = getCleanTrackHintAndArtist(nextTrack);
         const durSec = getTrackDurationSeconds(nextTrack);
         const durParam = durSec ? `&dur=${durSec}` : '';
-        const artistParam = nextTrack.artist ? `&artist=${encodeURIComponent(nextTrack.artist)}` : '';
         fetch(`/api/audio-info/${nextId}?title=${hint}${durParam}${artistParam}`).catch(() => {});
       }
     }
@@ -513,10 +531,9 @@
     audio.addEventListener('playing', onPlaying);
 
     try {
-      const hint = encodeURIComponent(`${track.title || ''} ${track.artist || ''}`.trim());
+      const { hint, artistParam } = getCleanTrackHintAndArtist(track);
       const durSec = getTrackDurationSeconds(track);
       const durParam = durSec ? `&dur=${durSec}` : '';
-      const artistParam = track.artist ? `&artist=${encodeURIComponent(track.artist)}` : '';
       const streamUrl = `/api/stream/${track.id}?title=${hint}${durParam}${artistParam}`;
       audio.preload = "metadata";
       audio.src = streamUrl;
