@@ -226,6 +226,15 @@
     updateMediaSessionPosition();
   });
 
+  audio.addEventListener('ratechange', () => {
+    if (audio.playbackRate !== 1.0) {
+      console.warn(`[PlaybackRate Guard] Enforcing 1.0x playback rate (was ${audio.playbackRate})`);
+      audio.playbackRate = 1.0;
+      audio.defaultPlaybackRate = 1.0;
+      if ('preservesPitch' in audio) audio.preservesPitch = true;
+    }
+  });
+
   audio.addEventListener('pause', () => {
     state.isPlaying = false;
     updatePlayPauseUI(false);
@@ -521,6 +530,9 @@
     setupMediaSession(track);
 
     audio.pause();
+    try {
+      audio.currentTime = 0;
+    } catch (_) {}
 
     const onPlaying = () => {
       audio.removeEventListener('playing', onPlaying);

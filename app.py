@@ -625,7 +625,10 @@ def is_valid_song_track(title: str, duration_str: str) -> bool:
     disallowed = [
         "jukebox", "audio jukebox", "full album", "non stop", "nonstop",
         "compilation", "all songs", "1 hour", "2 hour", "3 hour", "mega mix",
-        "mashup 2024", "trailer", "teaser", "dialogue promo"
+        "mashup 2024", "trailer", "teaser", "dialogue promo", "dialogue clip",
+        "movie dialogue", "attitude scene", "fight scene", "movie scene",
+        "sped up", "speed up", "speedup", "nightcore", "slowed", "chipmunk",
+        "pitch shifted", "ringtone", "status video", "whatsapp status"
     ]
     if any(d in t_lower for d in disallowed):
         return False
@@ -797,8 +800,8 @@ def extract_clean_queries(title: str, artist: Optional[str] = None) -> List[str]
             if h0 and h1:
                 queries.append(f"{h0} {h1}")
                 queries.append(f"{h1} {h0}")
-            if h1: queries.append(h1)
-            if h0: queries.append(h0)
+            if h1 and len(h1) > 2:
+                queries.append(h1)
 
     queries.append(cleaned)
     if real_artist:
@@ -815,10 +818,10 @@ def extract_clean_queries(title: str, artist: Optional[str] = None) -> List[str]
     return list(dict.fromkeys(clean_qs))
 
 DISQUALIFIED_SAAVN_KEYWORDS = (
-    'sped up', 'speed up', 'speedup', 'nightcore', 'slowed', 'reverb',
-    'cover', 'karaoke', 'instrumental', 'tribute', 'tribute to',
-    'remix', 'mashup', 'tik tok', 'tiktok', 'ringtone', 'status',
-    'acoustic cover', 'chipmunk', 'lofi flip', 'lo-fi flip', '8d audio'
+    'sped up', 'speed up', 'speedup', 'speed-up', 'fast version', 'fast ver', 'fast forward',
+    'nightcore', 'slowed', 'reverb', 'cover', 'karaoke', 'instrumental', 'tribute', 'tribute to',
+    'remix', 'mashup', 'tik tok', 'tiktok', 'ringtone', 'status', 'acoustic cover', 'chipmunk',
+    'lofi flip', 'lo-fi flip', '8d audio', 'backing version', 'party tyme', 'dialogue', 'scene', 'clip'
 )
 
 def resolve_saavn_stream(
@@ -855,6 +858,9 @@ def resolve_saavn_stream(
 
     query_lower = query.lower()
     disqualified = [kw for kw in DISQUALIFIED_SAAVN_KEYWORDS if kw not in query_lower]
+    stop_words = {'from', 'part', 'the', 'and', 'full', 'song', 'audio', 'video', 'movie', 'official', 'lyric', 'lyrics'}
+    q_meaningful_toks = [t for t in re.sub(r'[^a-zA-Z0-9\s]', '', query_lower).split() if len(t) > 2 and t not in stop_words]
+
     unmatched_artist_candidates: List[Dict[str, Any]] = []
 
     def verify_and_build_meta(song_obj, source_name="saavn") -> Optional[Dict[str, Any]]:
@@ -890,6 +896,43 @@ def resolve_saavn_stream(
             pass
         return None
 
+    def validate_candidate(song_obj) -> Tuple[bool, bool]:
+        """Validates candidate against disqualifiers, duration, and meaningful title words. Returns (is_valid, matches_artist)."""
+        song_title = (song_obj.get('song') or '').strip().lower()
+        song_artist = (song_obj.get('primary_artists') or song_obj.get('singers') or song_obj.get('music') or '').strip().lower()
+        song_album = (song_obj.get('album') or '').strip().lower()
+        song_dur = int(song_obj.get('duration') or 0)
+
+        # 1. Reject sped up, slowed, covers, remixes, dialogue, backing versions across title, album, artist
+        for kw in disqualified:
+            if kw in song_title or kw in song_album or kw in song_artist:
+                return False, False
+
+        # 2. Strict duration check if expected duration is known
+        if expected_duration and expected_duration > 30 and song_dur > 0:
+            if abs(song_dur - expected_duration) > 35:
+                return False, False
+
+        # 3. Meaningful Title Check: candidate title must match meaningful words from query
+        clean_title_toks = [t for t in re.sub(r'[^a-zA-Z0-9\s]', '', song_title).split() if len(t) > 2 and t not in stop_words]
+        if q_meaningful_toks and clean_title_toks:
+            has_overlap = any(t in query_lower for t in clean_title_toks) or any(t in song_title for t in q_meaningful_toks)
+            clean_q_joined = re.sub(r'[^a-z0-9]', '', query_lower)
+            clean_title_joined = re.sub(r'[^a-z0-9]', '', song_title)
+            if not (has_overlap or clean_q_joined in clean_title_joined or clean_title_joined in clean_q_joined):
+                return False, False
+
+        # 4. Artist compatibility check
+        matches_artist = True
+        if expected_artist:
+            exp_artist_clean = expected_artist.lower().strip()
+            if exp_artist_clean not in song_artist and song_artist not in exp_artist_clean:
+                exp_tokens = [tok for tok in exp_artist_clean.split() if len(tok) > 2]
+                if exp_tokens and not any(tok in song_artist for tok in exp_tokens):
+                    matches_artist = False
+
+        return True, matches_artist
+
     for q in queries_to_try:
         encoded = urllib.parse.quote(q)
         if debug_logs is not None:
@@ -914,31 +957,12 @@ def resolve_saavn_stream(
                         det_data = det_resp.json()
                         ac_results = [det_data[pid] for pid in pids if pid in det_data]
                         for song in ac_results:
-                            song_title = (song.get('song') or '').strip().lower()
-                            song_artist = (song.get('primary_artists') or song.get('singers') or song.get('music') or '').strip().lower()
-                            song_dur = int(song.get('duration') or 0)
-
-                            if any(kw in song_title for kw in disqualified):
+                            is_valid, matches_art = validate_candidate(song)
+                            if not is_valid:
                                 continue
-                            if expected_duration and expected_duration > 30 and song_dur > 0:
-                                if abs(song_dur - expected_duration) > 28:
-                                    continue
-
-                            if expected_artist:
-                                exp_artist_clean = expected_artist.lower().strip()
-                                if exp_artist_clean not in song_artist and song_artist not in exp_artist_clean:
-                                    exp_tokens = [tok for tok in exp_artist_clean.split() if len(tok) > 2]
-                                    if exp_tokens and not any(tok in song_artist for tok in exp_tokens):
-                                        unmatched_artist_candidates.append(song)
-                                        continue
-
-                            clean_title_toks = [t for t in re.sub(r'[^a-zA-Z0-9\s]', '', song_title).split() if len(t) > 2]
-                            if clean_title_toks:
-                                clean_q_joined = re.sub(r'[^a-z0-9]', '', query_lower)
-                                clean_title_joined = re.sub(r'[^a-z0-9]', '', song_title)
-                                if not (any(t in query_lower for t in clean_title_toks) or clean_q_joined in clean_title_joined or clean_title_joined in clean_q_joined):
-                                    continue
-
+                            if not matches_art:
+                                unmatched_artist_candidates.append(song)
+                                continue
                             meta = verify_and_build_meta(song, "Autocomplete")
                             if meta:
                                 return meta
@@ -959,38 +983,19 @@ def resolve_saavn_stream(
                     continue
 
                 for song in results:
-                    song_title = (song.get('song') or '').strip().lower()
-                    song_artist = (song.get('primary_artists') or song.get('singers') or song.get('music') or '').strip().lower()
-                    song_dur = int(song.get('duration') or 0)
-
-                    if any(kw in song_title for kw in disqualified):
+                    is_valid, matches_art = validate_candidate(song)
+                    if not is_valid:
                         continue
-                    if expected_duration and expected_duration > 30 and song_dur > 0:
-                        if abs(song_dur - expected_duration) > 28:
-                            continue
-
-                    if expected_artist:
-                        exp_artist_clean = expected_artist.lower().strip()
-                        if exp_artist_clean not in song_artist and song_artist not in exp_artist_clean:
-                            exp_tokens = [tok for tok in exp_artist_clean.split() if len(tok) > 2]
-                            if exp_tokens and not any(tok in song_artist for tok in exp_tokens):
-                                unmatched_artist_candidates.append(song)
-                                continue
-
-                    clean_title_toks = [t for t in re.sub(r'[^a-zA-Z0-9\s]', '', song_title).split() if len(t) > 2]
-                    if clean_title_toks:
-                        clean_q_joined = re.sub(r'[^a-z0-9]', '', query_lower)
-                        clean_title_joined = re.sub(r'[^a-z0-9]', '', song_title)
-                        if not (any(t in query_lower for t in clean_title_toks) or clean_q_joined in clean_title_joined or clean_title_joined in clean_q_joined):
-                            continue
-
+                    if not matches_art:
+                        unmatched_artist_candidates.append(song)
+                        continue
                     meta = verify_and_build_meta(song, f"Search-{ctx}")
                     if meta:
                         return meta
             except Exception:
                 continue
 
-    # 3. Fallback: evaluate candidate songs that matched title + duration with relaxed artist match
+    # 3. Fallback: evaluate candidate songs that passed title + duration checks with relaxed artist match
     if unmatched_artist_candidates:
         safe_log(f"[Saavn Artist Fallback] Evaluating {len(unmatched_artist_candidates)} candidate songs with relaxed artist matching...")
         for candidate in unmatched_artist_candidates:
