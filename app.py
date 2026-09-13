@@ -858,7 +858,10 @@ def resolve_saavn_stream(
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Referer': 'https://www.jiosaavn.com/',
-        'Cookie': 'geo=103.211.230.1%2CIN%2CTelangana%2CHyderabad%2C500028; DL=english; mm_latlong=17.3843%2C78.4583'
+        'Cookie': 'geo=103.211.230.1%2CIN%2CTelangana%2CHyderabad%2C500028; DL=english; mm_latlong=17.3843%2C78.4583',
+        'X-Forwarded-For': '103.211.230.1',
+        'X-Real-IP': '103.211.230.1',
+        'Client-IP': '103.211.230.1'
     }
     key = b'38346591'
     cipher = DES.new(key, DES.MODE_ECB)
@@ -962,9 +965,9 @@ def resolve_saavn_stream(
         if debug_logs is not None:
             debug_logs.append(f"trying q='{q}'")
 
-        # 1. First attempt: canonical autocomplete + song.getDetails
+        # 1. First attempt: canonical autocomplete + song.getDetails with Indian geo params
         try:
-            ac_url = f'https://www.jiosaavn.com/api.php?__call=autocomplete.get&_marker=0&query={encoded}&ctx=android&_format=json'
+            ac_url = f'https://www.jiosaavn.com/api.php?__call=autocomplete.get&_marker=0&query={encoded}&ctx=android&_format=json&geo=in&country=in&cc=in'
             ac_resp = STREAM_SESSION.get(ac_url, headers=headers, timeout=2.5)
             if debug_logs is not None:
                 debug_logs.append(f"autocomplete status={ac_resp.status_code}")
@@ -973,7 +976,7 @@ def resolve_saavn_stream(
                 pids = [s.get('id') for s in ac_songs[:6] if s.get('id')]
                 if pids:
                     pid_str = ','.join(pids)
-                    det_url = f'https://www.jiosaavn.com/api.php?__call=song.getDetails&pids={pid_str}&_format=json'
+                    det_url = f'https://www.jiosaavn.com/api.php?__call=song.getDetails&pids={pid_str}&_format=json&geo=in&country=in&cc=in'
                     det_resp = STREAM_SESSION.get(det_url, headers=headers, timeout=2.5)
                     if debug_logs is not None:
                         debug_logs.append(f"getDetails status={det_resp.status_code}")
@@ -1154,7 +1157,7 @@ def get_audio_metadata(
         'skip_download': True,
         'noplaylist': True,
         'cachedir': False,
-        'socket_timeout': 4,
+        'socket_timeout': 2,
         'extractor_retries': 0,
         'extractor_args': YTDL_CLIENT_ARGS,
     }
@@ -1183,7 +1186,7 @@ def get_audio_metadata(
             'skip_download': True,
             'noplaylist': True,
             'cachedir': False,
-            'socket_timeout': 5,
+            'socket_timeout': 2,
             'extractor_retries': 0,
             'extractor_args': {'youtube': {'player_client': ['android', 'mweb']}},
         }
@@ -1849,7 +1852,12 @@ def debug_extract(video_id: str, use_cookies: bool = False):
     }
 
 @app.get("/api/debug-trace/{video_id}")
-def debug_trace(video_id: str, title: Optional[str] = None):
+def debug_trace(
+    video_id: str,
+    title: Optional[str] = None,
+    dur: Optional[str] = None,
+    artist: Optional[str] = None
+):
     t0 = time.time()
     steps = []
     
@@ -1864,8 +1872,8 @@ def debug_trace(video_id: str, title: Optional[str] = None):
         query_hint = f"{curated_info.get('title', '')} {curated_info.get('artist', '')}".strip()
     steps.append({"step": "query_hint", "query_hint": query_hint, "elapsed": time.time() - t0})
     
-    exp_dur = curated_info.get("duration") if curated_info else None
-    exp_art = curated_info.get("artist") if curated_info else None
+    exp_dur = parse_duration_to_seconds(dur) if dur else (curated_info.get("duration") if curated_info else None)
+    exp_art = artist if artist else (curated_info.get("artist") if curated_info else None)
     saavn_t0 = time.time()
     saavn_logs = []
     saavn_res = resolve_saavn_stream(query_hint, expected_duration=exp_dur, expected_artist=exp_art, debug_logs=saavn_logs)
@@ -1875,7 +1883,7 @@ def debug_trace(video_id: str, title: Optional[str] = None):
     if not saavn_res:
         try:
             probe_url = f'https://www.jiosaavn.com/api.php?__call=search.getResults&_marker=0&q={urllib.parse.quote(query_hint)}&ctx=android&_format=json&p=1&n=5&geo=in&country=in&cc=in'
-            pr = STREAM_SESSION.get(probe_url, headers={'User-Agent': 'Mozilla/5.0', 'Cookie': 'geo=103.211.230.1%2CIN%2CTelangana%2CHyderabad%2C500028; DL=english; mm_latlong=17.3843%2C78.4583'}, timeout=2.5)
+            pr = STREAM_SESSION.get(probe_url, headers={'User-Agent': 'Mozilla/5.0', 'Cookie': 'geo=103.211.230.1%2CIN%2CTelangana%2CHyderabad%2C500028; DL=english; mm_latlong=17.3843%2C78.4583', 'X-Forwarded-For': '103.211.230.1'}, timeout=2.5)
             if pr.status_code == 200:
                 pdata = pr.json()
                 for s in pdata.get('results', [])[:5]:
@@ -1893,6 +1901,9 @@ def debug_trace(video_id: str, title: Optional[str] = None):
         "has_result": bool(saavn_res),
         "source": saavn_res.get("source") if saavn_res else None,
         "duration": saavn_res.get("duration") if saavn_res else None,
+        "song": saavn_res.get("song") if saavn_res else None,
+        "artist": saavn_res.get("artist") if saavn_res else None,
+        "url": saavn_res.get("url") if saavn_res else None,
         "logs": saavn_logs,
         "raw_probe": raw_probe,
         "elapsed": time.time() - saavn_t0
