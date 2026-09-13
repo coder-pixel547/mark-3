@@ -937,7 +937,16 @@ def resolve_saavn_stream(
             if abs(song_dur - expected_duration) > max_dur_tol:
                 return False, False
 
-        # 4. Meaningful Title Check: candidate title must match meaningful words from query
+        # 4. Query token coverage: candidate title + artist + album MUST contain key terms from query
+        combined_meta = f"{song_title} {song_artist} {song_album}".lower()
+        clean_combined = re.sub(r'[^a-zA-Z0-9\s]', '', combined_meta)
+        if q_meaningful_toks:
+            matched_toks = [t for t in q_meaningful_toks if t in clean_combined]
+            min_required = max(1, int(len(q_meaningful_toks) * 0.55))
+            if len(matched_toks) < min_required:
+                return False, False
+
+        # 5. Meaningful Title Check: candidate title must match meaningful words from query
         clean_title_toks = [t for t in re.sub(r'[^a-zA-Z0-9\s]', '', song_title).split() if len(t) > 2 and t not in stop_words]
         if q_meaningful_toks and clean_title_toks:
             has_overlap = any(t in query_lower for t in clean_title_toks) or any(t in song_title for t in q_meaningful_toks)
