@@ -2166,6 +2166,17 @@ def serve_service_worker():
         )
     return JSONResponse(status_code=404, content={"error": "service worker not found"})
 
+@app.get("/static/app.js")
+def serve_app_js():
+    js_path = os.path.join(STATIC_DIR, "app.js")
+    if os.path.exists(js_path):
+        return FileResponse(
+            js_path,
+            media_type="application/javascript",
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
+        )
+    return JSONResponse(status_code=404, content={"error": "app.js not found"})
+
 @app.api_route("/health", methods=["GET", "HEAD"])
 @app.api_route("/ping", methods=["GET", "HEAD"])
 def health_check():
