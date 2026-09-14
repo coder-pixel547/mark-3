@@ -1,4 +1,4 @@
-const CACHE_NAME = 'swarify-shell-v7.5';
+const CACHE_NAME = 'swarify-shell-v7.6';
 const APP_SHELL = [
   '/',
   '/static/styles.css',

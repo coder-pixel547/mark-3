@@ -43,6 +43,8 @@
     allEnglish: []
   };
 
+  let activeOnPlayingListener = null;
+
   // Seed starter playlist if none exists
   if (state.playlists.length === 0) {
     state.playlists = [
