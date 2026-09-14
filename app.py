@@ -12,6 +12,7 @@ from typing import List, Dict, Any, Optional, Tuple
 import requests
 import httpx
 import yt_dlp
+import sqlite3
 from dotenv import load_dotenv
 
 from fastapi import FastAPI, Query, Request, Response, HTTPException
@@ -1825,6 +1826,80 @@ async def suggestions(response: Response, q: str = Query(..., min_length=1)):
     except Exception as e:
         safe_log(f"Suggestions error: {e}")
     return {"suggestions": []}
+
+# ==============================================================================
+# Cross-Device Library Sync & Cloud Backup
+# ==============================================================================
+SYNC_DB_PATH = os.path.join(os.path.dirname(__file__), "library_sync.db")
+
+def init_sync_db():
+    try:
+        with sqlite3.connect(SYNC_DB_PATH) as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS library_sync (
+                    code TEXT PRIMARY KEY,
+                    playlists TEXT,
+                    liked_songs TEXT,
+                    updated_at INTEGER
+                )
+            """)
+            conn.commit()
+    except Exception as e:
+        safe_log(f"Failed to init sync db: {e}")
+
+init_sync_db()
+
+@app.get("/api/sync/generate-code")
+def generate_sync_code():
+    import string
+    digits = ''.join(random.choices(string.digits, k=4))
+    letters = ''.join(random.choices(string.ascii_uppercase, k=2))
+    return {"code": f"{letters}-{digits}"}
+
+@app.post("/api/sync/save")
+async def save_sync_library(request: Request):
+    try:
+        data = await request.json()
+        code = (data.get("code") or "").strip().upper()
+        if not code or len(code) < 4:
+            return JSONResponse(status_code=400, content={"error": "Invalid sync code"})
+
+        playlists = json.dumps(data.get("playlists", []))
+        liked_songs = json.dumps(data.get("liked_songs", []))
+        now = int(time.time())
+
+        with sqlite3.connect(SYNC_DB_PATH) as conn:
+            conn.execute("""
+                INSERT INTO library_sync (code, playlists, liked_songs, updated_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(code) DO UPDATE SET
+                    playlists=excluded.playlists,
+                    liked_songs=excluded.liked_songs,
+                    updated_at=excluded.updated_at
+            """, (code, playlists, liked_songs, now))
+            conn.commit()
+        return {"status": "ok", "code": code, "updated_at": now}
+    except Exception as e:
+        safe_log(f"Error saving sync library: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.get("/api/sync/load")
+def load_sync_library(code: str = Query(...)):
+    clean_code = code.strip().upper()
+    try:
+        with sqlite3.connect(SYNC_DB_PATH) as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT playlists, liked_songs, updated_at FROM library_sync WHERE code = ?", (clean_code,))
+            row = cur.fetchone()
+            if not row:
+                return JSONResponse(status_code=404, content={"error": "Sync code not found. Please verify your code."})
+
+            playlists = json.loads(row[0]) if row[0] else []
+            liked_songs = json.loads(row[1]) if row[1] else []
+            return {"code": clean_code, "playlists": playlists, "liked_songs": liked_songs, "updated_at": row[2]}
+    except Exception as e:
+        safe_log(f"Error loading sync library: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 @app.get("/api/debug-extract/{video_id}")
 def debug_extract(video_id: str, use_cookies: bool = False):

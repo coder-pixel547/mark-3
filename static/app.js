@@ -69,7 +69,11 @@
     filterChips: document.querySelectorAll('.chip'),
     // Playlists Nav
     btnOpenCreatePlaylist: document.getElementById('btn-open-create-playlist'),
+    btnOpenSync: document.getElementById('btn-open-sync'),
+    btnHomeSync: document.getElementById('btn-home-sync'),
     playlistNavList: document.getElementById('playlist-nav-list'),
+    navAllPlaylists: document.getElementById('nav-all-playlists'),
+    playlistsCount: document.getElementById('playlists-count'),
     // Search
     searchInput: document.getElementById('search-input'),
     clearSearchBtn: document.getElementById('clear-search-btn'),
@@ -82,6 +86,9 @@
     heroPlayAllBtn: document.getElementById('hero-play-all-btn'),
     heroShuffleBtn: document.getElementById('hero-shuffle-btn'),
     songsContainer: document.getElementById('songs-container'),
+    homePlaylistsSection: document.getElementById('home-playlists-section'),
+    homePlaylistsGrid: document.getElementById('home-playlists-grid'),
+    homePlaylistsSubtitle: document.getElementById('home-playlists-subtitle'),
     teluguGrid: document.getElementById('telugu-grid'),
     hindiGrid: document.getElementById('hindi-grid'),
     englishGrid: document.getElementById('english-grid'),
@@ -142,6 +149,15 @@
     btnPasteSpotify: document.getElementById('btn-paste-spotify'),
     spotifyImportStatus: document.getElementById('spotify-import-status'),
     spotifyStatusText: document.getElementById('spotify-status-text'),
+    // Sync & Backup Modal
+    syncModal: document.getElementById('sync-modal'),
+    closeSyncModal: document.getElementById('close-sync-modal'),
+    mySyncCode: document.getElementById('my-sync-code'),
+    btnCopySyncCode: document.getElementById('btn-copy-sync-code'),
+    inputRemoteSyncCode: document.getElementById('input-remote-sync-code'),
+    btnLoadRemoteSync: document.getElementById('btn-load-remote-sync'),
+    btnExportJson: document.getElementById('btn-export-json'),
+    inputImportJson: document.getElementById('input-import-json'),
     // Mobile Controls & Full-Screen Sheet
     playerTrackInfo: document.getElementById('player-track-info'),
     mobileMiniProgressFill: document.getElementById('mobile-mini-progress-fill'),
@@ -993,6 +1009,7 @@
     }
     localStorage.setItem('mark3_liked', JSON.stringify(state.likedSongs));
     updateLikedCountUI();
+    autoSyncToCloud();
 
     if (state.activeView === 'liked') {
       renderLikedView();
@@ -1016,11 +1033,48 @@
   }
 
   // ==========================================
-  // 6. Custom Playlist System
+  // 6. Custom Playlist System & Cloud Sync
   // ==========================================
+  let syncDebounceTimer = null;
+  function autoSyncToCloud() {
+    const code = localStorage.getItem('mark3_sync_code');
+    if (!code) return;
+    clearTimeout(syncDebounceTimer);
+    syncDebounceTimer = setTimeout(() => {
+      fetch('/api/sync/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: code,
+          playlists: state.playlists,
+          liked_songs: state.likedSongs
+        })
+      }).catch(() => {});
+    }, 1200);
+  }
+
+  async function ensureSyncCode() {
+    let code = localStorage.getItem('mark3_sync_code');
+    if (!code) {
+      try {
+        const resp = await fetch('/api/sync/generate-code');
+        const data = await resp.json();
+        code = data.code;
+        localStorage.setItem('mark3_sync_code', code);
+      } catch (e) {
+        code = 'SW-' + Math.floor(1000 + Math.random() * 9000);
+        localStorage.setItem('mark3_sync_code', code);
+      }
+    }
+    autoSyncToCloud();
+    return code;
+  }
+
   function savePlaylists() {
     localStorage.setItem('mark3_playlists', JSON.stringify(state.playlists));
     updatePlaylistsSidebar();
+    renderHomePlaylistsSection();
+    autoSyncToCloud();
   }
 
   function createPlaylist(name, description = '') {
@@ -1095,6 +1149,7 @@
   }
 
   function updatePlaylistsSidebar() {
+    if (!el.playlistNavList) return;
     el.playlistNavList.innerHTML = '';
     state.playlists.forEach(pl => {
       const item = document.createElement('button');
@@ -1108,6 +1163,151 @@
       });
       el.playlistNavList.appendChild(item);
     });
+    if (el.playlistsCount) {
+      el.playlistsCount.textContent = state.playlists.length;
+    }
+  }
+
+  function populatePlaylistCards(container) {
+    if (!container) return;
+    container.innerHTML = '';
+
+    // "+ Create New Playlist" card
+    const createCard = document.createElement('div');
+    createCard.className = 'create-playlist-card';
+    createCard.innerHTML = `
+      <div class="create-pl-icon">+</div>
+      <div class="create-pl-text">Create Playlist</div>
+    `;
+    createCard.addEventListener('click', openCreatePlaylistModal);
+    container.appendChild(createCard);
+
+    state.playlists.forEach(pl => {
+      const card = document.createElement('div');
+      card.className = 'home-playlist-card';
+
+      let coverHtml = '';
+      const validThumbs = (pl.tracks || []).map(t => t.thumbnail).filter(Boolean);
+      if (validThumbs.length >= 4) {
+        coverHtml = `
+          <div class="pl-cover-collage">
+            ${validThumbs.slice(0, 4).map(src => `<img class="pl-cover-img" src="${src}" alt="" loading="lazy" />`).join('')}
+            <button class="pl-quick-play" title="Play Playlist">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            </button>
+          </div>
+        `;
+      } else if (validThumbs.length > 0) {
+        coverHtml = `
+          <div class="pl-cover-collage pl-cover-single">
+            <img class="pl-cover-img" src="${validThumbs[0]}" alt="" loading="lazy" />
+            <button class="pl-quick-play" title="Play Playlist">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            </button>
+          </div>
+        `;
+      } else {
+        coverHtml = `
+          <div class="pl-cover-collage" style="display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.04);">
+            <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--primary)" stroke-width="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+          </div>
+        `;
+      }
+
+      card.innerHTML = `
+        ${coverHtml}
+        <div class="pl-card-title">${pl.name}</div>
+        <div class="pl-card-meta">${pl.tracks.length} songs</div>
+      `;
+
+      const qpBtn = card.querySelector('.pl-quick-play');
+      if (qpBtn) {
+        qpBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (pl.tracks.length > 0) {
+            setQueueAndPlay(pl.tracks, 0);
+          } else {
+            showToast(`Playlist "${pl.name}" is empty`);
+          }
+        });
+      }
+
+      card.addEventListener('click', () => {
+        viewPlaylist(pl.id);
+      });
+
+      container.appendChild(card);
+    });
+
+    if (el.playlistsCount) {
+      el.playlistsCount.textContent = state.playlists.length;
+    }
+  }
+
+  function renderHomePlaylistsSection() {
+    if (!el.homePlaylistsGrid) return;
+    if (el.homePlaylistsSubtitle) {
+      el.homePlaylistsSubtitle.textContent = `${state.playlists.length} custom playlists in your library`;
+    }
+    populatePlaylistCards(el.homePlaylistsGrid);
+  }
+
+  function renderAllPlaylistsView() {
+    el.teluguSection.classList.add('hidden');
+    el.hindiSection.classList.add('hidden');
+    el.englishSection.classList.add('hidden');
+    if (el.homePlaylistsSection) el.homePlaylistsSection.classList.add('hidden');
+
+    el.heroBanner.classList.remove('hidden');
+    el.heroTitle.textContent = 'Your Music Playlists 📁';
+    el.heroDesc.textContent = `${state.playlists.length} playlists created & synced across your devices.`;
+
+    const prevSection = document.getElementById('custom-view-section');
+    if (prevSection) prevSection.remove();
+    const prevSearch = document.getElementById('search-results-section');
+    if (prevSearch) prevSearch.remove();
+
+    const section = document.createElement('div');
+    section.className = 'content-section';
+    section.id = 'custom-view-section';
+    section.innerHTML = `
+      <div class="section-header">
+        <div class="section-title-group">
+          <h2>All Custom Playlists</h2>
+          <span class="section-subtitle">Synced & stored in your library</span>
+        </div>
+        <div class="section-actions-group" style="display: flex; gap: 8px;">
+          <button class="btn-sync-pill" id="btn-library-sync">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            <span>Sync Devices</span>
+          </button>
+          <button class="btn-primary" id="btn-new-pl-view" style="padding: 6px 14px; font-size: 0.85rem;">+ New Playlist</button>
+        </div>
+      </div>
+      <div class="playlist-cards-grid" id="all-playlists-grid"></div>
+    `;
+    el.songsContainer.appendChild(section);
+
+    document.getElementById('btn-library-sync')?.addEventListener('click', openSyncModal);
+    document.getElementById('btn-new-pl-view')?.addEventListener('click', openCreatePlaylistModal);
+
+    const grid = document.getElementById('all-playlists-grid');
+    populatePlaylistCards(grid);
+
+    const allTracks = state.playlists.flatMap(p => p.tracks);
+    el.heroPlayAllBtn.onclick = () => {
+      if (allTracks.length > 0) setQueueAndPlay(allTracks, 0);
+      else showToast('No songs in your playlists yet');
+    };
+    el.heroShuffleBtn.onclick = () => {
+      if (allTracks.length > 0) {
+        state.isShuffle = true;
+        el.btnShuffle.classList.add('active');
+        setQueueAndPlay(allTracks, Math.floor(Math.random() * allTracks.length));
+      } else {
+        showToast('No songs in your playlists yet');
+      }
+    };
   }
 
   function viewPlaylist(playlistId) {
@@ -1132,6 +1332,7 @@
     el.teluguSection.classList.add('hidden');
     el.hindiSection.classList.add('hidden');
     el.englishSection.classList.add('hidden');
+    if (el.homePlaylistsSection) el.homePlaylistsSection.classList.add('hidden');
 
     el.heroBanner.classList.remove('hidden');
     el.heroTitle.textContent = pl.name;
@@ -1220,6 +1421,143 @@
       el.confirmCreatePlBtn.click();
     }
   });
+
+  // Sync Modal Controller
+  function openSyncModal() {
+    ensureSyncCode().then(code => {
+      if (el.mySyncCode) el.mySyncCode.textContent = code;
+    });
+    if (el.inputRemoteSyncCode) el.inputRemoteSyncCode.value = '';
+    if (el.syncModal) el.syncModal.classList.remove('hidden');
+  }
+
+  function closeSyncModal() {
+    if (el.syncModal) el.syncModal.classList.add('hidden');
+  }
+
+  async function loadRemoteLibrary(remoteCode) {
+    const code = (remoteCode || '').trim().toUpperCase();
+    if (!code) {
+      showToast('Please enter a sync code');
+      return;
+    }
+    showToast('Connecting to cloud library...');
+    try {
+      const resp = await fetch(`/api/sync/load?code=${encodeURIComponent(code)}`);
+      if (!resp.ok) {
+        showToast('Sync code not found. Check code and try again.');
+        return;
+      }
+      const data = await resp.json();
+      if (Array.isArray(data.playlists) && data.playlists.length > 0) {
+        state.playlists = data.playlists;
+        localStorage.setItem('mark3_playlists', JSON.stringify(state.playlists));
+      }
+      if (Array.isArray(data.liked_songs)) {
+        state.likedSongs = data.liked_songs;
+        localStorage.setItem('mark3_liked', JSON.stringify(state.likedSongs));
+        updateLikedCountUI();
+      }
+      localStorage.setItem('mark3_sync_code', code);
+      if (el.mySyncCode) el.mySyncCode.textContent = code;
+
+      updatePlaylistsSidebar();
+      renderHomePlaylistsSection();
+      showToast(`Library synced from ${code}! 📁`);
+      closeSyncModal();
+
+      if (state.activeView === 'all-playlists') {
+        renderAllPlaylistsView();
+      } else if (state.activeView === 'home') {
+        renderHomePlaylistsSection();
+      }
+    } catch (e) {
+      showToast('Failed to sync library: ' + e.message);
+    }
+  }
+
+  function exportLibraryJson() {
+    const data = {
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      playlists: state.playlists,
+      likedSongs: state.likedSongs
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `swarify_music_backup_${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Library backup exported! 💾');
+  }
+
+  function importLibraryJson(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (Array.isArray(data.playlists)) {
+          state.playlists = data.playlists;
+          savePlaylists();
+        }
+        if (Array.isArray(data.likedSongs)) {
+          state.likedSongs = data.likedSongs;
+          localStorage.setItem('mark3_liked', JSON.stringify(state.likedSongs));
+          updateLikedCountUI();
+        }
+        showToast('Backup imported successfully! 🎵');
+        closeSyncModal();
+        if (state.activeView === 'all-playlists') {
+          renderAllPlaylistsView();
+        } else if (state.activeView === 'home') {
+          renderHomePlaylistsSection();
+        }
+      } catch (err) {
+        showToast('Invalid backup file');
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  if (el.btnOpenSync) el.btnOpenSync.addEventListener('click', openSyncModal);
+  if (el.btnHomeSync) el.btnHomeSync.addEventListener('click', openSyncModal);
+  if (el.closeSyncModal) el.closeSyncModal.addEventListener('click', closeSyncModal);
+  if (el.btnCopySyncCode) {
+    el.btnCopySyncCode.addEventListener('click', () => {
+      const code = el.mySyncCode ? el.mySyncCode.textContent : '';
+      if (code && code !== 'Generating...') {
+        navigator.clipboard.writeText(code).then(() => {
+          showToast(`Copied sync code: ${code} 📋`);
+        }).catch(() => {
+          showToast(`Your sync code: ${code}`);
+        });
+      }
+    });
+  }
+  if (el.btnLoadRemoteSync) {
+    el.btnLoadRemoteSync.addEventListener('click', () => {
+      const code = el.inputRemoteSyncCode ? el.inputRemoteSyncCode.value : '';
+      loadRemoteLibrary(code);
+    });
+  }
+  if (el.inputRemoteSyncCode) {
+    el.inputRemoteSyncCode.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        loadRemoteLibrary(el.inputRemoteSyncCode.value);
+      }
+    });
+  }
+  if (el.btnExportJson) el.btnExportJson.addEventListener('click', exportLibraryJson);
+  if (el.inputImportJson) {
+    el.inputImportJson.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        importLibraryJson(e.target.files[0]);
+      }
+    });
+  }
 
   // Spotify Modal Controller
   function openSpotifyModal() {
@@ -1799,6 +2137,8 @@
       el.heroBanner.classList.remove('hidden');
       el.heroTitle.textContent = 'Telugu, Hindi & Global Hits';
       el.heroDesc.textContent = 'Stream top Tollywood, Bollywood & International chartbusters ad-free with background playback.';
+      if (el.homePlaylistsSection) el.homePlaylistsSection.classList.remove('hidden');
+      renderHomePlaylistsSection();
       el.teluguSection.classList.remove('hidden');
       el.hindiSection.classList.remove('hidden');
       el.englishSection.classList.remove('hidden');
@@ -1811,6 +2151,12 @@
         const randIdx = Math.floor(Math.random() * allCombined.length);
         setQueueAndPlay(allCombined, randIdx);
       };
+    } else {
+      if (el.homePlaylistsSection) el.homePlaylistsSection.classList.add('hidden');
+    }
+
+    if (viewName === 'all-playlists') {
+      renderAllPlaylistsView();
     } else if (viewName === 'telugu') {
       el.heroBanner.classList.remove('hidden');
       el.heroTitle.textContent = 'Telugu Blockbuster Hits (తెలుగు)';
@@ -1865,6 +2211,7 @@
     el.teluguSection.classList.add('hidden');
     el.hindiSection.classList.add('hidden');
     el.englishSection.classList.add('hidden');
+    if (el.homePlaylistsSection) el.homePlaylistsSection.classList.add('hidden');
 
     el.heroBanner.classList.remove('hidden');
     el.heroTitle.textContent = 'Your Liked Songs ❤️';
@@ -1992,5 +2339,7 @@
   // Initialize
   updateLikedCountUI();
   updatePlaylistsSidebar();
+  renderHomePlaylistsSection();
+  ensureSyncCode();
   loadInitialCatalog();
 })();
