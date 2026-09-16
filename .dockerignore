@@ -1,0 +1,11 @@
+.git
+__pycache__
+*.pyc
+.env
+cloudflared.exe
+*.log
+*.zip
+cookies.txt
+*.db
+.pytest_cache
+scratch
