@@ -507,7 +507,10 @@
     const rawTitle = (track.title || '').trim();
     const rawArtist = (track.artist || '').trim();
     // Clean bracketed marketing noise like (Official Video), [4K], etc.
-    const cleanTitle = rawTitle.replace(/[\(\[\{].*?[\)\]\}]/g, '').replace(/[-–—|:]+/g, ' ').replace(/\s+/g, ' ').trim();
+    let cleanTitle = rawTitle.replace(/[\(\[\{].*?[\)\]\}]/g, '').trim();
+    // Strip @ from handles: @SaiAbhyankkar -> SaiAbhyankkar
+    cleanTitle = cleanTitle.replace(/@([a-zA-Z0-9_]+)/g, '$1');
+    cleanTitle = cleanTitle.replace(/\s+/g, ' ').trim();
     const isLabel = isChannelOrLabel(rawArtist);
     const cleanArtist = isLabel ? '' : rawArtist;
     const cleanHint = cleanArtist ? `${cleanTitle} ${cleanArtist}`.trim() : (cleanTitle || rawTitle);

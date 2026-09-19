@@ -565,14 +565,23 @@ if os.path.exists(CURATED_MAP_FILE):
         safe_log(f"[CuratedMap] Error reading stream map: {_e}")
 
 KNOWN_LABEL_KEYWORDS = (
-    't-series', 'tseries', 't series', 'sony music', 'sonymusic', 'zee music', 'zeemusic',
-    'aditya music', 'adityamusic', 'saregama', 'lahari', 'tips', 'yrf', 'speed records',
-    'white hill', 'geetha arts', 'mythri', 'dvv', 'harika', 'svcc', 'sithara',
-    'annapurna', 'lyca', 'sun pictures', 'rajshri', 'times music', 'eros', 'pen movies',
-    'venus', 'think music', 'music company', 'official', 'vevo', 'lyrics', 'lyrical',
-    'records', 'entertainment', 'films', 'channel', 'audio', 'topic', 'media',
-    '7clouds', 'dan music', 'taz network', 'pizzazz', 'shadow music', 'chill nation',
-    'desi music factory', 'dmk', 'speed audio', 'mango music', 'madhura audio'
+    't-series telugu', 't-series tamil', 't-series south', 't-series india', 't-series', 'tseries', 't series',
+    'sony music south', 'sony music india', 'sony music telugu', 'sony music tamil', 'sony music', 'sonymusic',
+    'zee music south', 'zee music telugu', 'zee music company', 'zee music india', 'zee music', 'zeemusic',
+    'aditya music telugu', 'aditya music', 'adityamusic', 'aditya telugu',
+    'saregama telugu', 'saregama south', 'saregama music', 'saregama',
+    'lahari music', 'lahari t-series', 'lahari',
+    'tips telugu', 'tips official', 'tips music', 'tips industries', 'tips',
+    'think music india', 'think music', 'think indie collective', 'think indie',
+    'yrf music', 'yrf', 'speed records', 'white hill music', 'white hill',
+    'geetha arts', 'mythri movie makers', 'mythri', 'dvv entertainment', 'dvv',
+    'haarika & hassine', 'harika', 'svcc', 'sithara entertainments', 'sithara',
+    'annapurna studios', 'annapurna', 'lyca productions', 'lyca', 'sun pictures',
+    'rajshri', 'times music', 'eros now', 'eros', 'pen movies', 'venus',
+    'music company', 'official', 'vevo', 'lyrics', 'lyrical', 'records', 'entertainment',
+    'films', 'channel', 'audio', 'topic', 'media', '7clouds', 'dan music', 'taz network',
+    'pizzazz', 'shadow music', 'chill nation', 'desi music factory', 'dmk', 'speed audio',
+    'mango music', 'madhura audio'
 )
 
 def is_music_label_or_channel(name: Optional[str]) -> bool:
@@ -587,13 +596,17 @@ def sanitize_search_query(query: str, artist: Optional[str] = None) -> str:
     if not query:
         return ""
     q = query
-    # Remove bracketed and parenthesized tags: [8K], (Official Video), (Lyrics), etc.
+    # Strip @ handles: @SaiAbhyankkar -> SaiAbhyankkar
+    q = re.sub(r'@([a-zA-Z0-9_]+)', r'\1', q)
+    # Remove bracketed and parenthesized tags: [8K], (Official Video), (Lyrics), (Music Video), etc.
     q = re.sub(r'[\(\[\{].*?[\)\]\}]', ' ', q)
     if artist:
         q = re.sub(re.escape(artist), ' ', q, flags=re.IGNORECASE)
     for kw in KNOWN_LABEL_KEYWORDS:
         q = re.sub(rf'\b{re.escape(kw)}\b', ' ', q, flags=re.IGNORECASE)
-    q = re.sub(r'\b(8k|4k|hd|official|promo|teaser|trailer|video)\b', ' ', q, flags=re.IGNORECASE)
+    # Strip orphaned label-related words and trailing noise
+    q = re.sub(r'\b(8k|4k|hd|official|promo|teaser|trailer|video|audio|lyric|lyrics|lyrical|visualizer|remix|music\s*video)\b', ' ', q, flags=re.IGNORECASE)
+    q = re.sub(r'\b(music|records|audio|channel|studios?|productions?|entertainment)\s+(india|south|global|world|regional|telugu|tamil|hindi|punjabi)\b', ' ', q, flags=re.IGNORECASE)
     q = re.sub(r'[-–—|:]+', ' ', q)
     q = re.sub(r'\s+', ' ', q).strip()
     return q
@@ -608,15 +621,20 @@ def clean_song_title(title: str) -> str:
         # Usually segment 0 or 1 is the actual song title
         title = segments[0]
     
-    # Remove bracketed tags
+    # Strip @ from handles: @SaiAbhyankkar -> SaiAbhyankkar
+    title = re.sub(r'@([a-zA-Z0-9_]+)', r'\1', title)
+
+    # Remove all bracketed tags: (Official Video), (Music Video), [4K], (Lyrics), etc.
     title = re.sub(
-        r'[\(\[\{](Official\s*(Video|Audio|Music\s*Video|Lyrical|4K|HD|8K)?|Full\s*(Video|Song|Audio)|Video\s*Song|Lyrical\s*Video|Teaser|Trailer)[\)\]\}]',
+        r'[\(\[\{][^\)\]\}]*?(video|audio|lyrics?|lyrical|4k|8k|hd|official|remix|teaser|trailer|promo|song|visualizer|album)[^\)\]\}]*?[\)\]\}]',
         '',
         title,
         flags=re.IGNORECASE
     )
-    # Remove hyphens at end
-    title = re.sub(r'[-–—]\s*$', '', title).strip()
+    title = re.sub(r'[\(\[\{]\s*[\)\]\}]', '', title)
+
+    # Remove hyphens/pipes at end
+    title = re.sub(r'[-–—|:]+\s*$', '', title).strip()
     title = re.sub(r'\s+', ' ', title).strip()
     return title or "Unknown Song"
 
@@ -798,11 +816,22 @@ def extract_clean_queries(title: str, artist: Optional[str] = None) -> List[str]
         if len(hparts) >= 2:
             h0 = sanitize_search_query(hparts[0])
             h1 = sanitize_search_query(hparts[1])
+            h0_spaced = re.sub(r'([a-z])([A-Z])', r'\1 \2', h0)
+            h1_spaced = re.sub(r'([a-z])([A-Z])', r'\1 \2', h1)
             if h0 and h1:
                 queries.append(f"{h0} {h1}")
                 queries.append(f"{h1} {h0}")
+                if h0_spaced != h0 or h1_spaced != h1:
+                    queries.append(f"{h0_spaced} {h1_spaced}".strip())
+                    queries.append(f"{h1_spaced} {h0_spaced}".strip())
             if h1 and len(h1) > 2:
                 queries.append(h1)
+                if h1_spaced != h1:
+                    queries.append(h1_spaced)
+            if h0 and len(h0) > 2:
+                queries.append(h0)
+                if h0_spaced != h0:
+                    queries.append(h0_spaced)
     if re.search(r'\b(ft\.?|feat\.?|featuring)\b', cleaned, flags=re.IGNORECASE):
         base = re.split(r'\b(ft\.?|feat\.?|featuring)\b', cleaned, flags=re.IGNORECASE)[0].strip()
         if len(base) > 2:
@@ -873,7 +902,8 @@ def resolve_saavn_stream(
     key = b'38346591'
     cipher = DES.new(key, DES.MODE_ECB)
 
-    query_lower = query.lower()
+    query_unspaced = re.sub(r'([a-z])([A-Z])', r'\1 \2', query)
+    query_lower = query_unspaced.lower()
     disqualified = [kw for kw in DISQUALIFIED_SAAVN_KEYWORDS if kw not in query_lower]
     stop_words = {'from', 'part', 'the', 'and', 'full', 'song', 'audio', 'video', 'movie', 'official', 'lyric', 'lyrics'}
     q_meaningful_toks = [t for t in re.sub(r'[^a-zA-Z0-9\s]', '', query_lower).split() if len(t) > 2 and t not in stop_words]
@@ -913,6 +943,14 @@ def resolve_saavn_stream(
             pass
         return None
 
+    GENERIC_MUSIC_WORDS = {
+        'india', 'south', 'north', 'party', 'love', 'theme', 'song', 'audio',
+        'video', 'movie', 'track', 'music', 'anthem', 'beat', 'remix', 'mix',
+        'dandiya', 'dj', 'super', 'hit', 'full', 'from', 'part', 'the', 'and',
+        'official', 'lyrics', 'lyric', 'version', 'special', 'original', 'indie',
+        'single', 'soundtrack', 'ost', 'promo', 'teaser', 'trailer', 'melody'
+    }
+
     def validate_candidate(song_obj) -> Tuple[bool, bool]:
         """Validates candidate against disqualifiers, duration, and meaningful title words. Returns (is_valid, matches_artist)."""
         song_title = (song_obj.get('song') or '').strip().lower()
@@ -930,41 +968,60 @@ def resolve_saavn_stream(
             if black_artist in song_artist:
                 return False, False
 
-        # 2. Artist compatibility check
-        matches_artist = True
+        # 2. Distinctive query token check (reject candidates that only match generic words like 'india' or 'song')
+        distinctive_q_toks = [t for t in q_meaningful_toks if t not in GENERIC_MUSIC_WORDS and len(t) > 2]
+        clean_combined_meta = f"{song_title} {song_artist} {song_album}"
+        if distinctive_q_toks:
+            has_distinctive = any(
+                (dt in clean_combined_meta or any(dt in ct or ct in dt for ct in clean_combined_meta.split()))
+                for dt in distinctive_q_toks
+            )
+            if not has_distinctive:
+                return False, False
+
+        # 3. Artist compatibility check
+        matches_artist = False
         if expected_artist:
             exp_artist_clean = expected_artist.lower().strip()
-            if exp_artist_clean not in song_artist and song_artist not in exp_artist_clean:
-                exp_tokens = [tok for tok in exp_artist_clean.split() if len(tok) > 2]
-                if exp_tokens and not any(tok in song_artist for tok in exp_tokens):
-                    matches_artist = False
+            if exp_artist_clean in song_artist or song_artist in exp_artist_clean:
+                matches_artist = True
+            else:
+                exp_tokens = [tok for tok in exp_artist_clean.split() if len(tok) > 2 and tok not in GENERIC_MUSIC_WORDS]
+                if exp_tokens and any(tok in song_artist for tok in exp_tokens):
+                    matches_artist = True
+        elif any(
+            (t in song_artist or any((st in t or t in st) for st in song_artist.split() if len(st) > 2 and st not in GENERIC_MUSIC_WORDS))
+            for t in distinctive_q_toks
+        ):
+            matches_artist = True
 
-        # 3. Duration check:
-        # If artist matches, allow up to +-75s to account for YouTube music video intro/outro sketches/dialogues
-        # If artist does not match, require strict +-35s
-        max_dur_tol = 75 if matches_artist else 35
+        # 4. Title match check
+        clean_title_toks = [t for t in re.sub(r'[^a-zA-Z0-9\s]', '', song_title).split() if len(t) > 2 and t not in stop_words]
+        distinctive_title_toks = [t for t in clean_title_toks if t not in GENERIC_MUSIC_WORDS]
+        is_title_in_query = bool(song_title and len(song_title) > 2 and (song_title in query_lower or query_lower in song_title))
+
+        matches_title = False
+        if is_title_in_query:
+            matches_title = True
+        elif distinctive_q_toks and distinctive_title_toks:
+            matches_title = any(
+                (qt in tt or tt in qt)
+                for qt in distinctive_q_toks
+                for tt in distinctive_title_toks
+            )
+        elif distinctive_title_toks:
+            matches_title = any(tt in query_lower for tt in distinctive_title_toks)
+
+        if not matches_title:
+            return False, False
+
+        # 5. Duration check:
+        # If BOTH title & artist match, allow up to +-120s for music video intro/outro sketches & dialogues
+        # If artist matches, allow +-75s
+        # If artist does not match, strict +-35s
+        max_dur_tol = 120 if (matches_title and matches_artist) else (75 if matches_artist else 35)
         if expected_duration and expected_duration > 30 and song_dur > 0:
             if abs(song_dur - expected_duration) > max_dur_tol:
-                return False, False
-
-        # 4. Query token coverage: candidate title + artist + album MUST contain key terms from query
-        combined_meta = f"{song_title} {song_artist} {song_album}".lower()
-        clean_combined = re.sub(r'[^a-zA-Z0-9\s]', '', combined_meta)
-        is_title_in_query = bool(song_title and len(song_title) > 2 and (song_title in query_lower or query_lower in song_title))
-        if not is_title_in_query and q_meaningful_toks:
-            unique_q_toks = list(set(q_meaningful_toks))
-            matched_toks = [t for t in unique_q_toks if t in clean_combined]
-            min_required = max(1, int(len(unique_q_toks) * 0.45))
-            if len(matched_toks) < min_required:
-                return False, False
-
-        # 5. Meaningful Title Check: candidate title must match meaningful words from query
-        clean_title_toks = [t for t in re.sub(r'[^a-zA-Z0-9\s]', '', song_title).split() if len(t) > 2 and t not in stop_words]
-        if q_meaningful_toks and clean_title_toks:
-            has_overlap = any(t in query_lower for t in clean_title_toks) or any(t in song_title for t in q_meaningful_toks)
-            clean_q_joined = re.sub(r'[^a-z0-9]', '', query_lower)
-            clean_title_joined = re.sub(r'[^a-z0-9]', '', song_title)
-            if not (has_overlap or clean_q_joined in clean_title_joined or clean_title_joined in clean_q_joined):
                 return False, False
 
         return True, matches_artist
