@@ -780,6 +780,8 @@ def extract_clean_queries(title: str, artist: Optional[str] = None) -> List[str]
     queries = []
 
     # If artist is a distribution label/channel, don't couple it to search queries
+    if artist:
+        artist = re.sub(r'\s+and\s+\d+\s+more\b', '', artist, flags=re.IGNORECASE).strip()
     real_artist = None if is_music_label_or_channel(artist) else artist
 
     # 1. Fully sanitized search query (strips label noise, 8K, lyrics, etc.)
@@ -1174,38 +1176,47 @@ def get_audio_metadata(
             pass
 
     if query_hint:
-        # Ignore distribution channel / record label names for artist checks
-        if expected_artist and is_music_label_or_channel(expected_artist):
-            safe_log(f"[Stream Match] Ignoring label/channel '{expected_artist}' from expected_artist filter")
-            expected_artist = None
+        # Strip trailing 'and X more' noise from artist
+        if expected_artist:
+            expected_artist = re.sub(r'\s+and\s+\d+\s+more\b', '', expected_artist, flags=re.IGNORECASE).strip()
+            # Ignore distribution channel / record label names for artist checks
+            if is_music_label_or_channel(expected_artist):
+                safe_log(f"[Stream Match] Ignoring label/channel '{expected_artist}' from expected_artist filter")
+                expected_artist = None
 
-        sanitized_hint = sanitize_search_query(query_hint, expected_artist)
+        # Clean query hint from 'and X more' as well
+        cleaned_hint_for_saavn = re.sub(r'\s+and\s+\d+\s+more\b', '', query_hint, flags=re.IGNORECASE).strip()
+
+        # Try raw query_hint first so extract_clean_queries can use hyphens and separators
         saavn_meta = resolve_saavn_stream(
-            sanitized_hint,
+            cleaned_hint_for_saavn,
             expected_duration=expected_duration,
             expected_artist=expected_artist
         )
-        if not saavn_meta and sanitized_hint != query_hint:
-            # Fallback attempt with raw query_hint if sanitized did not yield
-            saavn_meta = resolve_saavn_stream(
-                query_hint,
-                expected_duration=expected_duration,
-                expected_artist=expected_artist
-            )
+        if not saavn_meta:
+            sanitized_hint = sanitize_search_query(cleaned_hint_for_saavn, expected_artist)
+            if sanitized_hint and sanitized_hint != cleaned_hint_for_saavn:
+                saavn_meta = resolve_saavn_stream(
+                    sanitized_hint,
+                    expected_duration=expected_duration,
+                    expected_artist=expected_artist
+                )
 
         if not saavn_meta and expected_artist:
             # Fallback attempt ignoring expected_artist (often inaccurate YouTube channel name)
             saavn_meta = resolve_saavn_stream(
-                sanitized_hint,
+                cleaned_hint_for_saavn,
                 expected_duration=expected_duration,
                 expected_artist=None
             )
-            if not saavn_meta and sanitized_hint != query_hint:
-                saavn_meta = resolve_saavn_stream(
-                    query_hint,
-                    expected_duration=expected_duration,
-                    expected_artist=None
-                )
+            if not saavn_meta:
+                sanitized_hint = sanitize_search_query(cleaned_hint_for_saavn, None)
+                if sanitized_hint and sanitized_hint != cleaned_hint_for_saavn:
+                    saavn_meta = resolve_saavn_stream(
+                        sanitized_hint,
+                        expected_duration=expected_duration,
+                        expected_artist=None
+                    )
 
         if saavn_meta:
             trim_cache_if_needed(AUDIO_URL_CACHE, max_size=MAX_CACHE_ENTRIES)

@@ -505,11 +505,15 @@
 
   function getCleanTrackHintAndArtist(track) {
     const rawTitle = (track.title || '').trim();
-    const rawArtist = (track.artist || '').trim();
+    let rawArtist = (track.artist || '').trim();
+    // Strip YouTube Music 'and 3 more' / 'and 2 more' artist noise
+    rawArtist = rawArtist.replace(/\s+and\s+\d+\s+more\b/gi, '').trim();
+
     // Clean bracketed marketing noise like (Official Video), [4K], etc.
     let cleanTitle = rawTitle.replace(/[\(\[\{].*?[\)\]\}]/g, '').trim();
     // Strip @ from handles: @SaiAbhyankkar -> SaiAbhyankkar
     cleanTitle = cleanTitle.replace(/@([a-zA-Z0-9_]+)/g, '$1');
+    cleanTitle = cleanTitle.replace(/\s+and\s+\d+\s+more\b/gi, '');
     cleanTitle = cleanTitle.replace(/\s+/g, ' ').trim();
     const isLabel = isChannelOrLabel(rawArtist);
     const cleanArtist = isLabel ? '' : rawArtist;
@@ -1936,7 +1940,10 @@
     clearTimeout(searchDebounce);
     searchDebounce = setTimeout(() => {
       fetchSuggestions(query);
-    }, 250);
+      if (query.length >= 3) {
+        performSearch(query);
+      }
+    }, 450);
   });
 
   el.searchInput.addEventListener('keydown', function(e) {
