@@ -169,6 +169,19 @@ def save_curated_map(curated: Dict[str, Any]):
     except Exception as e:
         print(f"[CuratedMap] Error saving curated map: {e}")
 
+def auto_deploy_curated_map():
+    """Commits and pushes curated_stream_map.json to origin main so Render auto-updates."""
+    try:
+        import subprocess
+        subprocess.run(["git", "add", "curated_stream_map.json"], cwd=MARK3_DIR, capture_output=True)
+        diff = subprocess.run(["git", "diff", "--staged", "--name-only"], cwd=MARK3_DIR, capture_output=True, text=True)
+        if "curated_stream_map.json" in diff.stdout:
+            subprocess.run(["git", "commit", "-m", "chore: auto-cache verified studio streams from overnight tester"], cwd=MARK3_DIR, capture_output=True)
+            subprocess.run(["git", "push", "origin", "main"], cwd=MARK3_DIR, capture_output=True)
+            print("[Auto-Deploy] Pushed newly verified studio streams to GitHub / Render!")
+    except Exception as e:
+        print(f"[Auto-Deploy] Note: {e}")
+
 # ==============================================================================
 # AUDIO VERIFICATION & AUTO-HEALING ENGINE
 # ==============================================================================
@@ -613,19 +626,23 @@ async def run_suite(limit: Optional[int] = None):
     
     # 2. Dynamic Discovery Phase: Expand catalog with top tracks from artist queries
     print("[Discovery] Expanding catalog via top artist queries...")
+    discovery_sem = asyncio.Semaphore(5)
     async with httpx.AsyncClient(limits=limits) as client:
-        for artist_q, lang in ARTIST_DISCOVERY_QUERIES:
-            try:
-                res = await client.get(f"{BASE_URL}/api/search", params={"q": artist_q}, timeout=10.0)
-                if res.status_code == 200:
-                    data = res.json()
-                    tracks = data.get("results", []) or data.get("tracks", [])
-                    for t in tracks[:8]:
-                        title = t.get("title")
-                        if title and len(title) > 2:
-                            full_items.append((title, lang))
-            except Exception:
-                pass
+        async def fetch_artist_tracks(artist_q, lang):
+            async with discovery_sem:
+                try:
+                    res = await client.get(f"{BASE_URL}/api/search", params={"q": artist_q}, timeout=8.0)
+                    if res.status_code == 200:
+                        data = res.json()
+                        tracks = data.get("results", []) or data.get("tracks", [])
+                        return [(t.get("title"), lang) for t in tracks[:6] if t.get("title") and len(t.get("title")) > 2]
+                except Exception:
+                    pass
+                return []
+        discovery_tasks = [fetch_artist_tracks(aq, l) for aq, l in ARTIST_DISCOVERY_QUERIES]
+        discovered_batches = await asyncio.gather(*discovery_tasks)
+        for batch in discovered_batches:
+            full_items.extend(batch)
 
     # Deduplicate items by query
     seen = set()
@@ -693,6 +710,8 @@ async def run_suite(limit: Optional[int] = None):
             
             if new_curated_entries >= 10 or batch_idx % 3 == 0:
                 save_curated_map(curated_map)
+                if new_curated_entries >= 10:
+                    auto_deploy_curated_map()
                 new_curated_entries = 0
 
             generate_reports(state)
@@ -706,19 +725,33 @@ async def run_suite(limit: Optional[int] = None):
             await asyncio.sleep(COOLDOWN_SECONDS)
             print("--------------------------------------------------------------------------------\n")
 
-    # Final save
+    # Final save & auto-deploy for this run
     save_curated_map(curated_map)
+    auto_deploy_curated_map()
     generate_reports(state)
     print("\n================================================================================")
-    print(f"VERIFICATION COMPLETED! Verified {len(state['results'])} tracks.")
+    print(f"CYCLE COMPLETED! Total Verified in Database: {len(state['results'])} tracks.")
     print(f"Reports available at:")
     print(f"- HTML Report: file:///{REPORT_HTML_FILE}")
     print(f"- Markdown:    file:///{REPORT_MD_FILE}")
     print("================================================================================")
 
+async def continuous_runner(limit: Optional[int] = None):
+    cycle = 1
+    while True:
+        print(f"\n[Continuous Mode] Running Cycle #{cycle}...")
+        await run_suite(limit=limit)
+        cycle += 1
+        print("[Cycle Cooldown] Resting for 30s before refreshing discovery catalog...")
+        await asyncio.sleep(30)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Swarify Music Overnight Tester")
     parser.add_argument("--limit", type=int, default=None, help="Limit number of tracks to test")
+    parser.add_argument("--once", action="store_true", help="Run a single pass instead of continuous loop")
     args = parser.parse_args()
     
-    asyncio.run(run_suite(limit=args.limit))
+    if args.once:
+        asyncio.run(run_suite(limit=args.limit))
+    else:
+        asyncio.run(continuous_runner(limit=args.limit))
