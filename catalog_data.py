@@ -7,7 +7,7 @@ CATALOG = {
         "Fear Song Devara", "Chuttamalle Devara", "Daavudi Devara", "Ayudha Pooja Devara", "All Hail the Tiger Devara",
         "Pushpa Pushpa Pushpa 2", "Sooseki Pushpa 2", "Peelings Pushpa 2", "Oo Antava Mava", "Srivalli Pushpa", "Saami Saami Pushpa", "Eyy Bidda Idhi Naa Adda", "Daakko Daakko Meka",
         "Theme of Kalki", "Ta Takkara Kalki 2898", "Bhairava Anthem Diljit Prabhas", "Madhava Keshava Kalki",
-        "Garam Garam Saripodhaa Sanivaaram", "Ullaam Saripodhaa Sanivaaram", "Bhagavanthuni Theerpu Saripodhaa",
+        "Garam Garam Saripodhaa Sanivaaram", "Ullaasam Saripodhaa Sanivaaram", "Bhaga Bhaga Saripodhaa Sanivaaram", "Shiva Thandavame Saripodhaa Sanivaaram",
         "Kurchi Madathapetti Guntur Kaaram", "Dum Masala Guntur Kaaram", "Oh My Baby Guntur Kaaram", "Mawaa Enthaina Guntur Kaaram", "Amma Song Guntur Kaaram",
         "Sooreede Salaar", "Prathi Gaadhallo Salaar", "Sound of Salaar",
         "Hanuman Chalisa Hanu-Man", "Poolamme Pilla Hanu-Man", "Anjanadri Theme Hanu-Man", "Avakasham Hanu-Man",

@@ -908,7 +908,7 @@ def resolve_saavn_stream(
     query_lower = query_unspaced.lower()
     disqualified = [kw for kw in DISQUALIFIED_SAAVN_KEYWORDS if kw not in query_lower]
     stop_words = {'from', 'part', 'the', 'and', 'full', 'song', 'audio', 'video', 'movie', 'official', 'lyric', 'lyrics'}
-    q_meaningful_toks = [t for t in re.sub(r'[^a-zA-Z0-9\s]', '', query_lower).split() if len(t) > 2 and t not in stop_words]
+    q_meaningful_toks = [t for t in re.sub(r'[^\w\s]', '', query_lower, flags=re.UNICODE).split() if len(t) > 2 and t not in stop_words]
 
     unmatched_artist_candidates: List[Dict[str, Any]] = []
 
@@ -998,7 +998,7 @@ def resolve_saavn_stream(
             matches_artist = True
 
         # 4. Title match check
-        clean_title_toks = [t for t in re.sub(r'[^a-zA-Z0-9\s]', '', song_title).split() if len(t) > 2 and t not in stop_words]
+        clean_title_toks = [t for t in re.sub(r'[^\w\s]', '', song_title, flags=re.UNICODE).split() if len(t) > 2 and t not in stop_words]
         distinctive_title_toks = [t for t in clean_title_toks if t not in GENERIC_MUSIC_WORDS]
         is_title_in_query = bool(song_title and len(song_title) > 2 and (song_title in query_lower or query_lower in song_title))
 
