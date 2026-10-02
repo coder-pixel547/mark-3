@@ -1020,8 +1020,17 @@ def resolve_saavn_stream(
         # 5. Duration check:
         # If BOTH title & artist match, allow up to +-120s for music video intro/outro sketches & dialogues
         # If artist matches, allow +-75s
-        # If artist does not match, strict +-35s
-        max_dur_tol = 120 if (matches_title and matches_artist) else (75 if matches_artist else 35)
+        # If artist is unknown / record label, allow +-95s (common in Indian cinema music videos with dialogue/skit intros)
+        # If artist is explicitly specified but does not match, strict +-35s
+        if matches_title and matches_artist:
+            max_dur_tol = 120
+        elif matches_artist:
+            max_dur_tol = 75
+        elif not expected_artist:
+            max_dur_tol = 95
+        else:
+            max_dur_tol = 35
+
         if expected_duration and expected_duration > 30 and song_dur > 0:
             if abs(song_dur - expected_duration) > max_dur_tol:
                 return False, False
@@ -1092,8 +1101,18 @@ def resolve_saavn_stream(
 
     # 3. Fallback: if no exact artist match found, use title-matched valid studio candidates
     if unmatched_artist_candidates:
-        safe_log(f"[Saavn Artist Fallback] Evaluating {len(unmatched_artist_candidates)} candidate songs...")
-        for candidate in unmatched_artist_candidates:
+        def candidate_rank(cand):
+            try:
+                pc = int(cand.get("play_count") or 0)
+            except Exception:
+                pc = 0
+            dur = int(cand.get("duration") or 0)
+            dur_diff = abs(dur - expected_duration) if (expected_duration and dur > 0) else 0
+            return (pc, -dur_diff)
+
+        sorted_candidates = sorted(unmatched_artist_candidates, key=candidate_rank, reverse=True)
+        safe_log(f"[Saavn Artist Fallback] Evaluating {len(sorted_candidates)} candidate songs (sorted by popularity)...")
+        for candidate in sorted_candidates:
             meta = verify_and_build_meta(candidate, "Fallback-Candidate")
             if meta:
                 return meta
