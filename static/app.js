@@ -1287,47 +1287,24 @@
 
     state.playlists.forEach(pl => {
       const card = document.createElement('div');
-      card.className = 'home-playlist-card';
-
-      let coverHtml = '';
-      const validThumbs = (pl.tracks || []).map(t => t.thumbnail).filter(Boolean);
-      if (validThumbs.length >= 4) {
-        coverHtml = `
-          <div class="pl-cover-collage">
-            ${validThumbs.slice(0, 4).map(src => `<img class="pl-cover-img" src="${src}" alt="" loading="lazy" />`).join('')}
-            <button class="pl-quick-play" title="Play Playlist">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-            </button>
-          </div>
-        `;
-      } else if (validThumbs.length > 0) {
-        coverHtml = `
-          <div class="pl-cover-collage pl-cover-single">
-            <img class="pl-cover-img" src="${validThumbs[0]}" alt="" loading="lazy" />
-            <button class="pl-quick-play" title="Play Playlist">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-            </button>
-          </div>
-        `;
-      } else {
-        coverHtml = `
-          <div class="pl-cover-collage" style="display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.04);">
-            <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--primary)" stroke-width="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
-          </div>
-        `;
-      }
+      card.className = 'home-playlist-card text-only-pl-card';
+      const trackCount = (pl.tracks || []).length;
 
       card.innerHTML = `
-        ${coverHtml}
-        <div class="pl-card-title">${pl.name}</div>
-        <div class="pl-card-meta">${pl.tracks.length} songs</div>
+        <div class="pl-card-body">
+          <div class="pl-card-title" title="${pl.name}">${pl.name}</div>
+          <div class="pl-card-meta">${trackCount} ${trackCount === 1 ? 'song' : 'songs'}</div>
+        </div>
+        <button class="pl-quick-play" title="Play Playlist" aria-label="Play ${pl.name}">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+        </button>
       `;
 
       const qpBtn = card.querySelector('.pl-quick-play');
       if (qpBtn) {
         qpBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          if (pl.tracks.length > 0) {
+          if (pl.tracks && pl.tracks.length > 0) {
             setQueueAndPlay(pl.tracks, 0);
           } else {
             showToast(`Playlist "${pl.name}" is empty`);
@@ -1898,16 +1875,16 @@
     const isLiked = state.likedSongs.some(t => t.id === track.id);
 
     card.innerHTML = `
-      <div class="card-thumb-wrapper">
-        <img src="${track.thumbnail}" alt="${track.title}" loading="lazy" decoding="async" />
+      <div class="card-thumb-wrapper song-thumb-wrapper">
+        <img class="song-card-img" src="${track.thumbnail}" alt="${track.title}" loading="lazy" decoding="async" />
         <span class="card-duration-tag">${typeof track.duration === 'number' ? formatTime(track.duration) : (track.duration || '3:30')}</span>
         <button class="card-play-btn" title="Play">
           <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
         </button>
       </div>
-      <div class="card-info">
-        <div class="card-title" title="${track.title}">${track.title}</div>
-        <div class="card-artist" title="${track.artist}">${track.artist}</div>
+      <div class="card-info song-info">
+        <div class="card-title song-title" title="${track.title}">${track.title}</div>
+        <div class="card-artist song-artist" title="${track.artist}">${track.artist}</div>
       </div>
       <div class="card-actions">
         <button class="card-btn-icon ${isLiked ? 'liked' : ''}" data-song-id="${track.id}" title="Like">
