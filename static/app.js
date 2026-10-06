@@ -1362,7 +1362,7 @@
     if (el.homePlaylistsSection) el.homePlaylistsSection.classList.add('hidden');
 
     el.heroBanner.classList.remove('hidden');
-    el.heroTitle.textContent = 'Your Music Playlists 📁';
+    el.heroTitle.textContent = 'Your Playlists';
     el.heroDesc.textContent = `${state.playlists.length} playlists created & synced across your devices.`;
 
     const prevSection = document.getElementById('custom-view-section');
@@ -2242,9 +2242,7 @@
     if (viewName === 'home') {
       el.heroBanner.classList.remove('hidden');
       el.heroTitle.textContent = 'Telugu, Hindi & Global Hits';
-      el.heroDesc.textContent = 'Stream top Tollywood, Bollywood & International chartbusters ad-free with background playback.';
-      if (el.homePlaylistsSection) el.homePlaylistsSection.classList.remove('hidden');
-      renderHomePlaylistsSection();
+      if (el.homePlaylistsSection) el.homePlaylistsSection.classList.add('hidden');
       el.teluguSection.classList.remove('hidden');
       el.hindiSection.classList.remove('hidden');
       el.englishSection.classList.remove('hidden');
