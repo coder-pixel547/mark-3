@@ -241,6 +241,7 @@
     audio.defaultPlaybackRate = 1.0;
     if ('preservesPitch' in audio) audio.preservesPitch = true;
     updatePlayPauseUI(true);
+    updateMediaSessionPlaybackState(true);
     updateMediaSessionPosition();
   });
 
@@ -256,8 +257,10 @@
   audio.addEventListener('pause', () => {
     state.isPlaying = false;
     updatePlayPauseUI(false);
+    updateMediaSessionPlaybackState(false);
   });
 
+  let lastPositionUpdateTime = 0;
   audio.addEventListener('timeupdate', () => {
     const current = audio.currentTime || 0;
     const total = getEffectiveDuration();
@@ -279,6 +282,16 @@
       if (el.mobileMiniProgressFill) el.mobileMiniProgressFill.style.width = `${percent}%`;
       if (el.sheetProgressFill) el.sheetProgressFill.style.width = `${percent}%`;
     }
+
+    const now = Date.now();
+    if (now - lastPositionUpdateTime > 3500) {
+      lastPositionUpdateTime = now;
+      updateMediaSessionPosition();
+    }
+  });
+
+  audio.addEventListener('seeked', () => {
+    updateMediaSessionPosition();
   });
 
   function onDurationUpdate() {
@@ -322,6 +335,8 @@
     audio.defaultPlaybackRate = 1.0;
     state.isPlaying = true;
     updatePlayPauseUI(true);
+    updateMediaSessionPlaybackState(true);
+    updateMediaSessionPosition();
   });
 
   audio.addEventListener('ended', () => {
@@ -362,59 +377,105 @@
   // ==========================================
   // 2. MediaSession API (Lock-Screen Controls!)
   // ==========================================
-  function setupMediaSession(track) {
-    if ('mediaSession' in navigator) {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: track.title,
-        artist: track.artist,
-        album: track.album || 'Swarify',
-        artwork: [
-          { src: track.thumbnail, sizes: '96x96', type: 'image/jpeg' },
-          { src: track.thumbnail, sizes: '128x128', type: 'image/jpeg' },
-          { src: track.thumbnail, sizes: '192x192', type: 'image/jpeg' },
-          { src: track.thumbnail, sizes: '256x256', type: 'image/jpeg' },
-          { src: track.thumbnail, sizes: '512x512', type: 'image/jpeg' }
-        ]
-      });
+  function initMediaSession() {
+    if (!('mediaSession' in navigator)) return;
 
-      navigator.mediaSession.setActionHandler('play', () => {
-        togglePlayPause();
-      });
-
-      navigator.mediaSession.setActionHandler('pause', () => {
-        togglePlayPause();
-      });
-
-      navigator.mediaSession.setActionHandler('previoustrack', () => {
+    // Register all action handlers safely once at application initialization
+    const handlers = [
+      ['play', () => {
+        audio.play().catch(() => {});
+      }],
+      ['pause', () => {
+        audio.pause();
+      }],
+      ['previoustrack', () => {
         playPrev();
-      });
-
-      navigator.mediaSession.setActionHandler('nexttrack', () => {
+      }],
+      ['nexttrack', () => {
         playNext();
-      });
-
-      navigator.mediaSession.setActionHandler('seekto', (details) => {
-        if (details.seekTime !== undefined) {
+      }],
+      ['seekto', (details) => {
+        if (details && details.seekTime !== undefined && Number.isFinite(details.seekTime)) {
           try {
             audio.currentTime = details.seekTime;
             updateMediaSessionPosition();
           } catch (_) {}
         }
-      });
-
-      navigator.mediaSession.setActionHandler('seekforward', () => {
+      }],
+      ['seekforward', (details) => {
+        const offset = details?.seekOffset || 10;
         try {
-          audio.currentTime = Math.min(audio.duration || 9999, (audio.currentTime || 0) + 10);
+          audio.currentTime = Math.min(audio.duration || 9999, (audio.currentTime || 0) + offset);
           updateMediaSessionPosition();
         } catch (_) {}
-      });
-
-      navigator.mediaSession.setActionHandler('seekbackward', () => {
+      }],
+      ['seekbackward', (details) => {
+        const offset = details?.seekOffset || 10;
         try {
-          audio.currentTime = Math.max(0, (audio.currentTime || 0) - 10);
+          audio.currentTime = Math.max(0, (audio.currentTime || 0) - offset);
           updateMediaSessionPosition();
         } catch (_) {}
+      }],
+      ['stop', () => {
+        audio.pause();
+        audio.currentTime = 0;
+      }]
+    ];
+
+    for (const [action, handler] of handlers) {
+      try {
+        navigator.mediaSession.setActionHandler(action, handler);
+      } catch (err) {
+        // Some older browser engines throw for seekto or stop
+        console.warn(`[MediaSession] Action '${action}' not supported:`, err);
+      }
+    }
+  }
+
+  function setupMediaSession(track) {
+    if (!('mediaSession' in navigator) || !track) return;
+
+    const origin = window.location.origin;
+    const fallbackArtwork = `${origin}/static/icons/icon-512.png`;
+
+    let thumb = track.thumbnail;
+    if (!thumb || typeof thumb !== 'string' || !thumb.startsWith('http')) {
+      thumb = track.id ? `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg` : fallbackArtwork;
+    }
+
+    const artworkList = [
+      { src: `${origin}/static/icons/icon-96.png`, sizes: '96x96', type: 'image/png' },
+      { src: `${origin}/static/icons/icon-192.png`, sizes: '192x192', type: 'image/png' },
+      { src: `${origin}/static/icons/icon-512.png`, sizes: '512x512', type: 'image/png' }
+    ];
+
+    if (thumb && thumb.startsWith('http')) {
+      artworkList.unshift(
+        { src: thumb, sizes: '512x512', type: 'image/jpeg' },
+        { src: thumb, sizes: '256x256', type: 'image/jpeg' }
+      );
+    }
+
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: track.title || 'Swarify Music',
+        artist: track.artist || 'Swarify',
+        album: track.album || 'Swarify • 100% Ad-Free',
+        artwork: artworkList
       });
+    } catch (e) {
+      console.warn('[MediaSession] Metadata creation failed:', e);
+    }
+
+    updateMediaSessionPlaybackState(state.isPlaying);
+    updateMediaSessionPosition();
+  }
+
+  function updateMediaSessionPlaybackState(isPlaying) {
+    if ('mediaSession' in navigator) {
+      try {
+        navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+      } catch (_) {}
     }
   }
 
@@ -433,6 +494,7 @@
       }
     }
   }
+
 
   // Battery & Background Optimization (Pause UI intervals & animations when document.hidden)
   document.addEventListener('visibilitychange', () => {
@@ -561,6 +623,7 @@
     updateCurrentTrackUI(track);
     updateQueueUI();
     setupMediaSession(track);
+    savePlaybackPersistence(track);
 
     if (activeOnPlayingListener) {
       audio.removeEventListener('playing', activeOnPlayingListener);
@@ -636,11 +699,13 @@
 
     if (state.currentIndex + 1 < state.queue.length) {
       playTrackAtIndex(state.currentIndex + 1);
-    } else if (state.repeatMode === 'all' || auto) {
+    } else if (state.repeatMode === 'all' || !auto) {
+      // Loop back to track 0 on manual skip or repeat all so lock screen controls always work
       playTrackAtIndex(0);
     } else {
       state.isPlaying = false;
       updatePlayPauseUI(false);
+      updateMediaSessionPlaybackState(false);
     }
   }
 
@@ -827,6 +892,9 @@
     state.isMuted = val === 0;
     audio.volume = val / 100;
     updateVolumeUI();
+    try {
+      localStorage.setItem('swarify_volume', val.toString());
+    } catch (_) {}
   });
 
   el.btnMute.addEventListener('click', function() {
@@ -933,11 +1001,39 @@
     }, { passive: true });
   }
 
-  if (el.playerTrackInfo) {
-    el.playerTrackInfo.addEventListener('click', (e) => {
-      if (e.target.closest('.like-btn') || e.target.closest('.add-pl-btn')) return;
+  // Expand full player on mobile mini-player tap
+  const playerBarEl = document.getElementById('player-bar');
+  if (playerBarEl) {
+    playerBarEl.addEventListener('click', (e) => {
+      if (window.innerWidth > 768) return;
+      if (e.target.closest('button') || e.target.closest('input')) return;
       openMobilePlayerSheet();
     });
+  }
+
+  // Swipe Left / Right on Full Player Album Art to Skip Next / Previous
+  const sheetArtworkBox = document.querySelector('.sheet-artwork-container');
+  if (sheetArtworkBox) {
+    let artStartX = 0;
+    let artStartY = 0;
+    sheetArtworkBox.addEventListener('touchstart', (e) => {
+      artStartX = e.touches[0].clientX;
+      artStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    sheetArtworkBox.addEventListener('touchend', (e) => {
+      const deltaX = e.changedTouches[0].clientX - artStartX;
+      const deltaY = e.changedTouches[0].clientY - artStartY;
+      if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY) * 1.4) {
+        if (deltaX < 0) {
+          playNext();
+          showToast('Next Track ⏭');
+        } else {
+          playPrev();
+          showToast('Previous Track ⏮');
+        }
+      }
+    }, { passive: true });
   }
 
   if (el.btnCollapseMobilePlayer) {
@@ -2346,7 +2442,101 @@
     requestWakeLock();
   });
 
+  // Persistence (Remember Last Played Song & Volume)
+  function savePlaybackPersistence(track) {
+    if (!track) return;
+    try {
+      localStorage.setItem('swarify_last_track', JSON.stringify({
+        id: track.id || track.videoId,
+        title: track.title,
+        artist: track.artist,
+        thumbnail: track.thumbnail,
+        duration: track.duration
+      }));
+    } catch (_) {}
+  }
+
+  function restorePlaybackPersistence() {
+    try {
+      const savedVol = localStorage.getItem('swarify_volume');
+      if (savedVol !== null) {
+        const v = parseInt(savedVol, 10);
+        if (!isNaN(v) && v >= 0 && v <= 100) {
+          state.volume = v;
+          audio.volume = v / 100;
+          if (el.volumeSlider) el.volumeSlider.value = v;
+          updateVolumeUI();
+        }
+      }
+
+      const savedTrackJson = localStorage.getItem('swarify_last_track');
+      if (savedTrackJson) {
+        const savedTrack = JSON.parse(savedTrackJson);
+        if (savedTrack && savedTrack.id) {
+          state.queue = [savedTrack];
+          state.currentIndex = 0;
+          updateCurrentTrackUI(savedTrack);
+          setupMediaSession(savedTrack);
+        }
+      }
+    } catch (_) {}
+  }
+
+  // PWA Install Prompt & App Download Modal
+  let deferredInstallPrompt = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    showToast('🎉 Swarify was installed successfully!');
+    const m = document.getElementById('app-modal');
+    if (m) m.classList.add('hidden');
+  });
+
+  const appModal = document.getElementById('app-modal');
+  const btnHeaderGetApp = document.getElementById('btn-header-get-app');
+  const btnSidebarGetApp = document.getElementById('btn-sidebar-get-app');
+  const closeAppModalBtn = document.getElementById('close-app-modal');
+  const btnTriggerPwaInstall = document.getElementById('btn-trigger-pwa-install');
+
+  function openAppModal() {
+    if (appModal) appModal.classList.remove('hidden');
+  }
+  function closeAppModal() {
+    if (appModal) appModal.classList.add('hidden');
+  }
+
+  if (btnHeaderGetApp) btnHeaderGetApp.addEventListener('click', openAppModal);
+  if (btnSidebarGetApp) btnSidebarGetApp.addEventListener('click', openAppModal);
+  if (closeAppModalBtn) closeAppModalBtn.addEventListener('click', closeAppModal);
+  if (appModal) {
+    appModal.addEventListener('click', (e) => {
+      if (e.target === appModal) closeAppModal();
+    });
+  }
+
+  if (btnTriggerPwaInstall) {
+    btnTriggerPwaInstall.addEventListener('click', async () => {
+      if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        const { outcome } = await deferredInstallPrompt.userChoice;
+        if (outcome === 'accepted') {
+          showToast('🎉 Installing Swarify...');
+          closeAppModal();
+        }
+        deferredInstallPrompt = null;
+      } else {
+        showToast('📱 To install: Tap browser menu ⋮ > Add to Home screen!', 4000);
+      }
+    });
+  }
+
   // Initialize
+  initMediaSession();
+  restorePlaybackPersistence();
   updateLikedCountUI();
   updatePlaylistsSidebar();
   renderHomePlaylistsSection();

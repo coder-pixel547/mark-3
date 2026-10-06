@@ -1,9 +1,12 @@
-const CACHE_NAME = 'swarify-shell-v10.0';
+const CACHE_NAME = 'swarify-shell-v11.0';
 const APP_SHELL = [
   '/',
   '/static/styles.css',
   '/static/manifest.json',
-  '/static/icons/icon.svg'
+  '/static/icons/icon.svg',
+  '/static/icons/icon-96.png',
+  '/static/icons/icon-192.png',
+  '/static/icons/icon-512.png'
 ];
 
 // Install: Cache critical app shell assets
