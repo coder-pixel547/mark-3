@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Swarify — Free Ad-Free Music Streaming</title>
   <meta name="description" content="Stream Indian & Global chartbusters ad-free with crystal clarity, offline playback, and background audio." />
-  <meta name="theme-color" content="#10b981" />
+  <meta name="theme-color" content="#0B0B10" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -17,19 +17,19 @@
   <link rel="apple-touch-icon" href="/static/icons/icon-192.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="/static/styles.css?v=7.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="/static/styles.css?v=8.0" />
   <style>
     /* Critical 0ms render styles & zero overflow-x */
     *, *::before, *::after { box-sizing: border-box; }
     html, body { overflow-x: hidden; max-width: 100vw; width: 100%; }
-    body { background-color: #0c0e12; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Plus Jakarta Sans', system-ui, sans-serif; margin: 0; padding: 0; }
+    body { background-color: #0B0B10; color: #FFFFFF; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Plus Jakarta Sans', system-ui, sans-serif; margin: 0; padding: 0; }
   </style>
 </head>
 <body>
   <!-- Offline Status Banner -->
   <div id="offline-banner" class="offline-banner hidden" role="alert">
-    <span>📡 You are offline. Cached tracks & library remain playable.</span>
+    <span>Offline Mode • Cached tracks & library remain playable</span>
   </div>
   <div class="app-container">
     <!-- Sidebar Navigation -->
@@ -180,7 +180,7 @@
           <div class="content-section" id="home-playlists-section">
             <div class="section-header">
               <div class="section-title-group">
-                <h2>Your Playlists 📁</h2>
+                <h2>Your Playlists</h2>
                 <span class="section-subtitle" id="home-playlists-subtitle">Custom collections & imported tracks</span>
               </div>
               <div class="section-actions-group" style="display: flex; gap: 8px; align-items: center;">
@@ -518,7 +518,7 @@
               <span>Copy</span>
             </button>
           </div>
-          <p class="sync-code-hint">💡 Enter this code on your phone to instantly load all playlists created on your laptop!</p>
+          <p class="sync-code-hint">Enter this code on your phone or laptop to instantly load your playlists.</p>
         </div>
 
         <div class="sync-divider"><span>OR LOAD FROM ANOTHER DEVICE</span></div>
@@ -553,10 +553,12 @@
     <div class="modal-card app-modal-card">
       <div class="modal-header">
         <div style="display: flex; align-items: center; gap: 10px;">
-          <div class="app-modal-badge-icon">📱</div>
+          <div class="app-modal-badge-icon">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#C084FC" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+          </div>
           <div>
             <h3 style="margin: 0; font-size: 1.15rem;">Swarify Mobile App</h3>
-            <span style="font-size: 0.75rem; color: #10b981; font-weight: 600;">100% Ad-Free • Background Audio • Lock Screen</span>
+            <span style="font-size: 0.75rem; color: #C084FC; font-weight: 600;">100% Ad-Free • Background Audio • Lock Screen</span>
           </div>
         </div>
         <button class="modal-close-btn" id="close-app-modal">&times;</button>
@@ -564,21 +566,27 @@
       <div class="modal-body">
         <div class="app-feature-list">
           <div class="app-feature-item">
-            <span class="feat-icon">🔒</span>
+            <div class="feat-icon">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#8B5CF6" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            </div>
             <div>
               <strong>Lock Screen Controls</strong>
               <p>Skip tracks, pause, and seek with full album art when your phone screen is off.</p>
             </div>
           </div>
           <div class="app-feature-item">
-            <span class="feat-icon">⚡</span>
+            <div class="feat-icon">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#EC4899" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+            </div>
             <div>
               <strong>Zero Ads & Studio Quality</strong>
               <p>Direct studio audio stream with instant playback and zero commercials.</p>
             </div>
           </div>
           <div class="app-feature-item">
-            <span class="feat-icon">📲</span>
+            <div class="feat-icon">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#06B6D4" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+            </div>
             <div>
               <strong>Instant PWA Web App</strong>
               <p>Install directly to your home screen right now — no App Store login needed.</p>
@@ -593,7 +601,7 @@
           </button>
           
           <div class="native-app-upcoming">
-            <div class="upcoming-badge">🚀 NATIVE ANDROID APP COMING IN 2 DAYS</div>
+            <div class="upcoming-badge">NATIVE ANDROID APP COMING IN 2 DAYS</div>
             <p class="upcoming-note">Direct APK download link will be available right here on this page!</p>
           </div>
         </div>
@@ -615,6 +623,6 @@
   <!-- Native HTML5 Audio Engine for Background & Screen-Off Playback -->
   <audio id="native-audio" preload="metadata"></audio>
 
-  <script src="/static/app.js?v=12.0"></script>
+  <script src="/static/app.js?v=13.0"></script>
 </body>
 </html>
