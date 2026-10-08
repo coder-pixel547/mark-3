@@ -766,6 +766,9 @@
       el.playingIndicator.classList.add('hidden');
       el.audioVisualizer.classList.remove('active');
     }
+    document.querySelectorAll('.card-playing-eq').forEach(eq => {
+      eq.classList.toggle('paused', !isPlaying);
+    });
   }
 
   function updateCurrentTrackUI(track) {
@@ -807,6 +810,14 @@
         el.sheetLikeBtn.querySelector('svg').style.stroke = 'currentColor';
       }
     }
+
+    // Synchronize all visible song cards with active track
+    document.querySelectorAll('.song-card').forEach(c => {
+      const match = c.dataset.trackId === track.id;
+      c.classList.toggle('is-playing', match);
+      const eq = c.querySelector('.card-playing-eq');
+      if (eq) eq.classList.toggle('hidden', !match);
+    });
   }
 
   // Universal Seeker Scrubber (Click & Clean Release Seek)
@@ -1871,13 +1882,18 @@
   // ==========================================
   function createSongCard(track, index, listRef, isPlaylistView = false, playlistId = null) {
     const card = document.createElement('div');
-    card.className = 'song-card';
+    const isCurrent = state.queue[state.currentIndex]?.id === track.id;
+    card.className = `song-card ${isCurrent ? 'is-playing' : ''}`;
+    card.dataset.trackId = track.id;
     const isLiked = state.likedSongs.some(t => t.id === track.id);
 
     card.innerHTML = `
       <div class="card-thumb-wrapper song-thumb-wrapper">
         <img class="song-card-img" src="${track.thumbnail}" alt="${track.title}" loading="lazy" decoding="async" />
         <span class="card-duration-tag">${typeof track.duration === 'number' ? formatTime(track.duration) : (track.duration || '3:30')}</span>
+        <div class="card-playing-eq ${isCurrent ? '' : 'hidden'}">
+          <span></span><span></span><span></span>
+        </div>
         <button class="card-play-btn" title="Play">
           <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
         </button>

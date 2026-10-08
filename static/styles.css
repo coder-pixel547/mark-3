@@ -960,6 +960,65 @@ kbd {
   color: var(--primary);
 }
 
+.card-btn-icon.liked svg,
+.like-btn.active svg {
+  animation: heartPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes heartPop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+
+/* Active Playing Track Equalizer Animation on Thumbnail */
+.card-playing-eq {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+  padding: 2px 4px;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  border-radius: 3px;
+  z-index: 3;
+}
+
+.card-playing-eq span {
+  width: 2.5px;
+  background: var(--primary);
+  border-radius: 1px;
+  animation: eqBounce 0.85s ease-in-out infinite alternate;
+}
+
+.card-playing-eq span:nth-child(1) { height: 7px; animation-delay: 0.1s; }
+.card-playing-eq span:nth-child(2) { height: 13px; animation-delay: 0.25s; }
+.card-playing-eq span:nth-child(3) { height: 9px; animation-delay: 0.15s; }
+
+.card-playing-eq.paused span {
+  animation-play-state: paused;
+  height: 3px !important;
+}
+
+@keyframes eqBounce {
+  0% { height: 3px; }
+  100% { height: 13px; }
+}
+
+.song-card.is-playing {
+  background: rgba(29, 185, 84, 0.08) !important;
+  border: 1px solid rgba(29, 185, 84, 0.35) !important;
+}
+
+.song-card.is-playing .card-title,
+.song-card.is-playing .song-title {
+  color: var(--primary) !important;
+  font-weight: 700 !important;
+}
+
 /* Playlist Cards Grid - Pure Text, No Images */
 .playlist-cards-grid {
   display: grid;
@@ -1788,6 +1847,21 @@ kbd {
     display: none !important;
   }
 
+  .card-playing-eq {
+    position: absolute !important;
+    bottom: 3px !important;
+    left: 3px !important;
+    height: 12px !important;
+    padding: 1px 3px !important;
+    background: rgba(0, 0, 0, 0.8) !important;
+    gap: 1.5px !important;
+    border-radius: 2px !important;
+  }
+
+  .card-playing-eq span {
+    width: 2px !important;
+  }
+
   .card-info,
   .song-info {
     flex: 1 !important;
@@ -1851,20 +1925,28 @@ kbd {
   /* Spotify Floating Mini Player on Mobile */
   .player-bar {
     position: fixed !important;
-    bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 8px) !important;
-    left: 8px !important;
-    right: 8px !important;
+    bottom: calc(58px + env(safe-area-inset-bottom, 0px) + 8px) !important;
+    left: 10px !important;
+    right: 10px !important;
     width: auto !important;
-    height: 64px !important;
-    background: #242424 !important;
-    border-radius: var(--radius-sm) !important;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7) !important;
+    height: 60px !important;
+    background: rgba(30, 30, 30, 0.95) !important;
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.8) !important;
     padding: 0 12px !important;
     z-index: 110 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
     cursor: pointer !important;
+    transition: transform var(--transition-fast) !important;
+  }
+
+  .player-bar:active {
+    transform: scale(0.99) !important;
   }
 
   /* Spotify Green Progress Line on Top of Mini Player */
@@ -2008,12 +2090,16 @@ kbd {
     transition: all 0.15s ease !important;
   }
 
+  .mobile-nav-tab:active {
+    transform: scale(0.92) !important;
+  }
+
   .mobile-nav-tab.active {
     color: #FFFFFF !important;
   }
 
   .mobile-nav-tab.active svg {
-    stroke: #FFFFFF !important;
+    stroke: var(--primary) !important;
   }
 
   /* Full-Screen Mobile Now-Playing Sheet (Spotify Style) */
@@ -2100,17 +2186,34 @@ kbd {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    padding: 18px 0 !important;
+    padding: 12px 0 16px !important;
+    position: relative !important;
+  }
+
+  .sheet-artwork-container::before {
+    content: '' !important;
+    position: absolute !important;
+    width: 72vw !important;
+    max-width: 280px !important;
+    height: 72vw !important;
+    max-height: 280px !important;
+    border-radius: 50% !important;
+    background: radial-gradient(circle, rgba(29, 185, 84, 0.22) 0%, transparent 70%) !important;
+    filter: blur(40px) !important;
+    z-index: 0 !important;
+    pointer-events: none !important;
   }
 
   .sheet-artwork-container img {
-    width: 76vw !important;
-    height: 76vw !important;
+    width: 78vw !important;
+    height: 78vw !important;
     max-width: 320px !important;
     max-height: 320px !important;
-    border-radius: var(--radius-sm) !important;
+    border-radius: 12px !important;
     object-fit: cover !important;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8) !important;
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.85), 0 0 24px rgba(29, 185, 84, 0.12) !important;
+    z-index: 1 !important;
+    position: relative !important;
   }
 
   .sheet-meta-row {
@@ -2141,10 +2244,12 @@ kbd {
   .sheet-scrubber-box .progress-bar-wrapper {
     height: 4px !important;
     background: rgba(255, 255, 255, 0.2) !important;
+    border-radius: 2px !important;
   }
 
   .sheet-scrubber-box .progress-fill {
-    background: #FFFFFF !important;
+    background: var(--primary) !important;
+    border-radius: 2px !important;
   }
 
   .sheet-time-labels {
@@ -2153,6 +2258,7 @@ kbd {
     font-size: 0.72rem !important;
     color: var(--text-dim) !important;
     margin-top: 6px !important;
+    font-variant-numeric: tabular-nums !important;
   }
 
   .sheet-controls-row {
@@ -2170,13 +2276,20 @@ kbd {
   }
 
   .sheet-play-btn {
-    width: 64px !important;
-    height: 64px !important;
-    min-width: 64px !important;
-    min-height: 64px !important;
-    background: #FFFFFF !important;
+    width: 68px !important;
+    height: 68px !important;
+    min-width: 68px !important;
+    min-height: 68px !important;
+    background: var(--primary) !important;
     color: #000000 !important;
     border-radius: 50% !important;
+    box-shadow: 0 8px 24px rgba(29, 185, 84, 0.45) !important;
+    border: none !important;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  }
+
+  .sheet-play-btn:active {
+    transform: scale(0.92) !important;
   }
 
   .sheet-play-btn svg {
