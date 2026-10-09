@@ -74,6 +74,8 @@
     playlistNavList: document.getElementById('playlist-nav-list'),
     navAllPlaylists: document.getElementById('nav-all-playlists'),
     playlistsCount: document.getElementById('playlists-count'),
+    // Brand Logo
+    brandLogoIcon: document.getElementById('brand-logo-icon'),
     // Search
     searchInput: document.getElementById('search-input'),
     clearSearchBtn: document.getElementById('clear-search-btn'),
@@ -96,6 +98,7 @@
     hindiSection: document.getElementById('hindi-section'),
     englishSection: document.getElementById('english-section'),
     // Player Controls
+    playerBar: document.getElementById('player-bar'),
     playerThumb: document.getElementById('player-thumb'),
     playerTitle: document.getElementById('player-title'),
     playerArtist: document.getElementById('player-artist'),
@@ -113,6 +116,7 @@
     currentTime: document.getElementById('current-time'),
     totalDuration: document.getElementById('total-duration'),
     progressWrapper: document.getElementById('progress-wrapper'),
+    scrubberTooltip: document.getElementById('scrubber-tooltip'),
     progressFill: document.getElementById('progress-fill'),
     progressThumb: document.getElementById('progress-thumb'),
     // Right Controls
@@ -758,6 +762,7 @@
       if (el.sheetPauseIcon) el.sheetPauseIcon.classList.remove('hidden');
       el.playingIndicator.classList.remove('hidden');
       el.audioVisualizer.classList.add('active');
+      if (el.brandLogoIcon) el.brandLogoIcon.classList.add('is-playing');
     } else {
       el.playIcon.classList.remove('hidden');
       el.pauseIcon.classList.add('hidden');
@@ -765,6 +770,7 @@
       if (el.sheetPauseIcon) el.sheetPauseIcon.classList.add('hidden');
       el.playingIndicator.classList.add('hidden');
       el.audioVisualizer.classList.remove('active');
+      if (el.brandLogoIcon) el.brandLogoIcon.classList.remove('is-playing');
     }
     document.querySelectorAll('.card-playing-eq').forEach(eq => {
       eq.classList.toggle('paused', !isPlaying);
@@ -889,6 +895,24 @@
     window.addEventListener('touchcancel', () => {
       isDragging = false;
     });
+
+    // Desktop Hover Timestamp Preview Tooltip (Micro-interaction)
+    if (wrapper === el.progressWrapper && el.scrubberTooltip) {
+      wrapper.addEventListener('mousemove', (e) => {
+        const rect = wrapper.getBoundingClientRect();
+        if (!rect.width) return;
+        const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        const total = getEffectiveDuration();
+        if (total > 0 && Number.isFinite(total)) {
+          el.scrubberTooltip.textContent = formatTime(frac * total);
+          el.scrubberTooltip.style.left = `${frac * 100}%`;
+          el.scrubberTooltip.classList.remove('hidden');
+        }
+      });
+      wrapper.addEventListener('mouseleave', () => {
+        el.scrubberTooltip.classList.add('hidden');
+      });
+    }
   }
 
   setupScrubber(el.progressWrapper, [el.progressFill, el.mobileMiniProgressFill]);
@@ -920,12 +944,19 @@
   });
 
   function updateVolumeUI() {
-    if (state.isMuted || state.volume === 0) {
+    const isMuted = state.isMuted || state.volume === 0;
+    if (isMuted) {
       el.volHighIcon.classList.add('hidden');
       el.volMuteIcon.classList.remove('hidden');
+      if (el.volumeSlider) {
+        el.volumeSlider.style.background = 'linear-gradient(to right, #727272 0%, rgba(255, 255, 255, 0.2) 0%)';
+      }
     } else {
       el.volHighIcon.classList.remove('hidden');
       el.volMuteIcon.classList.add('hidden');
+      if (el.volumeSlider) {
+        el.volumeSlider.style.background = `linear-gradient(to right, var(--primary) ${state.volume}%, rgba(255, 255, 255, 0.2) ${state.volume}%)`;
+      }
     }
   }
 
@@ -1017,7 +1048,7 @@
   if (playerBarEl) {
     playerBarEl.addEventListener('click', (e) => {
       if (window.innerWidth > 768) return;
-      if (e.target.closest('button') || e.target.closest('input')) return;
+      if (e.target.closest('button') || e.target.closest('input') || e.target.closest('.btn-icon') || e.target.closest('.btn-ctrl')) return;
       openMobilePlayerSheet();
     });
   }
@@ -1456,9 +1487,11 @@
     const grid = document.getElementById('playlist-grid');
     if (pl.tracks.length === 0) {
       grid.innerHTML = `
-        <div style="grid-column: 1/-1; padding: 40px 0; text-align: center;">
-          <p style="color: var(--text-dim); margin-bottom: 16px;">This playlist is empty! Search for Telugu, Hindi, or English songs and click the playlist button to add them.</p>
-          <button class="btn-primary" id="btn-go-search" style="display: inline-flex; margin: 0 auto;">Search Songs</button>
+        <div class="empty-state-card">
+          <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+          <h4 class="empty-state-title">This playlist is empty</h4>
+          <p class="empty-state-desc">Search for songs across Telugu, Hindi, and English and click "Add to Playlist".</p>
+          <button class="btn-primary" id="btn-go-search" style="padding: 9px 22px; font-size: 0.85rem;">Find Songs</button>
         </div>
       `;
       document.getElementById('btn-go-search')?.addEventListener('click', () => {
@@ -1824,7 +1857,13 @@
     el.queueNavCount.textContent = state.queue.length;
     el.queueList.innerHTML = '';
     if (state.queue.length === 0) {
-      el.queueList.innerHTML = '<p style="color: var(--text-dim); text-align: center; margin-top: 40px;">Queue is empty</p>';
+      el.queueList.innerHTML = `
+        <div class="empty-state-card" style="margin: 32px 0; padding: 32px 14px; border: none; background: transparent;">
+          <svg class="empty-state-icon" viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+          <h4 class="empty-state-title" style="font-size: 0.95rem;">Queue is empty</h4>
+          <p class="empty-state-desc" style="font-size: 0.78rem;">Play any song to queue it up next.</p>
+        </div>
+      `;
       return;
     }
 
@@ -1995,17 +2034,41 @@
     el.hindiGrid.innerHTML = '';
     el.englishGrid.innerHTML = '';
 
+    // Remove existing shelf buttons if any
+    document.querySelectorAll('.btn-shelf-more').forEach(b => b.remove());
+
     state.allTelugu.forEach((track, idx) => {
       el.teluguGrid.appendChild(createSongCard(track, idx, state.allTelugu));
     });
+    if (state.allTelugu.length > 6) {
+      const moreBtn = document.createElement('button');
+      moreBtn.className = 'btn-shelf-more';
+      moreBtn.innerHTML = `<span>Explore all ${state.allTelugu.length} Telugu Blockbusters</span> &rarr;`;
+      moreBtn.addEventListener('click', () => switchView('telugu'));
+      el.teluguSection.appendChild(moreBtn);
+    }
 
     state.allHindi.forEach((track, idx) => {
       el.hindiGrid.appendChild(createSongCard(track, idx, state.allHindi));
     });
+    if (state.allHindi.length > 6) {
+      const moreBtn = document.createElement('button');
+      moreBtn.className = 'btn-shelf-more';
+      moreBtn.innerHTML = `<span>Explore all ${state.allHindi.length} Bollywood Hits</span> &rarr;`;
+      moreBtn.addEventListener('click', () => switchView('hindi'));
+      el.hindiSection.appendChild(moreBtn);
+    }
 
     state.allEnglish.forEach((track, idx) => {
       el.englishGrid.appendChild(createSongCard(track, idx, state.allEnglish));
     });
+    if (state.allEnglish.length > 6) {
+      const moreBtn = document.createElement('button');
+      moreBtn.className = 'btn-shelf-more';
+      moreBtn.innerHTML = `<span>Explore all ${state.allEnglish.length} Global Hits</span> &rarr;`;
+      moreBtn.addEventListener('click', () => switchView('english'));
+      el.englishSection.appendChild(moreBtn);
+    }
   }
 
   // Search & Suggestions with 250ms Debounce & AbortController
@@ -2195,7 +2258,17 @@
     const searchGrid = document.getElementById('search-grid');
 
     if (results.length === 0) {
-      searchGrid.innerHTML = '<p style="color: var(--text-dim); grid-column: 1/-1; padding: 40px 0;">No songs found. Try a different artist or title.</p>';
+      searchGrid.innerHTML = `
+        <div class="empty-state-card">
+          <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <h4 class="empty-state-title">No songs found for "${query}"</h4>
+          <p class="empty-state-desc">Try checking your spelling or searching for another artist, movie, or song title.</p>
+          <button class="btn-secondary" id="btn-clear-search-view" style="padding: 9px 22px; font-size: 0.85rem;">Clear Search</button>
+        </div>
+      `;
+      document.getElementById('btn-clear-search-view')?.addEventListener('click', () => {
+        el.clearSearchBtn.click();
+      });
       return;
     }
 
@@ -2217,6 +2290,10 @@
     state.activeView = viewName;
     state.activePlaylistId = null;
 
+    if (el.mainView) {
+      el.mainView.classList.toggle('is-home', viewName === 'home');
+    }
+
     el.navItems.forEach(btn => {
       btn.classList.toggle('active', btn.dataset.view === viewName);
     });
@@ -2225,6 +2302,14 @@
     });
     document.querySelectorAll('.mobile-nav-tab').forEach(tab => {
       tab.classList.toggle('active', tab.dataset.view === viewName);
+    });
+
+    // Bidirectional language filter chips synchronization
+    const chipTarget = (viewName === 'home') ? 'all' : (['telugu', 'hindi', 'english'].includes(viewName) ? viewName : null);
+    el.filterChips.forEach(chip => {
+      const match = Boolean(chipTarget && chip.dataset.lang === chipTarget);
+      chip.classList.toggle('active', match);
+      chip.setAttribute('aria-selected', match ? 'true' : 'false');
     });
 
     const prevSection = document.getElementById('custom-view-section');
@@ -2333,7 +2418,15 @@
 
     const likedGrid = document.getElementById('liked-grid');
     if (state.likedSongs.length === 0) {
-      likedGrid.innerHTML = '<p style="color: var(--text-dim); grid-column: 1/-1; padding: 40px 0;">No liked songs yet! Click the heart icon on any track to add it here.</p>';
+      likedGrid.innerHTML = `
+        <div class="empty-state-card">
+          <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+          <h4 class="empty-state-title">Songs you like will appear here</h4>
+          <p class="empty-state-desc">Save songs by tapping the heart icon on any Telugu, Hindi, or English track.</p>
+          <button class="btn-primary" id="btn-explore-liked" style="padding: 9px 22px; font-size: 0.85rem;">Explore Hits</button>
+        </div>
+      `;
+      document.getElementById('btn-explore-liked')?.addEventListener('click', () => switchView('home'));
       return;
     }
 
