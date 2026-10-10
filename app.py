@@ -2339,7 +2339,7 @@ def serve_app_js():
         )
     return JSONResponse(status_code=404, content={"error": "app.js not found"})
 
-@app.get("/download/apk")
+@app.api_route("/download/apk", methods=["GET", "HEAD"])
 def download_android_apk():
     """Serves direct Android APK package if available, else provides helpful fallback status."""
     apk_path = os.path.join(STATIC_DIR, "downloads", "Swarify-Music.apk")
