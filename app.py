@@ -16,7 +16,7 @@ import sqlite3
 from dotenv import load_dotenv
 
 from fastapi import FastAPI, Query, Request, Response, HTTPException
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -2338,6 +2338,79 @@ def serve_app_js():
             headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
         )
     return JSONResponse(status_code=404, content={"error": "app.js not found"})
+
+@app.get("/download/apk")
+def download_android_apk():
+    """Serves direct Android APK package if available, else provides helpful fallback status."""
+    apk_path = os.path.join(STATIC_DIR, "downloads", "Swarify-Music.apk")
+    if os.path.exists(apk_path) and os.path.getsize(apk_path) > 0:
+        return FileResponse(
+            apk_path,
+            media_type="application/vnd.android.package-archive",
+            filename="Swarify-Music.apk",
+            headers={
+                "Content-Disposition": 'attachment; filename="Swarify-Music.apk"',
+                "Cache-Control": "public, max-age=3600"
+            }
+        )
+    return HTMLResponse(
+        content="""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Swarify Android APK</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #000; color: #fff; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; text-align: center; }
+    .card { background: #121212; border: 1px solid #282828; border-radius: 16px; padding: 32px 24px; max-width: 440px; width: 100%; box-shadow: 0 16px 32px rgba(0,0,0,0.5); }
+    .icon { font-size: 48px; margin-bottom: 16px; }
+    h1 { font-size: 1.4rem; margin: 0 0 8px 0; color: #fff; }
+    p { color: #b3b3b3; font-size: 0.9rem; line-height: 1.5; margin: 0 0 20px 0; }
+    .badge { display: inline-block; background: #1db954; color: #000; font-weight: 700; font-size: 0.75rem; padding: 4px 10px; border-radius: 20px; margin-bottom: 16px; }
+    .btn { display: inline-block; background: #1db954; color: #000; font-weight: 700; text-decoration: none; padding: 12px 24px; border-radius: 50px; font-size: 0.95rem; transition: transform 0.2s; }
+    .btn:hover { transform: scale(1.04); }
+    .instructions { text-align: left; background: #181818; border-radius: 8px; padding: 14px; margin-top: 20px; font-size: 0.82rem; color: #a0a0a0; }
+    .instructions ol { margin: 8px 0 0 18px; padding: 0; }
+    .instructions li { margin-bottom: 6px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">📱</div>
+    <div class="badge">ANDROID PACKAGE</div>
+    <h1>Swarify Music Android APK</h1>
+    <p>The APK file is being synced to the cloud. You can also install Swarify instantly right now as a PWA with zero download time!</p>
+    <a href="/" class="btn">Open Swarify Web App</a>
+    <div class="instructions">
+      <strong style="color: #fff;">How to install on your home screen right now:</strong>
+      <ol>
+        <li>Open <a href="/" style="color: #1db954;">swarify</a> in Chrome on your phone</li>
+        <li>Tap browser menu <strong>⋮</strong> &rarr; <strong>Install app</strong> or <strong>Add to Home screen</strong></li>
+        <li>Enjoy full lock-screen controls and zero ads!</li>
+      </ol>
+    </div>
+  </div>
+</body>
+</html>""",
+        status_code=200
+    )
+
+@app.get("/api/app-info")
+def get_app_info():
+    apk_path = os.path.join(STATIC_DIR, "downloads", "Swarify-Music.apk")
+    exists = os.path.exists(apk_path) and os.path.getsize(apk_path) > 0
+    size = os.path.getsize(apk_path) if exists else 0
+    return {
+        "app_name": "Swarify Music",
+        "version": "1.0.0",
+        "platform": "Android",
+        "apk_available": exists,
+        "apk_size_bytes": size,
+        "apk_size_mb": round(size / (1024 * 1024), 2) if exists else None,
+        "download_url": "/download/apk",
+        "pwa_available": True
+    }
+
 
 @app.api_route("/health", methods=["GET", "HEAD"])
 @app.api_route("/ping", methods=["GET", "HEAD"])

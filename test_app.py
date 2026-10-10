@@ -163,4 +163,21 @@ def test_spotify_import_endpoints():
     assert first_track["source"] == "spotify"
     assert first_track["id"].startswith("sp_")
 
+def test_download_apk_endpoint():
+    """Verify /download/apk returns fallback HTML when APK is pending or binary APK when present."""
+    resp = client.get("/download/apk")
+    assert resp.status_code == 200
+    assert "text/html" in resp.headers.get("content-type", "") or "application/vnd.android.package-archive" in resp.headers.get("content-type", "")
+
+def test_app_info_endpoint():
+    """Verify /api/app-info returns valid application metadata."""
+    resp = client.get("/api/app-info")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data.get("app_name") == "Swarify Music"
+    assert data.get("platform") == "Android"
+    assert "apk_available" in data
+    assert data.get("pwa_available") is True
+
+
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'swarify-shell-v16.0';
+const CACHE_NAME = 'swarify-shell-v17.0';
 const APP_SHELL = [
   '/',
   '/static/styles.css',
@@ -38,8 +38,8 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // CRITICAL: NEVER intercept or cache audio streams (/api/stream/*)
-  if (url.pathname.startsWith('/api/stream')) {
+  // CRITICAL: NEVER intercept or cache audio streams or file downloads
+  if (url.pathname.startsWith('/api/stream') || url.pathname.startsWith('/download/')) {
     return;
   }
 

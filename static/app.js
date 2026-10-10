@@ -2602,6 +2602,13 @@
     });
   }
 
+  const btnDownloadApk = document.getElementById('btn-download-apk');
+  if (btnDownloadApk) {
+    btnDownloadApk.addEventListener('click', () => {
+      showToast('📥 Starting Swarify APK download...');
+    });
+  }
+
   if (btnTriggerPwaInstall) {
     btnTriggerPwaInstall.addEventListener('click', async () => {
       if (deferredInstallPrompt) {
