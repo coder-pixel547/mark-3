@@ -135,6 +135,16 @@ CURATED_TRACKS: Dict[str, List[Dict[str, Any]]] = {
             "thumbnail": "https://i.ytimg.com/vi/2mDCVzruYzQ/hqdefault.jpg"
         },
         {
+            "id": "-GydnFPTgus",
+            "videoId": "-GydnFPTgus",
+            "title": "Vellipomaake — Sahasam Swasaga Sagipo",
+            "artist": "Sid Sriram, A.R. Rahman, ADK",
+            "duration": "5:20",
+            "language": "telugu",
+            "album": "Sahasam Swasaga Sagipo",
+            "thumbnail": "https://c.saavncdn.com/996/Saahasam-Swaasaga-Saagipo-Telugu-2016-500x500.jpg"
+        },
+        {
             "id": "EdvydlHCViY",
             "videoId": "EdvydlHCViY",
             "title": "Pushpa Pushpa — Pushpa 2 The Rule",
@@ -801,6 +811,20 @@ def extract_clean_queries(title: str, artist: Optional[str] = None) -> List[str]
     cleaned = re.sub(r'\(.*?\)|\[.*?\]', '', cleaned)
     cleaned = re.sub(r'\s+', ' ', cleaned).strip()
 
+    # Strip unbracketed marketing tags (e.g. "Vellipomaake Full Video Song" -> "Vellipomaake")
+    unbracketed_clean = re.sub(
+        r'\b(full\s*video\s*song|full\s*song|video\s*song|lyrical\s*song|lyric\s*video|music\s*video|official\s*video|audio\s*song|full|song|songs|video|audio)\b',
+        ' ',
+        cleaned,
+        flags=re.IGNORECASE
+    )
+    unbracketed_clean = re.sub(r'[-–—|:]+', ' ', unbracketed_clean)
+    unbracketed_clean = re.sub(r'\s+', ' ', unbracketed_clean).strip()
+    if len(unbracketed_clean) > 2 and unbracketed_clean not in queries:
+        queries.append(unbracketed_clean)
+        if real_artist and real_artist.lower() not in unbracketed_clean.lower():
+            queries.append(f"{unbracketed_clean} {real_artist}".strip())
+
     if '|' in cleaned:
         parts = [p.strip() for p in cleaned.split('|') if p.strip()]
         if len(parts) >= 2:
@@ -868,6 +892,41 @@ COVER_ARTIST_BLACKLIST = (
     'joshua bibber', 'party tyme', 'sing2piano', 'acoustic paradise', 'karaoke',
     'tribute', 'tribute band', 'instrumental', 'cover band', 'sound-a-like'
 )
+
+def normalize_phonetic(w: str) -> str:
+    """Normalizes transliterated Indian romanization variations (double consonants, vowel spellings)."""
+    if not w:
+        return ""
+    w = w.lower().strip()
+    # Collapse repeated consecutive consonants/vowels: e.g. vellipo -> velipo, aaraadhya -> aradhya
+    w = re.sub(r'(.)\1+', r'\1', w)
+    # Common transliteration suffix elongations: ey/ay/ai -> e, ee/ea -> i, oo/ou -> u
+    w = re.sub(r'(ey|ay|ai)$', 'e', w)
+    w = w.replace('aa', 'a').replace('ee', 'i').replace('oo', 'u')
+    return w
+
+def tokens_match_fuzzy(t1: str, t2: str) -> bool:
+    """Matches two tokens accounting for substrings, collapsed transliterations, and edit similarity."""
+    if not t1 or not t2:
+        return False
+    t1_low = t1.lower()
+    t2_low = t2.lower()
+    if t1_low == t2_low:
+        return True
+    if len(t1_low) >= 3 and len(t2_low) >= 3:
+        if t1_low in t2_low or t2_low in t1_low:
+            return True
+    n1 = normalize_phonetic(t1_low)
+    n2 = normalize_phonetic(t2_low)
+    if n1 == n2:
+        return True
+    if len(n1) >= 3 and len(n2) >= 3:
+        if n1 in n2 or n2 in n1:
+            return True
+        import difflib
+        if difflib.SequenceMatcher(None, n1, n2).ratio() >= 0.75:
+            return True
+    return False
 
 def resolve_saavn_stream(
     query: str,
@@ -956,7 +1015,7 @@ def resolve_saavn_stream(
     def validate_candidate(song_obj) -> Tuple[bool, bool]:
         """Validates candidate against disqualifiers, duration, and meaningful title words. Returns (is_valid, matches_artist)."""
         song_title = (song_obj.get('song') or '').strip().lower()
-        song_artist = (song_obj.get('primary_artists') or song_obj.get('singers') or song_obj.get('music') or '').strip().lower()
+        song_artist = f"{song_obj.get('primary_artists') or ''} {song_obj.get('singers') or ''} {song_obj.get('music') or ''} {song_obj.get('starring') or ''}".strip().lower()
         song_album = (song_obj.get('album') or '').strip().lower()
         song_dur = int(song_obj.get('duration') or 0)
 
@@ -975,7 +1034,7 @@ def resolve_saavn_stream(
         clean_combined_meta = f"{song_title} {song_artist} {song_album}"
         if distinctive_q_toks:
             has_distinctive = any(
-                (dt in clean_combined_meta or any(dt in ct or ct in dt for ct in clean_combined_meta.split()))
+                (dt in clean_combined_meta or any(tokens_match_fuzzy(dt, ct) for ct in clean_combined_meta.split()))
                 for dt in distinctive_q_toks
             )
             if not has_distinctive:
@@ -992,7 +1051,7 @@ def resolve_saavn_stream(
                 if exp_tokens and any(tok in song_artist for tok in exp_tokens):
                     matches_artist = True
         elif any(
-            (t in song_artist or any((st in t or t in st) for st in song_artist.split() if len(st) > 2 and st not in GENERIC_MUSIC_WORDS))
+            (t in song_artist or any((st in t or t in st or tokens_match_fuzzy(t, st)) for st in song_artist.split() if len(st) > 2 and st not in GENERIC_MUSIC_WORDS))
             for t in distinctive_q_toks
         ):
             matches_artist = True
@@ -1000,19 +1059,22 @@ def resolve_saavn_stream(
         # 4. Title match check
         clean_title_toks = [t for t in re.sub(r'[^\w\s]', '', song_title, flags=re.UNICODE).split() if len(t) > 2 and t not in stop_words]
         distinctive_title_toks = [t for t in clean_title_toks if t not in GENERIC_MUSIC_WORDS]
-        is_title_in_query = bool(song_title and len(song_title) > 2 and (song_title in query_lower or query_lower in song_title))
+        is_title_in_query = bool(song_title and len(song_title) > 2 and (song_title in query_lower or query_lower in song_title or tokens_match_fuzzy(song_title, query_lower)))
 
         matches_title = False
         if is_title_in_query:
             matches_title = True
         elif distinctive_q_toks and distinctive_title_toks:
             matches_title = any(
-                (qt in tt or tt in qt)
+                tokens_match_fuzzy(qt, tt)
                 for qt in distinctive_q_toks
                 for tt in distinctive_title_toks
             )
         elif distinctive_title_toks:
-            matches_title = any(tt in query_lower for tt in distinctive_title_toks)
+            matches_title = any(
+                (tt in query_lower or any(tokens_match_fuzzy(tt, qt) for qt in q_meaningful_toks))
+                for tt in distinctive_title_toks
+            )
 
         if not matches_title:
             return False, False

@@ -179,5 +179,22 @@ def test_app_info_endpoint():
     assert "apk_available" in data
     assert data.get("pwa_available") is True
 
+def test_velipomake_transliteration_stream():
+    """Verify velipomake stream resolves via curated map and fuzzy transliteration."""
+    from app import tokens_match_fuzzy, normalize_phonetic
+    assert tokens_match_fuzzy("velipomake", "Vellipomaakey") is True
+    assert normalize_phonetic("velipomake") == normalize_phonetic("vellipomaakey")
+
+    # Verify stream route with -GydnFPTgus
+    resp = client.get("/api/stream/-GydnFPTgus", headers={"Range": "bytes=0-1024"})
+    assert resp.status_code == 206
+    assert "audio/mp4" in resp.headers.get("content-type", "")
+
+    # Verify stream route with title hint velipomake
+    resp2 = client.get("/api/stream/sp_velipomake_test?title=velipomake", headers={"Range": "bytes=0-1024"})
+    assert resp2.status_code == 206
+    assert "audio/mp4" in resp2.headers.get("content-type", "")
+
+
 
 
