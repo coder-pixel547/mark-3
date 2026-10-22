@@ -2,6 +2,7 @@ import os
 import re
 import json
 import time
+import difflib
 import base64
 import asyncio
 import random
@@ -143,6 +144,16 @@ CURATED_TRACKS: Dict[str, List[Dict[str, Any]]] = {
             "language": "telugu",
             "album": "Sahasam Swasaga Sagipo",
             "thumbnail": "https://c.saavncdn.com/996/Saahasam-Swaasaga-Saagipo-Telugu-2016-500x500.jpg"
+        },
+        {
+            "id": "VQTx4eswiFY",
+            "videoId": "VQTx4eswiFY",
+            "title": "Mella Mellagaa — ABCD",
+            "artist": "Sid Sriram, Aditi Bhavaraju, Judah Sandhy",
+            "duration": "4:09",
+            "language": "telugu",
+            "album": "ABCD",
+            "thumbnail": "https://c.saavncdn.com/209/ABCD-American-Born-Confused-Desi-Telugu-2019-20190509174026-500x500.jpg"
         },
         {
             "id": "EdvydlHCViY",
@@ -968,6 +979,14 @@ def resolve_saavn_stream(
     disqualified = [kw for kw in DISQUALIFIED_SAAVN_KEYWORDS if kw not in query_lower]
     stop_words = {'from', 'part', 'the', 'and', 'full', 'song', 'audio', 'video', 'movie', 'official', 'lyric', 'lyrics'}
     q_meaningful_toks = [t for t in re.sub(r'[^\w\s]', '', query_lower, flags=re.UNICODE).split() if len(t) > 2 and t not in stop_words]
+    GENERIC_MUSIC_WORDS = {
+        'india', 'south', 'north', 'party', 'love', 'theme', 'song', 'audio',
+        'video', 'movie', 'track', 'music', 'anthem', 'beat', 'remix', 'mix',
+        'dandiya', 'dj', 'super', 'hit', 'full', 'from', 'part', 'the', 'and',
+        'official', 'lyrics', 'lyric', 'version', 'special', 'original', 'indie',
+        'single', 'soundtrack', 'ost', 'promo', 'teaser', 'trailer', 'melody'
+    }
+    distinctive_q_toks = [t for t in q_meaningful_toks if t not in GENERIC_MUSIC_WORDS and len(t) > 2]
 
     unmatched_artist_candidates: List[Dict[str, Any]] = []
 
@@ -1004,14 +1023,6 @@ def resolve_saavn_stream(
             pass
         return None
 
-    GENERIC_MUSIC_WORDS = {
-        'india', 'south', 'north', 'party', 'love', 'theme', 'song', 'audio',
-        'video', 'movie', 'track', 'music', 'anthem', 'beat', 'remix', 'mix',
-        'dandiya', 'dj', 'super', 'hit', 'full', 'from', 'part', 'the', 'and',
-        'official', 'lyrics', 'lyric', 'version', 'special', 'original', 'indie',
-        'single', 'soundtrack', 'ost', 'promo', 'teaser', 'trailer', 'melody'
-    }
-
     def validate_candidate(song_obj) -> Tuple[bool, bool]:
         """Validates candidate against disqualifiers, duration, and meaningful title words. Returns (is_valid, matches_artist)."""
         song_title = (song_obj.get('song') or '').strip().lower()
@@ -1030,7 +1041,6 @@ def resolve_saavn_stream(
                 return False, False
 
         # 2. Distinctive query token check (reject candidates that only match generic words like 'india' or 'song')
-        distinctive_q_toks = [t for t in q_meaningful_toks if t not in GENERIC_MUSIC_WORDS and len(t) > 2]
         clean_combined_meta = f"{song_title} {song_artist} {song_album}"
         if distinctive_q_toks:
             has_distinctive = any(
@@ -1082,14 +1092,20 @@ def resolve_saavn_stream(
         # 5. Duration check:
         # If BOTH title & artist match, allow up to +-120s for music video intro/outro sketches & dialogues
         # If artist matches, allow +-75s
-        # If artist is unknown / record label, allow +-95s (common in Indian cinema music videos with dialogue/skit intros)
+        # If artist is unknown / record label:
+        #   - if title has all distinctive tokens (full match), allow up to +-55s
+        #   - if title only has partial match, allow strict +-25s
         # If artist is explicitly specified but does not match, strict +-35s
+        all_q_tokens_matched = (
+            len(distinctive_q_toks) > 0 and
+            all(any(tokens_match_fuzzy(qt, tt) for tt in distinctive_title_toks) for qt in distinctive_q_toks)
+        )
         if matches_title and matches_artist:
             max_dur_tol = 120
         elif matches_artist:
             max_dur_tol = 75
         elif not expected_artist:
-            max_dur_tol = 95
+            max_dur_tol = 55 if all_q_tokens_matched else 25
         else:
             max_dur_tol = 35
 
@@ -1164,16 +1180,48 @@ def resolve_saavn_stream(
     # 3. Fallback: if no exact artist match found, use title-matched valid studio candidates
     if unmatched_artist_candidates:
         def candidate_rank(cand):
+            clean_cand_title = (cand.get('song') or '').strip().lower()
+            clean_cand_toks = [t for t in re.sub(r'[^\w\s]', '', clean_cand_title).split() if len(t) > 2 and t not in stop_words]
+            distinctive_cand_toks = [t for t in clean_cand_toks if t not in GENERIC_MUSIC_WORDS]
+
+            # 1. Title token match ratio
+            matched_q_count = sum(
+                1 for qt in distinctive_q_toks
+                if any(tokens_match_fuzzy(qt, ct) for ct in distinctive_cand_toks)
+            ) if distinctive_q_toks else 1
+            token_ratio = matched_q_count / len(distinctive_q_toks) if distinctive_q_toks else 1.0
+
+            # 2. String similarity ratio
+            sim_ratio = difflib.SequenceMatcher(
+                None,
+                normalize_phonetic(clean_cand_title),
+                normalize_phonetic(query_lower)
+            ).ratio()
+
+            # 3. Duration proximity tier
+            dur = int(cand.get("duration") or 0)
+            dur_diff = abs(dur - expected_duration) if (expected_duration and dur > 0) else 0
+            if expected_duration and dur > 0:
+                if dur_diff <= 15:
+                    dur_tier = 4
+                elif dur_diff <= 35:
+                    dur_tier = 3
+                elif dur_diff <= 55:
+                    dur_tier = 2
+                else:
+                    dur_tier = 1
+            else:
+                dur_tier = 2
+
             try:
                 pc = int(cand.get("play_count") or 0)
             except Exception:
                 pc = 0
-            dur = int(cand.get("duration") or 0)
-            dur_diff = abs(dur - expected_duration) if (expected_duration and dur > 0) else 0
-            return (pc, -dur_diff)
+
+            return (token_ratio, dur_tier, round(sim_ratio, 2), -dur_diff, pc)
 
         sorted_candidates = sorted(unmatched_artist_candidates, key=candidate_rank, reverse=True)
-        safe_log(f"[Saavn Artist Fallback] Evaluating {len(sorted_candidates)} candidate songs (sorted by popularity)...")
+        safe_log(f"[Saavn Artist Fallback] Evaluating {len(sorted_candidates)} candidate songs (sorted by title match & duration)...")
         for candidate in sorted_candidates:
             meta = verify_and_build_meta(candidate, "Fallback-Candidate")
             if meta:

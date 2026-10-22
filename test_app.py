@@ -195,6 +195,31 @@ def test_velipomake_transliteration_stream():
     assert resp2.status_code == 206
     assert "audio/mp4" in resp2.headers.get("content-type", "")
 
+def test_mella_mellaga_abcd_resolution():
+    """Verify 'Mella Mellaga' (ABCD) resolves correctly without being hijacked by Varsham."""
+    from app import resolve_saavn_stream, tokens_match_fuzzy, normalize_phonetic
+
+    # Phonetic transliteration check
+    assert tokens_match_fuzzy("mellaga", "mellagaa") is True
+    assert normalize_phonetic("mella mellaga") == normalize_phonetic("mella mellagaa")
+
+    # Dynamic Saavn candidate ranking test (without curated map override)
+    res = resolve_saavn_stream("Mella Mellaga Full Video Song", expected_duration=249)
+    assert res is not None
+    assert res["duration"] == 243
+    assert "3a4e7e11398bfa2ced4a94a851c4365d" in res["url"] or "1b41d7854366f2a3d13705df02a7b891" in res["url"]
+
+    # Stream route test using video ID VQTx4eswiFY
+    resp = client.get("/api/stream/VQTx4eswiFY", headers={"Range": "bytes=0-1024"})
+    assert resp.status_code == 206
+    assert "audio/mp4" in resp.headers.get("content-type", "")
+
+    # Stream route test using title hint for Mella Mellaga
+    resp2 = client.get("/api/stream/sp_mella_mellaga_test?title=Mella+Mellaga&duration=249", headers={"Range": "bytes=0-1024"})
+    assert resp2.status_code == 206
+    assert "audio/mp4" in resp2.headers.get("content-type", "")
+
+
 
 
 
