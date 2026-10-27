@@ -219,6 +219,44 @@ def test_mella_mellaga_abcd_resolution():
     assert resp2.status_code == 206
     assert "audio/mp4" in resp2.headers.get("content-type", "")
 
+def test_hey_idhi_nenena_resolution():
+    """Verify 'Hey Idhi Nenena' (Solo Brathuke So Better) resolves to Sid Sriram's 254s track and not Amrutha (208s)."""
+    from app import resolve_saavn_stream, tokens_match_fuzzy, normalize_phonetic, clean_song_title
+
+    # 1. Phonetic transliteration check: idhi matches idi
+    assert tokens_match_fuzzy("idhi", "idi") is True
+    assert normalize_phonetic("hey idhi nenena") == normalize_phonetic("hey idi nenena")
+
+    # 2. Pipe-separated cleaning check
+    cleaned = clean_song_title("Solo Brathuke So Better | Hey Idi Nenena Video Song | Sai Dharam Tej | Nabha Natesh")
+    assert "Hey Idi Nenena" in cleaned
+    assert "Solo Brathuke So Better" in cleaned
+
+    # 3. Dynamic Saavn stream resolution check (ensuring it never picks Amrutha 208s)
+    res = resolve_saavn_stream("Hey Idhi Nenena", expected_duration=221)
+    assert res is not None
+    assert res["duration"] == 254
+    assert res["duration"] != 208
+    assert "4a7d7945db2b011e965a313352905f3c" in res["url"] or "77a599beb63b589021addb885288f612" in res["url"]
+
+    # 4. Audio-info endpoint check for AmGn686QCI0
+    info_resp = client.get("/api/audio-info/AmGn686QCI0")
+    assert info_resp.status_code == 200
+    info_data = info_resp.json()
+    assert info_data["duration"] == 254
+    assert "4a7d7945db2b011e965a313352905f3c" in info_data["audio_url"]
+
+    # 5. Stream route test using video ID AmGn686QCI0
+    resp = client.get("/api/stream/AmGn686QCI0", headers={"Range": "bytes=0-1024"})
+    assert resp.status_code == 206
+    assert "audio/mp4" in resp.headers.get("content-type", "")
+
+    # 6. Stream route test using title hint for Hey Idhi Nenena
+    resp2 = client.get("/api/stream/sp_hey_idhi_nenena_test?title=Hey+Idhi+Nenena&duration=221", headers={"Range": "bytes=0-1024"})
+    assert resp2.status_code == 206
+    assert "audio/mp4" in resp2.headers.get("content-type", "")
+
+
 
 
 

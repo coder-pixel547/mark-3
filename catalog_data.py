@@ -17,7 +17,7 @@ CATALOG = {
         "Samayama Hi Nanna", "Ammaadi Hi Nanna", "Gaaju Bomma Hi Nanna", "Idhe Idhe Hi Nanna", "Chedhu Nijam Hi Nanna",
         "Naatu Naatu RRR", "Dosti RRR", "Komuram Bheemudo RRR", "Raamam Raaghavam RRR", "Komma Uyyala RRR",
         # 2018 - 2023 Blockbusters
-        "Vellipomaake Sahasam Swasaga Sagipo", "Mella Mellagaa ABCD", "Samajavaragamana", "Butta Bomma", "Ramuloo Ramulaa", "OMG Daddy Ala Vaikunthapurramuloo",
+        "Vellipomaake Sahasam Swasaga Sagipo", "Mella Mellagaa ABCD", "Hey Idi Nenena Solo Brathuke So Better", "Samajavaragamana", "Butta Bomma", "Ramuloo Ramulaa", "OMG Daddy Ala Vaikunthapurramuloo",
         "Inkem Inkem Inkem Kaavaale", "Vachindamma Geetha Govindam", "Yenti Yenti Geetha Govindam",
         "Inthandham Sita Ramam", "Oh Sita Hey Rama", "Kaanunna Kalyanam Sita Ramam",
         "Oh Rendu Prema Meghaalila Baby", "Deva Raaja Baby", "Premisthunna Baby",

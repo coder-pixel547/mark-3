@@ -156,6 +156,16 @@ CURATED_TRACKS: Dict[str, List[Dict[str, Any]]] = {
             "thumbnail": "https://c.saavncdn.com/209/ABCD-American-Born-Confused-Desi-Telugu-2019-20190509174026-500x500.jpg"
         },
         {
+            "id": "AmGn686QCI0",
+            "videoId": "AmGn686QCI0",
+            "title": "Hey Idi Nenena — Solo Brathuke So Better",
+            "artist": "Sid Sriram, Thaman S, Raghuram Dronavajjala",
+            "duration": "4:14",
+            "language": "telugu",
+            "album": "Solo Brathuke So Better",
+            "thumbnail": "https://c.saavncdn.com/197/Solo-Brathuke-So-Better-Telugu-2020-20201211092930-500x500.jpg"
+        },
+        {
             "id": "EdvydlHCViY",
             "videoId": "EdvydlHCViY",
             "title": "Pushpa Pushpa — Pushpa 2 The Rule",
@@ -636,14 +646,23 @@ def clean_song_title(title: str) -> str:
     """Removes annoying marketing tags like (Official Video), [4K], cast lists, etc."""
     if not title:
         return "Unknown Title"
-    # Remove pipes and movie cast noise: "Song Name | Movie | Singer | Music Director"
-    if "|" in title:
-        segments = [s.strip() for s in title.split("|")]
-        # Usually segment 0 or 1 is the actual song title
-        title = segments[0]
     
     # Strip @ from handles: @SaiAbhyankkar -> SaiAbhyankkar
     title = re.sub(r'@([a-zA-Z0-9_]+)', r'\1', title)
+
+    # Handle pipe-separated YouTube titles: "Song | Movie | Cast" or "Movie | Song | Cast"
+    if "|" in title:
+        segments = [s.strip() for s in title.split("|") if s.strip()]
+        if len(segments) >= 2:
+            s0, s1 = segments[0], segments[1]
+            is_s1_song = bool(re.search(r'\b(song|audio|video|lyric|lyrics|lyrical|track)\b', s1, re.I))
+            is_s0_song = bool(re.search(r'\b(song|audio|video|lyric|lyrics|lyrical|track)\b', s0, re.I))
+            if is_s1_song and not is_s0_song and '-' not in s0:
+                title = f"{s0} - {s1}"
+            else:
+                title = s0
+        elif segments:
+            title = segments[0]
 
     # Remove all bracketed tags: (Official Video), (Music Video), [4K], (Lyrics), etc.
     title = re.sub(
@@ -654,8 +673,12 @@ def clean_song_title(title: str) -> str:
     )
     title = re.sub(r'[\(\[\{]\s*[\)\]\}]', '', title)
 
-    # Remove hyphens/pipes at end
+    # Clean orphaned format words
+    title = re.sub(r'\b(video song|audio song|official video|music video|lyrical video|full video song|full video|full song)\b', '', title, flags=re.IGNORECASE)
+
+    # Remove trailing/leading hyphens/pipes
     title = re.sub(r'[-–—|:]+\s*$', '', title).strip()
+    title = re.sub(r'^\s*[-–—|:]+', '', title).strip()
     title = re.sub(r'\s+', ' ', title).strip()
     return title or "Unknown Song"
 
@@ -905,7 +928,7 @@ COVER_ARTIST_BLACKLIST = (
 )
 
 def normalize_phonetic(w: str) -> str:
-    """Normalizes transliterated Indian romanization variations (double consonants, vowel spellings)."""
+    """Normalizes transliterated Indian romanization variations (double consonants, vowel spellings, aspirated consonants)."""
     if not w:
         return ""
     w = w.lower().strip()
@@ -914,6 +937,8 @@ def normalize_phonetic(w: str) -> str:
     # Common transliteration suffix elongations: ey/ay/ai -> e, ee/ea -> i, oo/ou -> u
     w = re.sub(r'(ey|ay|ai)$', 'e', w)
     w = w.replace('aa', 'a').replace('ee', 'i').replace('oo', 'u')
+    # Collapse aspirated consonant pairs common in Telugu/Tamil/Hindi Romanization (e.g. idhi -> idi, bharat -> barat)
+    w = w.replace('dh', 'd').replace('th', 't').replace('bh', 'b').replace('kh', 'k').replace('gh', 'g').replace('ph', 'p')
     return w
 
 def tokens_match_fuzzy(t1: str, t2: str) -> bool:
@@ -1067,19 +1092,21 @@ def resolve_saavn_stream(
             matches_artist = True
 
         # 4. Title match check
-        clean_title_toks = [t for t in re.sub(r'[^\w\s]', '', song_title, flags=re.UNICODE).split() if len(t) > 2 and t not in stop_words]
+        song_title_core = re.sub(r'[\(\[\{]\s*from\s+.*?[\)\]\}]', '', song_title, flags=re.IGNORECASE).strip()
+        clean_title_toks = [t for t in re.sub(r'[^\w\s]', '', song_title_core or song_title, flags=re.UNICODE).split() if len(t) > 2 and t not in stop_words]
         distinctive_title_toks = [t for t in clean_title_toks if t not in GENERIC_MUSIC_WORDS]
-        is_title_in_query = bool(song_title and len(song_title) > 2 and (song_title in query_lower or query_lower in song_title or tokens_match_fuzzy(song_title, query_lower)))
+        is_title_in_query = bool(
+            (song_title_core and len(song_title_core) > 2 and (song_title_core in query_lower or query_lower in song_title_core or tokens_match_fuzzy(song_title_core, query_lower))) or
+            (song_title and len(song_title) > 2 and (song_title in query_lower or query_lower in song_title or tokens_match_fuzzy(song_title, query_lower)))
+        )
 
         matches_title = False
         if is_title_in_query:
             matches_title = True
         elif distinctive_q_toks and distinctive_title_toks:
-            matches_title = any(
-                tokens_match_fuzzy(qt, tt)
-                for qt in distinctive_q_toks
-                for tt in distinctive_title_toks
-            )
+            cand_tokens_in_q = any(tokens_match_fuzzy(tt, qt) for tt in distinctive_title_toks for qt in distinctive_q_toks)
+            q_tokens_in_cand = any(tokens_match_fuzzy(qt, tt) for qt in distinctive_q_toks for tt in distinctive_title_toks)
+            matches_title = cand_tokens_in_q and q_tokens_in_cand
         elif distinctive_title_toks:
             matches_title = any(
                 (tt in query_lower or any(tokens_match_fuzzy(tt, qt) for qt in q_meaningful_toks))
@@ -1181,22 +1208,30 @@ def resolve_saavn_stream(
     if unmatched_artist_candidates:
         def candidate_rank(cand):
             clean_cand_title = (cand.get('song') or '').strip().lower()
-            clean_cand_toks = [t for t in re.sub(r'[^\w\s]', '', clean_cand_title).split() if len(t) > 2 and t not in stop_words]
+            clean_cand_core = re.sub(r'[\(\[\{]\s*from\s+.*?[\)\]\}]', '', clean_cand_title, flags=re.IGNORECASE).strip()
+            clean_cand_toks = [t for t in re.sub(r'[^\w\s]', '', clean_cand_core or clean_cand_title).split() if len(t) > 2 and t not in stop_words]
             distinctive_cand_toks = [t for t in clean_cand_toks if t not in GENERIC_MUSIC_WORDS]
 
-            # 1. Title token match ratio
+            # 1. Title token match ratio (both query coverage and candidate title coverage)
             matched_q_count = sum(
                 1 for qt in distinctive_q_toks
                 if any(tokens_match_fuzzy(qt, ct) for ct in distinctive_cand_toks)
             ) if distinctive_q_toks else 1
             token_ratio = matched_q_count / len(distinctive_q_toks) if distinctive_q_toks else 1.0
 
+            matched_cand_count = sum(
+                1 for ct in distinctive_cand_toks
+                if any(tokens_match_fuzzy(ct, qt) for qt in distinctive_q_toks)
+            ) if distinctive_cand_toks else 1
+            cand_ratio = matched_cand_count / len(distinctive_cand_toks) if distinctive_cand_toks else 1.0
+
+            combined_token_score = round((token_ratio * 0.6) + (cand_ratio * 0.4), 2)
+
             # 2. String similarity ratio
-            sim_ratio = difflib.SequenceMatcher(
-                None,
-                normalize_phonetic(clean_cand_title),
-                normalize_phonetic(query_lower)
-            ).ratio()
+            sim_ratio = max(
+                difflib.SequenceMatcher(None, normalize_phonetic(clean_cand_title), normalize_phonetic(query_lower)).ratio(),
+                difflib.SequenceMatcher(None, normalize_phonetic(clean_cand_core), normalize_phonetic(query_lower)).ratio()
+            )
 
             # 3. Duration proximity tier
             dur = int(cand.get("duration") or 0)
@@ -1218,7 +1253,7 @@ def resolve_saavn_stream(
             except Exception:
                 pc = 0
 
-            return (token_ratio, dur_tier, round(sim_ratio, 2), -dur_diff, pc)
+            return (combined_token_score, token_ratio, dur_tier, round(sim_ratio, 2), -dur_diff, pc)
 
         sorted_candidates = sorted(unmatched_artist_candidates, key=candidate_rank, reverse=True)
         safe_log(f"[Saavn Artist Fallback] Evaluating {len(sorted_candidates)} candidate songs (sorted by title match & duration)...")
@@ -2250,10 +2285,12 @@ def get_audio_info(
     video_id: str,
     title: Optional[str] = None,
     dur: Optional[str] = None,
+    duration: Optional[str] = None,
     artist: Optional[str] = None
 ):
     """Returns direct audio stream URL and proxied stream URL."""
-    expected_dur = parse_duration_to_seconds(dur) if dur else None
+    dur_param = dur or duration
+    expected_dur = parse_duration_to_seconds(dur_param) if dur_param else None
     meta = get_audio_metadata(video_id, title, expected_duration=expected_dur, expected_artist=artist)
     if not meta:
         return JSONResponse(status_code=404, content={"error": "Audio stream not found", "videoId": video_id})
@@ -2273,13 +2310,15 @@ def stream_audio(
     request: Request,
     title: Optional[str] = None,
     dur: Optional[str] = None,
+    duration: Optional[str] = None,
     artist: Optional[str] = None
 ):
     """
     Direct inline audio stream proxy with HTTP 206 Partial Content, Range headers,
     resilient chunk streaming, and clean client disconnect handling.
     """
-    expected_dur = parse_duration_to_seconds(dur) if dur else None
+    dur_param = dur or duration
+    expected_dur = parse_duration_to_seconds(dur_param) if dur_param else None
     meta = get_audio_metadata(video_id, title, expected_duration=expected_dur, expected_artist=artist)
     if not meta or not meta.get("url"):
         safe_log(f"[Stream 404] Audio stream metadata not found for video_id={video_id}")
