@@ -45,7 +45,7 @@
     currentLyrics: null,
     lyricsSynced: false,
     currentLyricLineIndex: -1,
-    lyricsSyncOffset: parseFloat(localStorage.getItem('swarify_lyrics_offset') || '0.28'),
+    lyricsSyncOffset: parseFloat(localStorage.getItem('swarify_lyrics_offset') || '0.0'),
     userScrolledLyrics: false,
     activeLyricsTrackId: null
   };
@@ -349,6 +349,9 @@
 
   audio.addEventListener('seeked', () => {
     updateMediaSessionPosition();
+    if (state.isLyricsOpen) {
+      syncLyricsWithCurrentTime(audio.currentTime || 0);
+    }
   });
 
   function onDurationUpdate() {
@@ -1468,24 +1471,23 @@
     const words = text ? text.split(/\s+/).filter(Boolean).length : 1;
     const chars = text.length;
 
-    // Natural vocal cadence: ~0.38s/word, ~0.055s/char + 0.35s vowel decay/sustain
-    const wordTime = words * 0.38 + 0.35;
-    const charTime = chars * 0.055 + 0.35;
-    const naturalSingingDuration = Math.max(1.1, Math.max(wordTime, charTime));
+    // Natural vocal cadence: ~0.36s/word, ~0.05s/char + 0.3s decay
+    const wordTime = words * 0.36 + 0.30;
+    const charTime = chars * 0.05 + 0.30;
+    const naturalSingingDuration = Math.max(1.0, Math.max(wordTime, charTime));
 
     if (rawGap <= 2.2) {
       // Continuous, rapid line delivery: sweep smoothly across almost the entire gap
       return Math.max(0.5, rawGap - 0.08);
     } else {
-      // Verse with musical breath or instrumental response:
-      // The lyrics sweep finishes naturally when the singer stops singing,
-      // and comfortably sustains at 100% lit through the pause.
-      return Math.min(rawGap - 0.3, naturalSingingDuration);
+      // Verse with melodic breath or instrumental response:
+      // In Indian/Telugu music, vocal decay and melodic sustain comfortably cover ~82% of gap
+      return Math.min(rawGap - 0.25, Math.max(naturalSingingDuration, rawGap * 0.82));
     }
   }
 
   function adjustLyricsSyncOffset(delta) {
-    state.lyricsSyncOffset = Math.round(((state.lyricsSyncOffset || 0.28) + delta) * 100) / 100;
+    state.lyricsSyncOffset = Math.round(((state.lyricsSyncOffset || 0.0) + delta) * 100) / 100;
     // Bound offset between -2.0s and +3.0s
     state.lyricsSyncOffset = Math.max(-2.0, Math.min(3.0, state.lyricsSyncOffset));
     try {
@@ -1500,20 +1502,20 @@
   }
 
   function resetLyricsSyncOffset() {
-    state.lyricsSyncOffset = 0.28;
+    state.lyricsSyncOffset = 0.0;
     try {
-      localStorage.setItem('swarify_lyrics_offset', '0.28');
+      localStorage.setItem('swarify_lyrics_offset', '0.0');
     } catch (_) {}
     updateLyricsTimingUI();
     if (state.isLyricsOpen) {
       syncLyricsWithCurrentTime(audio.currentTime || 0);
     }
-    showToast('Lyrics Timing Reset to Standard (+0.28s)');
+    showToast('Lyrics Timing Reset to Standard (0.00s)');
   }
 
   function updateLyricsTimingUI() {
     if (!el.lyricsTimingVal) return;
-    const off = typeof state.lyricsSyncOffset === 'number' ? state.lyricsSyncOffset : 0.28;
+    const off = typeof state.lyricsSyncOffset === 'number' ? state.lyricsSyncOffset : 0.0;
     const sign = off > 0 ? '+' : '';
     el.lyricsTimingVal.textContent = `Sync: ${sign}${off.toFixed(2)}s`;
   }
@@ -1522,7 +1524,7 @@
     if (!state.currentLyrics || state.currentLyrics.length === 0 || !state.lyricsSynced) return;
 
     // Compensate for audio buffer & hardware latency using calibrated offset
-    const offset = typeof state.lyricsSyncOffset === 'number' ? state.lyricsSyncOffset : 0.28;
+    const offset = typeof state.lyricsSyncOffset === 'number' ? state.lyricsSyncOffset : 0.0;
     const t = currentTime + offset;
 
     let activeIdx = -1;
