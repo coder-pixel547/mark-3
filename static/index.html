@@ -273,6 +273,9 @@
       <button class="btn-icon add-pl-btn" id="player-add-playlist-btn" title="Add to Playlist" aria-label="Add to Playlist">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 11H5M19 16H5M11 6H5M19 6h-4"></path></svg>
       </button>
+      <button class="btn-icon lyrics-btn-compact" id="btn-player-bar-lyrics" title="Lyrics (L)" aria-label="Toggle Lyrics">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><line x1="9" y1="9" x2="15" y2="9"></line><line x1="9" y1="13" x2="13" y2="13"></line></svg>
+      </button>
     </div>
 
     <!-- Center Playback Controls & Scrubber -->
@@ -314,8 +317,16 @@
         <span></span><span></span><span></span><span></span>
       </div>
 
+      <button class="btn-icon" id="btn-toggle-lyrics" title="Full Screen Lyrics (L)" aria-label="Toggle Full Screen Lyrics">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><line x1="9" y1="9" x2="15" y2="9"></line><line x1="9" y1="13" x2="13" y2="13"></line></svg>
+      </button>
+
       <button class="btn-icon" id="btn-toggle-queue" title="View Queue" aria-label="Toggle play queue">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+      </button>
+
+      <button class="btn-icon" id="btn-toggle-fullscreen" title="Full Screen Cinema Mode (F)" aria-label="Toggle Full Screen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
       </button>
 
       <div class="volume-container">
@@ -410,6 +421,10 @@
     </div>
 
     <div class="sheet-bottom-actions">
+      <button type="button" class="sheet-action-btn" id="sheet-btn-lyrics" aria-label="View Full Screen Lyrics">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><line x1="9" y1="9" x2="15" y2="9"></line><line x1="9" y1="13" x2="13" y2="13"></line></svg>
+        <span>Lyrics</span>
+      </button>
       <button type="button" class="sheet-action-btn" id="sheet-btn-add-playlist" aria-label="Add current song to playlist">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 11H5M19 16H5M11 6H5M19 6h-4"></path></svg>
         <span>Add to Playlist</span>
@@ -634,6 +649,103 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- Immersive Full-Screen Lyrics Experience (Desktop, Mobile & Cinema Display) -->
+  <div class="fullscreen-lyrics-overlay hidden" id="fullscreen-lyrics-overlay" role="dialog" aria-modal="true" aria-label="Full Screen Lyrics View">
+    <!-- Dynamic Ambient Glowing Art Background -->
+    <div class="lyrics-ambient-backdrop" id="lyrics-ambient-backdrop">
+      <div class="lyrics-blur-glow lyrics-glow-1" id="lyrics-glow-1"></div>
+      <div class="lyrics-blur-glow lyrics-glow-2" id="lyrics-glow-2"></div>
+      <div class="lyrics-backdrop-overlay"></div>
+    </div>
+
+    <!-- Top Header Navigation -->
+    <header class="lyrics-header">
+      <button type="button" class="lyrics-icon-btn" id="btn-close-lyrics" title="Exit Lyrics (Esc or L)" aria-label="Close Lyrics View">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        <span class="lyrics-back-text">Back</span>
+      </button>
+
+      <div class="lyrics-header-track-info" id="lyrics-header-track-info">
+        <img id="lyrics-header-thumb" src="" alt="Album Art" />
+        <div class="lyrics-header-meta">
+          <h4 id="lyrics-header-title">Select a song to start listening</h4>
+          <p id="lyrics-header-artist">Swarify</p>
+        </div>
+        <span class="lyrics-sync-badge" id="lyrics-sync-badge">
+          <span class="sync-dot"></span>
+          <span id="lyrics-sync-text">LIVE SYNC</span>
+        </span>
+      </div>
+
+      <div class="lyrics-header-actions">
+        <button type="button" class="lyrics-icon-btn sync-btn hidden" id="btn-resync-lyrics" title="Scroll to active line" aria-label="Sync with song">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          <span>Sync</span>
+        </button>
+        <button type="button" class="lyrics-icon-btn" id="btn-lyrics-native-fs" title="Toggle Fullscreen (F)" aria-label="Toggle Fullscreen">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Lyrics Stage (Dual-Column on Desktop, Full Stream on Mobile) -->
+    <main class="lyrics-stage">
+      <!-- Left Side: Large Album Cover & Info (Desktop) -->
+      <div class="lyrics-visual-col">
+        <div class="lyrics-art-wrapper">
+          <img id="lyrics-large-thumb" src="" alt="Album Art" />
+          <div class="lyrics-art-shadow"></div>
+        </div>
+        <div class="lyrics-track-details">
+          <h2 id="lyrics-stage-title">Select a song</h2>
+          <h3 id="lyrics-stage-artist">Swarify</h3>
+          <p id="lyrics-stage-album">Swarify Master Audio</p>
+        </div>
+      </div>
+
+      <!-- Right Side: Real-Time Scrolling Karaoke Lyrics -->
+      <div class="lyrics-scroll-col" id="lyrics-scroll-container">
+        <div class="lyrics-content-list" id="lyrics-content-list">
+          <div class="lyrics-loading-state" id="lyrics-loading-state">
+            <div class="lyrics-spinner"></div>
+            <p>Loading lyrics...</p>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Bottom Floating Glass Control Bar -->
+    <footer class="lyrics-floating-footer">
+      <div class="lyrics-scrubber-row">
+        <span class="lyrics-time" id="lyrics-current-time">0:00</span>
+        <div class="progress-bar-wrapper" id="lyrics-progress-wrapper" role="slider" aria-label="Lyrics progress bar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
+          <div class="progress-fill" id="lyrics-progress-fill"></div>
+          <div class="progress-thumb" id="lyrics-progress-thumb"></div>
+        </div>
+        <span class="lyrics-time" id="lyrics-total-duration">0:00</span>
+      </div>
+
+      <div class="lyrics-controls-row">
+        <button type="button" class="btn-ctrl" id="lyrics-btn-shuffle" title="Shuffle" aria-label="Toggle shuffle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="21 16 21 21 16 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line><line x1="4" y1="4" x2="9" y2="9"></line></svg>
+        </button>
+        <button type="button" class="btn-ctrl" id="lyrics-btn-prev" title="Previous" aria-label="Previous track">
+          <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2"></line></svg>
+        </button>
+        <button type="button" class="btn-ctrl btn-play-pause lyrics-play-btn" id="lyrics-btn-play" title="Play/Pause (Space)" aria-label="Play or pause">
+          <svg id="lyrics-play-icon" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+          <svg id="lyrics-pause-icon" class="hidden" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+        </button>
+        <button type="button" class="btn-ctrl" id="lyrics-btn-next" title="Next" aria-label="Next track">
+          <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2"></line></svg>
+        </button>
+        <button type="button" class="btn-ctrl" id="lyrics-btn-repeat" title="Repeat" aria-label="Toggle repeat mode">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>
+        </button>
+      </div>
+    </footer>
   </div>
 
   <!-- Toast Notification -->
