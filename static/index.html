@@ -680,6 +680,20 @@
       </div>
 
       <div class="lyrics-header-actions">
+        <!-- Live Timing & Sync Calibrator -->
+        <div class="lyrics-sync-calibrator" id="lyrics-sync-calibrator" title="Adjust lyrics timing & speed">
+          <button type="button" class="btn-sync-adjust" id="btn-sync-earlier" title="Lead lyrics earlier (-0.1s / hotkey: [)" aria-label="Lead lyrics earlier">
+            -0.1s
+          </button>
+          <button type="button" class="btn-sync-display" id="btn-sync-reset" title="Click to reset sync timing (+0.28s)" aria-label="Reset sync offset">
+            <span class="sync-icon">⚡</span>
+            <span id="lyrics-timing-val">Sync: +0.28s</span>
+          </button>
+          <button type="button" class="btn-sync-adjust" id="btn-sync-later" title="Delay lyrics later (+0.1s / hotkey: ])" aria-label="Delay lyrics later">
+            +0.1s
+          </button>
+        </div>
+
         <button type="button" class="lyrics-icon-btn sync-btn hidden" id="btn-resync-lyrics" title="Scroll to active line" aria-label="Sync with song">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
           <span>Sync</span>

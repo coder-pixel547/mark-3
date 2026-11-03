@@ -45,6 +45,7 @@
     currentLyrics: null,
     lyricsSynced: false,
     currentLyricLineIndex: -1,
+    lyricsSyncOffset: parseFloat(localStorage.getItem('swarify_lyrics_offset') || '0.28'),
     userScrolledLyrics: false,
     activeLyricsTrackId: null
   };
@@ -203,6 +204,11 @@
     btnCloseLyrics: document.getElementById('btn-close-lyrics'),
     btnResyncLyrics: document.getElementById('btn-resync-lyrics'),
     btnLyricsNativeFs: document.getElementById('btn-lyrics-native-fs'),
+    lyricsSyncCalibrator: document.getElementById('lyrics-sync-calibrator'),
+    btnSyncEarlier: document.getElementById('btn-sync-earlier'),
+    btnSyncReset: document.getElementById('btn-sync-reset'),
+    btnSyncLater: document.getElementById('btn-sync-later'),
+    lyricsTimingVal: document.getElementById('lyrics-timing-val'),
     lyricsHeaderThumb: document.getElementById('lyrics-header-thumb'),
     lyricsHeaderTitle: document.getElementById('lyrics-header-title'),
     lyricsHeaderArtist: document.getElementById('lyrics-header-artist'),
@@ -1283,6 +1289,7 @@
         `;
       }
     }
+    updateLyricsTimingUI();
     startLyricsRaf();
     requestWakeLock();
   }
@@ -1450,12 +1457,75 @@
     }
   }
 
+  // Dynamic Natural Vocal Duration Calculator
+  function getVocalSingingDuration(curLine, nextLine) {
+    if (!curLine) return 3.0;
+    const lineStart = curLine.time;
+    const nextTime = (nextLine && typeof nextLine.time === 'number') ? nextLine.time : null;
+    const rawGap = nextTime !== null ? Math.max(0.4, nextTime - lineStart) : 4.0;
+
+    const text = (curLine.text || '').replace(/[♪\(\)\[\]\{\}\.,!?\-—]/g, '').trim();
+    const words = text ? text.split(/\s+/).filter(Boolean).length : 1;
+    const chars = text.length;
+
+    // Natural vocal cadence: ~0.38s/word, ~0.055s/char + 0.35s vowel decay/sustain
+    const wordTime = words * 0.38 + 0.35;
+    const charTime = chars * 0.055 + 0.35;
+    const naturalSingingDuration = Math.max(1.1, Math.max(wordTime, charTime));
+
+    if (rawGap <= 2.2) {
+      // Continuous, rapid line delivery: sweep smoothly across almost the entire gap
+      return Math.max(0.5, rawGap - 0.08);
+    } else {
+      // Verse with musical breath or instrumental response:
+      // The lyrics sweep finishes naturally when the singer stops singing,
+      // and comfortably sustains at 100% lit through the pause.
+      return Math.min(rawGap - 0.3, naturalSingingDuration);
+    }
+  }
+
+  function adjustLyricsSyncOffset(delta) {
+    state.lyricsSyncOffset = Math.round(((state.lyricsSyncOffset || 0.28) + delta) * 100) / 100;
+    // Bound offset between -2.0s and +3.0s
+    state.lyricsSyncOffset = Math.max(-2.0, Math.min(3.0, state.lyricsSyncOffset));
+    try {
+      localStorage.setItem('swarify_lyrics_offset', String(state.lyricsSyncOffset));
+    } catch (_) {}
+    updateLyricsTimingUI();
+    if (state.isLyricsOpen) {
+      syncLyricsWithCurrentTime(audio.currentTime || 0);
+    }
+    const sign = state.lyricsSyncOffset > 0 ? '+' : '';
+    showToast(`Lyrics Timing: ${sign}${state.lyricsSyncOffset.toFixed(2)}s (${delta < 0 ? 'Earlier' : 'Later'})`);
+  }
+
+  function resetLyricsSyncOffset() {
+    state.lyricsSyncOffset = 0.28;
+    try {
+      localStorage.setItem('swarify_lyrics_offset', '0.28');
+    } catch (_) {}
+    updateLyricsTimingUI();
+    if (state.isLyricsOpen) {
+      syncLyricsWithCurrentTime(audio.currentTime || 0);
+    }
+    showToast('Lyrics Timing Reset to Standard (+0.28s)');
+  }
+
+  function updateLyricsTimingUI() {
+    if (!el.lyricsTimingVal) return;
+    const off = typeof state.lyricsSyncOffset === 'number' ? state.lyricsSyncOffset : 0.28;
+    const sign = off > 0 ? '+' : '';
+    el.lyricsTimingVal.textContent = `Sync: ${sign}${off.toFixed(2)}s`;
+  }
+
   function syncLyricsWithCurrentTime(currentTime) {
     if (!state.currentLyrics || state.currentLyrics.length === 0 || !state.lyricsSynced) return;
 
+    // Compensate for audio buffer & hardware latency using calibrated offset
+    const offset = typeof state.lyricsSyncOffset === 'number' ? state.lyricsSyncOffset : 0.28;
+    const t = currentTime + offset;
+
     let activeIdx = -1;
-    // Slight anticipation offset (100ms) for natural karaoke feel
-    const t = currentTime + 0.10;
     for (let i = 0; i < state.currentLyrics.length; i++) {
       if (t >= state.currentLyrics[i].time) {
         activeIdx = i;
@@ -1494,23 +1564,23 @@
       }
     }
 
-    // Direct active line progress update
+    // Direct active line progress update (interpolated with vocal speed)
     if (activeIdx >= 0 && state.currentLyrics[activeIdx]) {
       const curLine = state.currentLyrics[activeIdx];
       const nextLine = state.currentLyrics[activeIdx + 1];
       const lineStart = curLine.time;
-      const lineEnd = (nextLine && typeof nextLine.time === 'number') ? nextLine.time : (lineStart + 4.5);
-      const duration = Math.max(0.6, lineEnd - lineStart);
-      const elapsed = currentTime - lineStart;
-      const progress = Math.min(1.0, Math.max(0.0, elapsed / duration));
+      const duration = getVocalSingingDuration(curLine, nextLine);
+      const elapsed = t - lineStart;
+      const rawProgress = Math.min(1.0, Math.max(0.0, elapsed / duration));
+      const easedProgress = Math.min(1.0, Math.pow(rawProgress, 0.92));
       const activeEl = document.getElementById(`lyric-line-${activeIdx}`);
       if (activeEl) {
-        activeEl.style.setProperty('--line-progress', `${(progress * 100).toFixed(1)}%`);
+        activeEl.style.setProperty('--line-progress', `${(easedProgress * 100).toFixed(1)}%`);
       }
     }
   }
 
-  // 60FPS Fluid RAF Lyric Animation Loop
+  // 60-120 FPS Fluid RAF Lyric Animation Loop with Continuous Active Line Sync
   let lyricsRafId = null;
 
   function runLyricsRaf() {
@@ -1519,22 +1589,9 @@
       return;
     }
 
-    if (state.lyricsSynced && state.currentLyrics && state.currentLyricLineIndex >= 0 && !audio.paused) {
-      const curIdx = state.currentLyricLineIndex;
-      const curLine = state.currentLyrics[curIdx];
-      if (curLine && typeof curLine.time === 'number') {
-        const lineStart = curLine.time;
-        const nextLine = state.currentLyrics[curIdx + 1];
-        const lineEnd = (nextLine && typeof nextLine.time === 'number') ? nextLine.time : (lineStart + 4.5);
-        const duration = Math.max(0.6, lineEnd - lineStart);
-        const curTime = audio.currentTime || 0;
-        const elapsed = curTime - lineStart;
-        const progress = Math.min(1.0, Math.max(0.0, elapsed / duration));
-        const activeEl = document.getElementById(`lyric-line-${curIdx}`);
-        if (activeEl) {
-          activeEl.style.setProperty('--line-progress', `${(progress * 100).toFixed(1)}%`);
-        }
-      }
+    if (state.lyricsSynced && state.currentLyrics && !audio.paused) {
+      // Evaluate active line and karaoke gradient sweep on EVERY single frame for instant response!
+      syncLyricsWithCurrentTime(audio.currentTime || 0);
     }
 
     lyricsRafId = requestAnimationFrame(runLyricsRaf);
@@ -1609,6 +1666,10 @@
   if (el.sheetBtnLyrics) el.sheetBtnLyrics.addEventListener('click', openLyricsOverlay);
   if (el.btnCloseLyrics) el.btnCloseLyrics.addEventListener('click', closeLyricsOverlay);
   if (el.btnLyricsNativeFs) el.btnLyricsNativeFs.addEventListener('click', toggleNativeFullscreen);
+
+  if (el.btnSyncEarlier) el.btnSyncEarlier.addEventListener('click', () => adjustLyricsSyncOffset(-0.1));
+  if (el.btnSyncLater) el.btnSyncLater.addEventListener('click', () => adjustLyricsSyncOffset(0.1));
+  if (el.btnSyncReset) el.btnSyncReset.addEventListener('click', resetLyricsSyncOffset);
 
   if (el.lyricsBtnPlay) el.lyricsBtnPlay.addEventListener('click', togglePlayPause);
   if (el.lyricsBtnNext) el.lyricsBtnNext.addEventListener('click', () => playNext());
@@ -2976,6 +3037,15 @@
         e.preventDefault();
         closeLyricsOverlay();
       }
+    } else if (state.isLyricsOpen && e.key === '[') {
+      e.preventDefault();
+      adjustLyricsSyncOffset(-0.1);
+    } else if (state.isLyricsOpen && e.key === ']') {
+      e.preventDefault();
+      adjustLyricsSyncOffset(0.1);
+    } else if (state.isLyricsOpen && e.key === '0') {
+      e.preventDefault();
+      resetLyricsSyncOffset();
     } else if (e.key === 'ArrowRight') {
       e.preventDefault();
       try {

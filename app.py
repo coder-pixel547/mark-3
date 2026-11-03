@@ -2452,25 +2452,26 @@ def parse_lrc(lrc_text: str) -> List[Dict[str, Any]]:
     if not lrc_text:
         return []
     lines = []
-    pattern = re.compile(r'\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\](.*)')
+    tag_pattern = re.compile(r'\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]')
     for raw_line in lrc_text.splitlines():
         raw_line = raw_line.strip()
         if not raw_line:
             continue
-        m = pattern.match(raw_line)
-        if m:
+        tags = list(tag_pattern.finditer(raw_line))
+        if not tags:
+            continue
+        last_match = tags[-1]
+        text = raw_line[last_match.end():].strip()
+        # Omit LRC metadata headers like [ar:...], [al:...], [offset:...]
+        if re.match(r'^[a-zA-Z]{2,}:', text):
+            continue
+        for m in tags:
             minutes = int(m.group(1))
             seconds = int(m.group(2))
             millis = m.group(3)
-            if millis:
-                sub_sec = int(millis) / (100.0 if len(millis) == 2 else 1000.0)
-            else:
-                sub_sec = 0.0
+            sub_sec = (int(millis) / (100.0 if len(millis) == 2 else 1000.0)) if millis else 0.0
             total_time = round(minutes * 60 + seconds + sub_sec, 2)
-            text = m.group(4).strip()
-            # Omit LRC metadata headers like [ar:...], [al:...]
-            if not re.match(r'^[a-zA-Z]{2,}:', text):
-                lines.append({"time": total_time, "text": text or "♪"})
+            lines.append({"time": total_time, "text": text or "♪"})
     lines.sort(key=lambda x: x["time"])
     return lines
 

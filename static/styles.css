@@ -3110,6 +3110,72 @@ input:focus-visible,
   gap: 10px;
 }
 
+/* Lyrics Timing & Sync Calibrator */
+.lyrics-sync-calibrator {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 9999px;
+  padding: 2px 4px;
+  gap: 2px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.lyrics-sync-calibrator:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.26);
+}
+
+.btn-sync-adjust {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 4px 7px;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.btn-sync-adjust:hover {
+  color: #FFFFFF;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.btn-sync-adjust:active {
+  transform: scale(0.92);
+}
+
+.btn-sync-display {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(139, 92, 246, 0.24);
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  color: #F3E8FF;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-sync-display:hover {
+  background: rgba(139, 92, 246, 0.38);
+  color: #FFFFFF;
+}
+
+.btn-sync-display .sync-icon {
+  font-size: 0.7rem;
+}
+
 /* Stage Layout */
 .lyrics-stage {
   position: relative;
@@ -3238,10 +3304,10 @@ input:focus-visible,
   opacity: 0.35;
   filter: blur(0.8px);
   transform: scale(0.97) translateX(0);
-  transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1),
-              filter 0.45s cubic-bezier(0.2, 0.8, 0.2, 1),
-              opacity 0.45s cubic-bezier(0.2, 0.8, 0.2, 1),
-              background 0.3s ease;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              filter 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              background 0.2s ease;
   will-change: transform, filter, opacity;
 }
 
@@ -3300,14 +3366,14 @@ input:focus-visible,
 
 /* Active Line: Pop-In Spring & Pulsing Karaoke Glow */
 .lyric-line.active {
-  font-size: 2.45rem;
+  font-size: 2.35rem;
   font-weight: 800;
   opacity: 1 !important;
-  filter: drop-shadow(0 0 18px rgba(255, 255, 255, 0.75))
-          drop-shadow(0 0 38px rgba(139, 92, 246, 0.6)) !important;
-  transform: scale(1.07) translateX(14px);
-  animation: lyricPopIn 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards,
-             lyricBreathe 4s ease-in-out 0.45s infinite alternate;
+  filter: drop-shadow(0 0 18px rgba(255, 255, 255, 0.8))
+          drop-shadow(0 0 38px rgba(139, 92, 246, 0.65)) !important;
+  transform: scale(1.08) translateX(14px);
+  animation: lyricPopIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards,
+             lyricBreathe 4s ease-in-out 0.22s infinite alternate;
   z-index: 5;
   background: transparent;
 }
@@ -3328,15 +3394,11 @@ input:focus-visible,
 
 @keyframes lyricPopIn {
   0% {
-    transform: scale(0.97) translateX(2px);
-    filter: blur(1.5px);
-  }
-  60% {
-    transform: scale(1.10) translateX(18px);
-    filter: blur(0px);
+    transform: scale(0.98) translateX(3px);
+    filter: blur(1.0px);
   }
   100% {
-    transform: scale(1.07) translateX(14px);
+    transform: scale(1.08) translateX(14px);
     filter: blur(0px);
   }
 }
@@ -3579,7 +3641,19 @@ input:focus-visible,
     padding: max(12px, env(safe-area-inset-top)) 14px 10px 14px;
   }
   .lyrics-header-track-info {
-    max-width: 200px;
+    max-width: 170px;
+  }
+  .lyrics-sync-calibrator {
+    padding: 1px 3px;
+    gap: 1px;
+  }
+  .btn-sync-adjust {
+    padding: 3px 5px;
+    font-size: 0.68rem;
+  }
+  .btn-sync-display {
+    padding: 2px 6px;
+    font-size: 0.68rem;
   }
   .lyrics-header-track-info img {
     width: 26px;
