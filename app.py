@@ -2504,34 +2504,120 @@ CURATED_LYRICS: Dict[str, str] = {
 [02:58.50]Nanne thosthondhe.. Kada dhaaka nee yenake
 [03:05.00]♪ Solo Brathuke So Better ♪
 [03:40.00]♪ Outro ♪""",
-    "vqtx4eswify": """[00:00.00]♪ Music ♪
-[00:13.50]Mella mellagaa thalape thega thadime
-[00:19.80]Mella mellagaa kalathe kanumeruge
-[00:26.00]Mella mellagaa thalape thega thadime
-[00:32.20]Mella mellagaa kalathe kanumeruge
-[00:38.50]Kallalloki vachi kalalaaga vaali
-[00:45.00]Gundello ilaanti godavemo chesi
-[00:51.00]Velledela nannodili.. velledela nannodili
-[00:57.20]Mella mellagaa thalape thega thadime
-[01:03.50]Mella mellagaa kalathe kanumeruge
-[01:10.00]♪ Music Interlude ♪
-[01:22.00]Adugule thadabadi nadichina dhaarilo
-[01:28.50]Nee thalape edhurai nilichina velalo
-[01:34.80]Chirunavve chilike pedhavula kanchulo
-[01:41.20]Kanu paape merise thalukula velugulo
-[01:47.50]Praanam laanti prema chenthe undaaga
-[01:53.80]Lokam antha naadhe anukonaa
-[02:00.00]Mella mellagaa thalape thega thadime
-[02:06.50]Mella mellagaa kalathe kanumeruge
-[02:13.00]♪ Flute & Rhythm Interlude ♪
-[02:38.00]Kanti reppa venaka dhasthunnaane
-[02:44.20]Gunde gutilona daachunnaane
-[02:50.50]Kada daaka thodai untaanani
-[02:56.80]Kshanamaina vidichi undanani
-[03:03.00]Velledela nannodili.. velledela nannodili
-[03:09.50]Mella mellagaa thalape thega thadime
-[03:15.80]Mella mellagaa kalathe kanumeruge
-[03:22.00]♪ Melodic Outro ♪""",
+    "vqtx4eswify": """[00:00.00]♪ Music Intro ♪
+[00:15.50]Mella mella mella mellaga gundello
+[00:19.40]Kottha rangu challaave
+[00:23.20]Mella mella mella mellagaa
+[00:27.10]Kannullo matthu laaga allaave
+[00:31.00]Kalaa nizam oke kshanam
+[00:34.50]Ayomayanga undhe
+[00:38.80]Chero sagam panche vidham
+[00:42.50]Idhemito bagundhe
+[00:46.40]Mella mella mella mellagaa gundello
+[00:50.50]Kottha rangu challaave
+[00:54.30]Mella mella mella mellaga
+[00:58.20]Kannullo matthu laaga allaave
+[01:03.50]Neetho cheruthu yedho kotthaga
+[01:07.40]Maro nenula maaraane
+[01:11.30]Padha rammani alaa velitho
+[01:15.10]Kaalaanne ila aapaave
+[01:18.90]Endhukemo mundhu ledhe ee haayi
+[01:23.00]Sandhademo alluthune neevaipoye
+[01:27.40]Prathi kshanam santhoshame
+[01:31.00]Neneppudu choodandhe
+[01:33.20]Prapanchame choosanule
+[01:35.40]Neela yedhi ladhanthe
+[01:38.50]Mella mella mella mellaga
+[01:42.50]Gundello kottha rangu challaave
+[01:46.40]Mella mella mella mellaga
+[01:50.20]Kannullo matthu laaga allaave
+[01:54.00]♪ Melodic Interlude ♪
+[02:10.50]Merise lopale manase ye
+[02:14.30]Murise neevila kalise ye
+[02:18.20]Nimishalu rojulai
+[02:22.00]Nilichenu chethilo
+[02:25.80]Nenunta needala ilaa
+[02:29.80]Neethone anni velalaa
+[02:34.50]Mella mella mella mellaga nacchade
+[02:38.20]Allaredho thecchaade
+[02:42.20]Mella mella mella mellaga nacchade
+[02:45.90]Aashalevo icchaade
+[02:49.80]Mella mella mella mellaga gundello
+[02:53.90]Kottha rangu challaave
+[02:57.70]Mella mella mella mellaga
+[03:01.60]Kannullo matthu laaga allaavee
+[03:07.00]♪ Instrumental Outro ♪""",
+    "a-yrni_zzqy": """[00:00.00]♪ Music Intro ♪
+[00:15.50]Aaaaaa... aaaaa...
+[00:23.10]Toli Toli Aase Emandhe
+[00:27.20]Manasa Telusa Telusaa
+[00:30.85]Pedavula Paina Chirunavvai Kothagaa
+[00:37.40]Chali Chali Gaalai Thaake
+[00:41.50]Ee Oosula Varasa Varasaa
+[00:45.30]Tagadanukunna Bavundaa Ilaa
+[00:51.60]Adedo Jarigindhe Manasa Telusa Telusaa
+[00:59.40]Pedavula Paina Chirunavvai Kothagaa
+[01:06.00]Chali Chali Gaalai Thaake
+[01:10.10]Ee Oosula Varasa Varasaa
+[01:13.90]Tagadanukunna Bavundaa Ilaa
+[01:18.95]Mellaga Mellaga Navvule Challaga
+[01:23.30]Mellaga... Mellaga...
+[01:29.60]Oohale Allaga
+[01:32.40]Mellaga... Mellaga...
+[01:38.00]♪ Musical Interlude ♪
+[01:48.80]Emayyindo Chinukai Yedalo Modalai
+[01:52.40]Oka Alajadi Popommantu Itu Tariminadaa
+[01:57.10]Lo Lo Evoo Idhivarakepuderugani Talapula Jathalo
+[02:04.30]Kaadanaleni Kalisina Anandanni Nijamani Nammalandaa Ee Chelimi
+[02:13.65]Toli Toli Aase Emandhe
+[02:17.65]Manasa Telusa Telusaa
+[02:21.40]Pedavula Paina Chirunavvai Kothagaa
+[02:27.90]Chali Chali Gaalai Thaake
+[02:32.00]Ee Oosula Varasa Varasaa
+[02:35.80]Tagadanukunna Bavundaa Ilaa
+[02:42.20]Mellaga Mellaga Navvule Challaga
+[02:46.50]Mellaga... Mellaga...
+[02:52.90]Oohale Allaga
+[02:55.70]Mellaga... Mellaga...
+[03:02.00]♪ Outro ♪""",
+    "mellaga karagani": """[00:00.00]♪ Music Intro ♪
+[00:15.50]Mellaga karagani rendu manasula dhooram
+[00:19.40]Challaga theravani konte thalapula dwaaram
+[00:23.70]Valapu vaana dhaaraale pamputhunnadhi aakaasham
+[00:29.80]Chinuku poola haaraalai alluthunnadhi mana kosam
+[00:35.80]Thadipi thadipi thanatho nadipi
+[00:39.90]Harivillunu vanthena vesina shubha velaa
+[00:45.30]Ee varsham saakshigaa thelapani nuvu naake sontham
+[00:53.60]Ee varsham saakshigaa kalapanee bandham
+[01:00.00]Mellaga karagani rendu manasula dhooram
+[01:04.20]Challaga theravani konte thalapula dwaaram
+[01:10.00]♪ Music & Sitar Solo ♪
+[01:21.00]Nee melikalalona aa merupulu choosthunnaa
+[01:25.10]Ee tholakarilo thalathala naatyam needhenaa
+[01:29.30]Aa urumulalona nee pilupulu vinthunnaa
+[01:33.40]Ee chitapatalo chitichela thaalam needhenaa
+[01:37.40]Mathi chedi daahamai anusarinchi vasthunnaa
+[01:41.50]Jatha pade snehamai anunayinchanaa
+[01:45.60]Chali pidugula sadi vini jadisinna
+[01:49.00]Bidiyaamu thadabadi ninu vidagaa
+[01:53.20]Ee varsham saakshigaa thelapani nuvu naake sontham
+[02:01.30]Ee varsham saakshigaa kalapanee bandham
+[02:08.00]♪ Instrumental Interlude ♪
+[02:26.50]Ye therumarugainaa ee choravanu aapenaa
+[02:30.50]Naa paruvamu nee kanulaku kaanukanisthunnaa
+[02:34.70]Ye chiru chinukainaa nee sirulanu choopenaa
+[02:38.90]Aa varunidike runapadiponaa
+[02:42.90]Ee painaa thvarapade vayasune nilupalenu
+[02:47.00]Ikapainaa vidudhale vaddhane mudulu veyanaa
+[02:51.10]Mana kalayika chedharani chelimiki rujuvani
+[02:54.80]Charithalu chadivelaa
+[02:58.70]Ee varsham saakshigaa thelapani nuvu naake sontham
+[03:06.80]Ee varsham saakshigaa kalapanee bandham
+[03:13.20]Mellaga karagani rendu manasula dhooram
+[03:17.30]Challaga theravani konte thalapula dwaaram
+[03:21.50]Valapu vaana dhaaraale pamputhunnadhi aakaasham
+[03:27.70]Chinuku poola haaraalai alluthunnadhi mana kosam
+[03:34.00]♪ Grand Finish ♪""",
     "-gydnfptgus": """[00:00.00]♪ Music Intro ♪
 [00:18.00]Vellipomaakey.. Vellipomaakey
 [00:27.50]Nannu vadili ekkadiki vellipomaakey
@@ -2555,8 +2641,30 @@ CURATED_LYRICS: Dict[str, str] = {
 # Alias titles in CURATED_LYRICS
 CURATED_LYRICS["hey idi nenena"] = CURATED_LYRICS["amgn686qci0"]
 CURATED_LYRICS["hey idhi nenena"] = CURATED_LYRICS["amgn686qci0"]
+
+# ABCD (Sid Sriram, Aditi Bhavaraju)
 CURATED_LYRICS["mella mellaga"] = CURATED_LYRICS["vqtx4eswify"]
 CURATED_LYRICS["mella mellagaa"] = CURATED_LYRICS["vqtx4eswify"]
+CURATED_LYRICS["mella mellaga abcd"] = CURATED_LYRICS["vqtx4eswify"]
+CURATED_LYRICS["abcd mella mellaga"] = CURATED_LYRICS["vqtx4eswify"]
+CURATED_LYRICS["mella mellaga video song"] = CURATED_LYRICS["vqtx4eswify"]
+CURATED_LYRICS["fla_f979gfu"] = CURATED_LYRICS["vqtx4eswify"]
+
+# Chi La Sow (Chinmayi Sripaada)
+CURATED_LYRICS["n26h9rkchy4"] = CURATED_LYRICS["a-yrni_zzqy"]
+CURATED_LYRICS["wnhvcmmdnrw"] = CURATED_LYRICS["a-yrni_zzqy"]
+CURATED_LYRICS["mellaga mellaga"] = CURATED_LYRICS["a-yrni_zzqy"]
+CURATED_LYRICS["mellaga mellagaa"] = CURATED_LYRICS["a-yrni_zzqy"]
+CURATED_LYRICS["mellaga mellage"] = CURATED_LYRICS["a-yrni_zzqy"]
+CURATED_LYRICS["mellaga mellaga chi la sow"] = CURATED_LYRICS["a-yrni_zzqy"]
+CURATED_LYRICS["chi la sow mellaga mellaga"] = CURATED_LYRICS["a-yrni_zzqy"]
+CURATED_LYRICS["chi la sow"] = CURATED_LYRICS["a-yrni_zzqy"]
+
+# Varsham (Prabhas, Trisha, Devi Sri Prasad)
+CURATED_LYRICS["mellaga karagani varsham"] = CURATED_LYRICS["mellaga karagani"]
+CURATED_LYRICS["varsham mellaga karagani"] = CURATED_LYRICS["mellaga karagani"]
+
+# Vellipomaakey
 CURATED_LYRICS["vellipomaake"] = CURATED_LYRICS["-gydnfptgus"]
 CURATED_LYRICS["vellipomaakey"] = CURATED_LYRICS["-gydnfptgus"]
 
@@ -2685,7 +2793,16 @@ async def get_lyrics(
                 if s_resp.status_code == 200:
                     results = s_resp.json()
                     if isinstance(results, list) and results:
-                        best = next((x for x in results if x.get("syncedLyrics")), results[0])
+                        valid_candidates = []
+                        for c in results:
+                            c_dur = c.get("duration")
+                            if expected_dur_sec and c_dur:
+                                if abs(c_dur - expected_dur_sec) > 35:
+                                    continue
+                            valid_candidates.append(c)
+
+                        candidates_pool = valid_candidates if valid_candidates else results
+                        best = next((x for x in candidates_pool if x.get("syncedLyrics")), candidates_pool[0])
                         if best.get("syncedLyrics"):
                             res_data = {
                                 "status": "ok",
