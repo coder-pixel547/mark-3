@@ -886,6 +886,12 @@
       el.lyricsAmbientBackdrop.style.backgroundImage = `url('${thumbUrl}')`;
     }
 
+    const isTelugu = isTeluguTrack(track);
+    const lyricsBtnTitle = isTelugu ? 'Lyrics are turned off for Telugu songs' : 'Show Synchronized Lyrics';
+    if (el.btnPlayerBarLyrics) el.btnPlayerBarLyrics.title = lyricsBtnTitle;
+    if (el.sheetBtnLyrics) el.sheetBtnLyrics.title = lyricsBtnTitle;
+    if (el.btnToggleLyrics) el.btnToggleLyrics.title = lyricsBtnTitle;
+
     if (state.isLyricsOpen) {
       fetchAndRenderLyrics(track);
     }
@@ -1231,6 +1237,40 @@
     });
   }
 
+  const TELUGU_TRACK_IDS = [
+    'g44vxmcfh4', '_0ak7rwplmu', 'ybbg6v6zerc', '2mdcvzruyzq', '-gydnfptgus',
+    'vqtx4eswify', 'amgn686qci0', 'edvydlhcviy', 'lh6c2btm8p0', '4_eegjhsbmo',
+    'lpezoe8zihi', 'dokqeqgnjwy', 'gvyuuxdrdr4', 'a-yrni_zzqy', 'n26h9rkchy4',
+    'wnhvcmmdnrw', 'fla_f979gfu'
+  ];
+
+  const TELUGU_KEYWORDS = [
+    'telugu', 'mella mellaga', 'mellaga mellaga', 'mellaga karagani', 'mellaga',
+    'hey idi nenena', 'hey idhi nenena', 'vellipomaake', 'vellipomaakey',
+    'chi la sow', 'varsham', 'solo brathuke so better', 'samajavaragamana',
+    'butta bomma', 'ramuloo ramulaa', 'saranga dariya', 'oo antava', 'srivalli',
+    'naatu naatu', 'dheevara', 'pilla raa'
+  ];
+
+  function isTeluguTrack(track) {
+    if (!track) return false;
+    const lang = (track.language || '').toLowerCase().trim();
+    if (lang === 'telugu') return true;
+
+    const title = (track.title || '').toLowerCase();
+    const artist = (track.artist || '').toLowerCase();
+    const album = (track.album || '').toLowerCase();
+    const trackId = (track.id || track.videoId || '').toLowerCase();
+
+    if (TELUGU_TRACK_IDS.includes(trackId)) return true;
+    if (title.includes('telugu') || artist.includes('telugu') || album.includes('telugu')) return true;
+
+    for (const kw of TELUGU_KEYWORDS) {
+      if (title.includes(kw) || album.includes(kw)) return true;
+    }
+    return false;
+  }
+
   // ==========================================
   // Full-Screen Synchronized Lyrics Experience
   // ==========================================
@@ -1320,6 +1360,27 @@
     const trackId = track.id || track.videoId;
     if (!trackId) return;
 
+    // Remove / disable lyrics for Telugu songs completely
+    if (isTeluguTrack(track)) {
+      state.activeLyricsTrackId = trackId;
+      state.currentLyrics = null;
+      state.lyricsSynced = false;
+      state.currentLyricLineIndex = -1;
+      state.userScrolledLyrics = false;
+      if (el.btnResyncLyrics) el.btnResyncLyrics.classList.add('hidden');
+      if (el.lyricsSyncBadge) el.lyricsSyncBadge.classList.add('hidden');
+      if (el.lyricsContentList) {
+        el.lyricsContentList.innerHTML = `
+          <div class="lyrics-empty-state">
+            <div class="lyrics-empty-icon">🎵</div>
+            <h3>Lyrics Disabled</h3>
+            <p>Lyrics are turned off for Telugu songs.</p>
+          </div>
+        `;
+      }
+      return;
+    }
+
     // Avoid refetching if same track lyrics are already active
     if (state.activeLyricsTrackId === trackId && state.currentLyrics && state.currentLyrics.length > 0) {
       syncLyricsWithCurrentTime(audio.currentTime || 0);
@@ -1346,7 +1407,8 @@
         title: track.title || '',
         artist: track.artist || '',
         id: trackId,
-        duration: durSec ? String(durSec) : (track.duration || '')
+        duration: durSec ? String(durSec) : (track.duration || ''),
+        lang: track.language || ''
       });
 
       const res = await fetch(`/api/lyrics?${params.toString()}`);
@@ -1362,11 +1424,12 @@
         state.lyricsSynced = false;
         if (el.lyricsSyncBadge) el.lyricsSyncBadge.classList.add('hidden');
         if (el.lyricsContentList) {
+          const isTeluguMsg = data && data.message && data.message.toLowerCase().includes('telugu');
           el.lyricsContentList.innerHTML = `
             <div class="lyrics-empty-state">
               <div class="lyrics-empty-icon">🎵</div>
-              <h3>No Synced Lyrics Found</h3>
-              <p>We couldn't locate synchronized lyrics for "${escapeHtml(track.title)}". Enjoy the rhythm!</p>
+              <h3>${isTeluguMsg ? 'Lyrics Disabled' : 'No Synced Lyrics Found'}</h3>
+              <p>${isTeluguMsg ? 'Lyrics are turned off for Telugu songs.' : `We couldn't locate synchronized lyrics for "${escapeHtml(track.title)}". Enjoy the rhythm!`}</p>
             </div>
           `;
         }

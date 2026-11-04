@@ -2475,207 +2475,44 @@ def parse_lrc(lrc_text: str) -> List[Dict[str, Any]]:
     lines.sort(key=lambda x: x["time"])
     return lines
 
-CURATED_LYRICS: Dict[str, str] = {
-    "amgn686qci0": """[00:00.00]♪ Music ♪
-[00:15.50]Hey idi nenena.. Hey idi nijamena
-[00:22.00]Aa addhamlona kothaga kanabaduthunna
-[00:28.50]Ee solo bathuke nuvvochesake
-[00:35.00]Nanne thosthondhe.. Kada dhaaka nee yenake
-[00:41.50]Hey idi nenena.. Hey idi nijamena
-[00:48.00]Aa addhamlona kothaga kanabaduthunna
-[00:54.50]Ee solo bathuke nuvvochesake
-[01:01.00]Nanne thosthondhe.. Kada dhaaka nee yenake
-[01:07.50]Naa roju rathri maarayi kothaga
-[01:14.00]Nee gnapakaala thoorepu thalapula
-[01:20.50]Kanneeti bottu laanti o chirunavve
-[01:27.00]Nee maata vinagaane poola thotalaaye
-[01:33.50]Nee jatha leka nenu nenuga lene
-[01:40.00]Nee vente unte lokamantha naadhe
-[01:47.00]♪ Music Interlude ♪
-[02:00.00]Gundello daachukunna mounamilaage
-[02:06.50]Neethone maatalaadi paatala maare
-[02:13.00]Kallallo koluvunna kalalanni thelise
-[02:19.50]Nee choopu thakagaane rekkaloche
-[02:26.00]Nee sneham tho nenu malli puttane
-[02:32.50]Nee jathalo prathi kshanam pandage
-[02:39.00]Hey idi nenena.. Hey idi nijamena
-[02:45.50]Aa addhamlona kothaga kanabaduthunna
-[02:52.00]Ee solo bathuke nuvvochesake
-[02:58.50]Nanne thosthondhe.. Kada dhaaka nee yenake
-[03:05.00]♪ Solo Brathuke So Better ♪
-[03:40.00]♪ Outro ♪""",
-    "vqtx4eswify": """[00:00.00]♪ Music Intro ♪
-[00:21.80]Mella mella mella mellaga gundello
-[00:26.00]Kottha rangu challaave
-[00:28.80]Mella mella mella mellaga
-[00:32.90]Kannullo matthu laaga allaave
-[00:36.80]Kala nijam oke kshanam
-[00:40.00]Aayo mayamga undhe
-[00:43.70]Chero sagam panche vidham
-[00:47.00]Idhemito bagundhe
-[00:50.20]Mella mella mella mellaga gundello
-[00:54.50]Kottha rangu challaave
-[00:57.30]Mella mella mella mellaga
-[01:01.60]Kannullo matthu laaga allaave
-[01:06.00]♪ Melodic Interlude ♪
-[01:19.60]Neetho cheruthu yedho kotthaga
-[01:23.30]Maaro nenula maaraane
-[01:26.70]Padha rammani alaa velitho
-[01:30.30]Kaalaanne ila aapaave
-[01:33.90]Endhukemo mundhu ledhe ee haayi
-[01:37.40]Sandhademo alluthune neevaipoye
-[01:41.10]Prathi kshanam santhoshame
-[01:44.50]Neneppudu choodandhe
-[01:46.40]Prapanchamey choosanule
-[01:48.60]Neela yedhi ledhanthe
-[01:52.20]Mella mella mella mellaga
-[01:56.30]Gundello kottha rangu challaave
-[01:59.20]Mella mella mella mellaga
-[02:03.30]Kannullo matthu laaga allaave
-[02:08.50]♪ Musical Interlude ♪
-[02:20.60]Merise lopale manase
-[02:24.00]Murise neevila kalise
-[02:27.60]Nimishalu rojulayi
-[02:31.00]Nilichenu chethilo
-[02:34.70]Nenunta needala ilaa
-[02:38.20]Neethone anni velalaa
-[02:42.80]Mella mella mella mellaga nacchade
-[02:46.20]Allaredho thecchaade
-[02:49.70]Mella mella mella mellaga nacchade
-[02:53.20]Aashalevo icchaade
-[02:56.80]Mella mella mella mellaga gundello
-[03:00.20]Kottha rangu challaave
-[03:03.70]Mella mella mella mellaga
-[03:07.10]Kannullo matthu laaga allaave
-[03:12.50]♪ Instrumental Outro ♪""",
-    "a-yrni_zzqy": """[00:00.00]♪ Music Intro ♪
-[00:11.80]Aaaaaa... aaaaa...
-[00:21.80]Toli Toli Aase Emandhe
-[00:25.10]Manasa Telusa Telusaa
-[00:28.00]Pedavula Paina Chirunavvai Kothagaa
-[00:34.00]Chali Chali Gaalai Thaake
-[00:37.50]Ee Oosula Varasa Varasaa
-[00:40.40]Tagadanukunna Bavundaa Ilaa
-[00:46.60]Adedo Jarigindhe
-[00:49.90]Manasa Telusa Telusaa
-[00:52.80]Pedavula Paina Chirunavvai Kothagaa
-[00:58.80]Chali Chali Gaalai Thaake
-[01:02.30]Ee Oosula Varasa Varasaa
-[01:05.20]Tagadanukunna Bavundaa Ilaa
-[01:10.40]Mellaga Mellaga Navvule Challaga
-[01:16.40]Mellaga... Mellaga...
-[01:19.60]Mellaga... Mellaga...
-[01:22.60]Oohale Allaga
-[01:26.10]Mellaga... Mellaga...
-[01:31.50]♪ Musical Interlude ♪
-[01:44.60]Toli Toli Aase Emandhe
-[01:48.00]Manasa Telusa Telusaa
-[01:51.00]Pedavula Paina Chirunavvai Kothagaa
-[01:56.90]Chali Chali Gaalai Thaake
-[02:00.40]Ee Oosula Varasa Varasaa
-[02:03.30]Tagadanukunna Bavundaa Ilaa
-[02:09.10]Emayyindo Chinukai Yedalo
-[02:12.60]Modalai Oka Alajadi
-[02:15.40]Popommantu Itu Tariminadaa
-[02:21.30]Lo Lo Evoo Idhivarakepuderugani
-[02:26.50]Talapula Jathalo
-[02:28.40]Kaadanaleni Kalisina Anandanni
-[02:32.60]Nijamani Nammalandaa Ee Chelimi
-[02:37.20]Toli Toli Aase Emandhe
-[02:40.60]Manasa Telusa Telusaa
-[02:43.50]Pedavula Paina Chirunavvai Kothagaa
-[02:49.50]Chali Chali Gaalai Thaake
-[02:53.00]Ee Oosula Varasa Varasaa
-[02:55.90]Tagadanukunna Bavundaa Ilaa
-[03:01.00]Mellaga Mellaga Navvule Challaga
-[03:07.10]Mellaga... Mellaga...
-[03:10.20]Mellaga... Mellaga...
-[03:13.20]Oohale Allaga
-[03:16.60]Mellaga... Mellaga...
-[03:22.50]♪ Outro ♪""",
-    "mellaga karagani": """[00:00.00]♪ Music Intro ♪
-[00:27.60]Mellaga karagani rendu manasula dooram
-[00:31.20]Challaga theravani konte thalapula dwaaram
-[00:35.30]Valapu vaana dhaaraale pamputhunnadhi aakaasham
-[00:39.80]Chinuku poola haaraalai alluthunnadhi mana kosam
-[00:43.90]Thadipi thadipi thanatho nadipi
-[00:47.80]Harivillunu vanthena vesina shubhavele
-[00:52.20]Ee varsham saakshigaa thelapani nuvu naake sontham
-[01:00.90]Ee varsham saakshigaa kalapanee bandham
-[01:07.30]Mellaga karagani rendu manasula dooram
-[01:11.30]Challaga theravani konte thalapula dwaaram
-[01:16.60]♪ Musical Interlude ♪
-[01:29.60]Nee melikalalona aa merupulu choosthunnaa
-[01:33.60]Ee tholakarilo thalathala naatyam needenaa
-[01:37.70]Aa urumulalona nee pilupulu vinthunnaa
-[01:41.80]Ee chitapatalo chitikelu thaalam needenaa
-[01:45.90]Mathi chedi daahamai anusarinchi vasthunnaa
-[01:50.10]Jatha pade snehamai anunayinchanaa
-[01:54.20]Chali pidugula sadi vini jadisinna bidiyamu thadabadi ninu vidagaa
-[02:02.50]Ee varsham saakshigaa thelapani nuvu naake sontham
-[02:10.80]Ee varsham saakshigaa kalapanee bandham
-[02:18.60]♪ Flute & Rhythm Interlude ♪
-[02:34.40]Ye theramarugainaa ee choravanu aapenaa
-[02:38.60]Naa paruvamu nee kanulaku kaanukanisthunnaa
-[02:42.70]Ye chiru chinukainaa nee sirulanu choopenaa
-[02:46.90]Aa varunike runapadiponaa
-[02:50.20]Ikapaina thvarapade vayasune nilupalenu ikapainaa
-[02:56.90]Vidhudhale vaddhane mudulu veyanaa
-[03:01.10]Mana kalayika chedarani chelimiki rujuvani charithalu chadivelaa
-[03:09.40]Ee varsham saakshiga thelapani nuvu naake sontham
-[03:17.80]Ee varsham saakshiga kalapani bandham
-[03:24.20]Mellaga karagani rendu manasula dooram
-[03:28.20]Challaga theravani konte thalapula dwaaram
-[03:33.60]♪ Outro ♪""",
-    "-gydnfptgus": """[00:00.00]♪ Music Intro ♪
-[00:18.00]Vellipomaakey.. Vellipomaakey
-[00:27.50]Nannu vadili ekkadiki vellipomaakey
-[00:37.00]Vellipomaakey.. Vellipomaakey
-[00:46.00]Nuvvu leka nenu lene vellipomaakey
-[00:55.50]Neeve naa swasavai
-[01:00.00]Neeve naa aashavai
-[01:05.00]Pranam lo kalisipoyaave
-[01:14.00]Kallallo nilichipoyaave
-[01:23.00]Vellipomaakey.. Vellipomaakey
-[01:32.00]Nannu vadili ekkadiki vellipomaakey
-[01:42.00]♪ Musical Interlude ♪
-[02:15.00]Naa gundelona unna premantha neeke
-[02:24.00]Naa kanula lona unde swapnantha neeke
-[02:33.00]Vidiponi bandhamai nuvvu undu naathone
-[02:42.00]Kada varaku saagipodhaam mana prema daare
-[02:51.00]Vellipomaakey.. Vellipomaakey
-[03:00.00]Nannu vadili ekkadiki vellipomaakey"""
+CURATED_LYRICS: Dict[str, str] = {}
+
+TELUGU_TRACK_IDS = {
+    "g44vxmcfh4", "_0ak7rwplmu", "ybbg6v6zerc", "2mdcvzruyzq", "-gydnfptgus",
+    "vqtx4eswify", "amgn686qci0", "edvydlhcviy", "lh6c2btm8p0", "4_eegjhsbmo",
+    "lpezoe8zihi", "dokqeqgnjwy", "gvyuuxdrdr4", "a-yrni_zzqy", "n26h9rkchy4",
+    "wnhvcmmdnrw", "fla_f979gfu"
+}
+for _t in CURATED_TRACKS.get("telugu", []):
+    if _t.get("id"):
+        TELUGU_TRACK_IDS.add(_t["id"].strip().lower())
+
+TELUGU_KEYWORDS = {
+    "telugu", "mella mellaga", "mellaga mellaga", "mellaga karagani", "mellaga",
+    "hey idi nenena", "hey idhi nenena", "vellipomaake", "vellipomaakey",
+    "chi la sow", "varsham", "solo brathuke so better", "samajavaragamana",
+    "butta bomma", "ramuloo ramulaa", "saranga dariya", "oo antava", "srivalli",
+    "naatu naatu", "dheevara", "pilla raa"
 }
 
-# Alias titles in CURATED_LYRICS
-CURATED_LYRICS["hey idi nenena"] = CURATED_LYRICS["amgn686qci0"]
-CURATED_LYRICS["hey idhi nenena"] = CURATED_LYRICS["amgn686qci0"]
-
-# ABCD (Sid Sriram, Aditi Bhavaraju)
-CURATED_LYRICS["mella mellaga"] = CURATED_LYRICS["vqtx4eswify"]
-CURATED_LYRICS["mella mellagaa"] = CURATED_LYRICS["vqtx4eswify"]
-CURATED_LYRICS["mella mellaga abcd"] = CURATED_LYRICS["vqtx4eswify"]
-CURATED_LYRICS["abcd mella mellaga"] = CURATED_LYRICS["vqtx4eswify"]
-CURATED_LYRICS["mella mellaga video song"] = CURATED_LYRICS["vqtx4eswify"]
-CURATED_LYRICS["fla_f979gfu"] = CURATED_LYRICS["vqtx4eswify"]
-
-# Chi La Sow (Chinmayi Sripaada)
-CURATED_LYRICS["n26h9rkchy4"] = CURATED_LYRICS["a-yrni_zzqy"]
-CURATED_LYRICS["wnhvcmmdnrw"] = CURATED_LYRICS["a-yrni_zzqy"]
-CURATED_LYRICS["mellaga mellaga"] = CURATED_LYRICS["a-yrni_zzqy"]
-CURATED_LYRICS["mellaga mellagaa"] = CURATED_LYRICS["a-yrni_zzqy"]
-CURATED_LYRICS["mellaga mellage"] = CURATED_LYRICS["a-yrni_zzqy"]
-CURATED_LYRICS["mellaga mellaga chi la sow"] = CURATED_LYRICS["a-yrni_zzqy"]
-CURATED_LYRICS["chi la sow mellaga mellaga"] = CURATED_LYRICS["a-yrni_zzqy"]
-CURATED_LYRICS["chi la sow"] = CURATED_LYRICS["a-yrni_zzqy"]
-
-# Varsham (Prabhas, Trisha, Devi Sri Prasad)
-CURATED_LYRICS["mellaga karagani varsham"] = CURATED_LYRICS["mellaga karagani"]
-CURATED_LYRICS["varsham mellaga karagani"] = CURATED_LYRICS["mellaga karagani"]
-
-# Vellipomaakey
-CURATED_LYRICS["vellipomaake"] = CURATED_LYRICS["-gydnfptgus"]
-CURATED_LYRICS["vellipomaakey"] = CURATED_LYRICS["-gydnfptgus"]
+def is_telugu_song(title: str, artist: Optional[str] = None, vid_id: Optional[str] = None, lang: Optional[str] = None) -> bool:
+    if lang and lang.strip().lower() == "telugu":
+        return True
+    vid = (vid_id or "").strip().lower()
+    if vid and vid in TELUGU_TRACK_IDS:
+        return True
+    if vid and vid in VIDEO_INFO_MAP:
+        v_info = VIDEO_INFO_MAP[vid]
+        if (v_info.get("language") or "").strip().lower() == "telugu":
+            return True
+    clean_title = (title or "").lower()
+    clean_artist = (artist or "").lower()
+    if "telugu" in clean_title or "telugu" in clean_artist:
+        return True
+    for kw in TELUGU_KEYWORDS:
+        if kw in clean_title:
+            return True
+    return False
 
 LYRICS_CACHE: Dict[str, Dict[str, Any]] = {}
 MAX_LYRICS_CACHE_ENTRIES = 500
@@ -2686,11 +2523,13 @@ async def get_lyrics(
     title: str = Query(..., description="Song title"),
     artist: Optional[str] = Query(None, description="Artist name"),
     duration: Optional[str] = Query(None, description="Duration in seconds or mm:ss"),
-    id: Optional[str] = Query(None, description="Video ID or Track ID")
+    id: Optional[str] = Query(None, description="Video ID or Track ID"),
+    lang: Optional[str] = Query(None, description="Song language")
 ):
     """
     Returns time-synchronized lyrics (LRC lines with millisecond precision) or plain lyrics.
     Leverages curated studio lyrics, LRCLIB API, and high-performance in-memory caching.
+    Lyrics are explicitly disabled for Telugu songs.
     """
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     clean_t = re.sub(r'[\(\[\{].*?[\)\]\}]', '', title).strip().lower()
@@ -2698,6 +2537,20 @@ async def get_lyrics(
     clean_t = re.sub(r'\s+', ' ', clean_t).strip()
     vid_key = (id or "").strip().lower()
     dur_sec = parse_duration_to_seconds(duration) if duration else None
+
+    # Block lyrics for Telugu songs completely
+    if is_telugu_song(title, artist, id, lang):
+        return {
+            "status": "not_found",
+            "success": False,
+            "available": False,
+            "synced": False,
+            "lines": [],
+            "plain": "",
+            "message": "Lyrics are disabled for Telugu songs",
+            "title": title,
+            "artist": artist
+        }
 
     # 1. Curated fast-path by exact track ID
     if vid_key and vid_key in CURATED_LYRICS:
@@ -2713,78 +2566,6 @@ async def get_lyrics(
             "title": title,
             "artist": artist or "Swarify"
         }
-
-    # 1b. Smart Disambiguation for "mella" / "mellaga" / "mellage"
-    if "mella" in clean_t or "mellag" in clean_t:
-        # Check Varsham (dur ~ 321s)
-        if "varsham" in clean_t or "karagani" in clean_t or (dur_sec and dur_sec > 280):
-            lrc = CURATED_LYRICS["mellaga karagani"]
-            return {
-                "status": "ok",
-                "success": True,
-                "available": True,
-                "synced": True,
-                "lines": parse_lrc(lrc),
-                "plain": re.sub(r'\[.*?\]', '', lrc).strip(),
-                "source": "curated-varsham",
-                "title": title,
-                "artist": artist or "Swarify"
-            }
-        # Check ABCD (dur ~ 243s, Sid Sriram, Aditi Bhavaraju)
-        if "abcd" in clean_t or "sid sriram" in (artist or "").lower() or (dur_sec and 220 <= dur_sec <= 270):
-            lrc = CURATED_LYRICS["vqtx4eswify"]
-            return {
-                "status": "ok",
-                "success": True,
-                "available": True,
-                "synced": True,
-                "lines": parse_lrc(lrc),
-                "plain": re.sub(r'\[.*?\]', '', lrc).strip(),
-                "source": "curated-abcd",
-                "title": title,
-                "artist": artist or "Swarify"
-            }
-        # Check Chi La Sow (dur ~ 204s, Chinmayi Sripaada)
-        if "chi la sow" in clean_t or "chinmayi" in (artist or "").lower() or (dur_sec and dur_sec < 220):
-            lrc = CURATED_LYRICS["a-yrni_zzqy"]
-            return {
-                "status": "ok",
-                "success": True,
-                "available": True,
-                "synced": True,
-                "lines": parse_lrc(lrc),
-                "plain": re.sub(r'\[.*?\]', '', lrc).strip(),
-                "source": "curated-chilasow",
-                "title": title,
-                "artist": artist or "Swarify"
-            }
-        # Default fallback for "mella"
-        if "mella mellaga" in clean_t or "mella mellagaa" in clean_t:
-            lrc = CURATED_LYRICS["vqtx4eswify"]
-            return {
-                "status": "ok",
-                "success": True,
-                "available": True,
-                "synced": True,
-                "lines": parse_lrc(lrc),
-                "plain": re.sub(r'\[.*?\]', '', lrc).strip(),
-                "source": "curated-abcd",
-                "title": title,
-                "artist": artist or "Swarify"
-            }
-        else:
-            lrc = CURATED_LYRICS["a-yrni_zzqy"]
-            return {
-                "status": "ok",
-                "success": True,
-                "available": True,
-                "synced": True,
-                "lines": parse_lrc(lrc),
-                "plain": re.sub(r'\[.*?\]', '', lrc).strip(),
-                "source": "curated-chilasow",
-                "title": title,
-                "artist": artist or "Swarify"
-            }
 
     for ck in CURATED_LYRICS:
         if len(ck) > 3 and (ck in clean_t or clean_t in ck):
