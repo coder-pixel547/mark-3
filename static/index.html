@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="/static/styles.css?v=21.0" />
+  <link rel="stylesheet" href="/static/styles.css?v=22.0" />
   <style>
     /* Critical 0ms render styles & zero overflow-x */
     *, *::before, *::after { box-sizing: border-box; }
@@ -682,15 +682,15 @@
       <div class="lyrics-header-actions">
         <!-- Live Timing & Sync Calibrator -->
         <div class="lyrics-sync-calibrator" id="lyrics-sync-calibrator" title="Adjust lyrics timing & speed">
-          <button type="button" class="btn-sync-adjust" id="btn-sync-earlier" title="Lead lyrics earlier (-0.1s / hotkey: [)" aria-label="Lead lyrics earlier">
-            -0.1s
+          <button type="button" class="btn-sync-adjust" id="btn-sync-earlier" title="Lead lyrics earlier (-0.2s / hotkey: [)" aria-label="Lead lyrics earlier">
+            -0.2s
           </button>
-          <button type="button" class="btn-sync-display" id="btn-sync-reset" title="Click to reset sync timing (+0.28s)" aria-label="Reset sync offset">
+          <button type="button" class="btn-sync-display" id="btn-sync-reset" title="Click to reset sync timing (+0.35s)" aria-label="Reset sync offset">
             <span class="sync-icon">⚡</span>
-            <span id="lyrics-timing-val">Sync: +0.28s</span>
+            <span id="lyrics-timing-val">Sync: +0.35s</span>
           </button>
-          <button type="button" class="btn-sync-adjust" id="btn-sync-later" title="Delay lyrics later (+0.1s / hotkey: ])" aria-label="Delay lyrics later">
-            +0.1s
+          <button type="button" class="btn-sync-adjust" id="btn-sync-later" title="Delay lyrics later (+0.2s / hotkey: ])" aria-label="Delay lyrics later">
+            +0.2s
           </button>
         </div>
 
@@ -768,6 +768,6 @@
   <!-- Native HTML5 Audio Engine for Background & Screen-Off Playback -->
   <audio id="native-audio" preload="metadata"></audio>
 
-  <script src="/static/app.js?v=21.0"></script>
+  <script src="/static/app.js?v=22.0"></script>
 </body>
 </html>

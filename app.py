@@ -2505,128 +2505,128 @@ CURATED_LYRICS: Dict[str, str] = {
 [03:05.00]♪ Solo Brathuke So Better ♪
 [03:40.00]♪ Outro ♪""",
     "vqtx4eswify": """[00:00.00]♪ Music Intro ♪
-[00:23.20]Mella mella mella mellaga gundello
-[00:27.42]Kottha rangu challaave
-[00:30.22]Mella mella mella mellaga
-[00:34.33]Kannullo matthu laaga allaave
-[00:38.25]Kala nijam oke kshanam
-[00:41.45]Aayo mayamga undhe
-[00:45.10]Chero sagam panche vidham
-[00:48.45]Idhemito bagundhe
-[00:51.64]Mella mella mella mellaga gundello
-[00:55.97]Kottha rangu challaave
-[00:58.74]Mella mella mella mellaga
-[01:03.02]Kannullo matthu laaga allaave
-[01:07.50]♪ Melodic Interlude ♪
-[01:21.05]Neetho cheruthu yedho kotthaga
-[01:24.78]Maaro nenula maaraane
-[01:28.16]Padha rammani alaa velitho
-[01:31.75]Kaalaanne ila aapaave
-[01:35.34]Endhukemo mundhu ledhe ee haayi
-[01:38.86]Sandhademo alluthune neevaipoye
-[01:42.50]Prathi kshanam santhoshame
-[01:45.92]Neneppudu choodandhe
-[01:47.80]Prapanchamey choosanule
-[01:50.04]Neela yedhi ledhanthe
-[01:53.64]Mella mella mella mellaga
-[01:57.75]Gundello kottha rangu challaave
-[02:00.62]Mella mella mella mellaga
-[02:04.75]Kannullo matthu laaga allaave
-[02:10.00]♪ Musical Interlude ♪
-[02:22.00]Merise lopale manase
-[02:25.43]Murise neevila kalise
-[02:29.00]Nimishalu rojulayi
-[02:32.48]Nilichenu chethilo
-[02:36.14]Nenunta needala ilaa
-[02:39.68]Neethone anni velalaa
-[02:44.20]Mella mella mella mellaga nacchade
-[02:47.60]Allaredho thecchaade
-[02:51.10]Mella mella mella mellaga nacchade
-[02:54.60]Aashalevo icchaade
-[02:58.20]Mella mella mella mellaga gundello
-[03:01.60]Kottha rangu challaave
-[03:05.10]Mella mella mella mellaga
-[03:08.50]Kannullo matthu laaga allaave
-[03:14.00]♪ Instrumental Outro ♪""",
+[00:21.80]Mella mella mella mellaga gundello
+[00:26.00]Kottha rangu challaave
+[00:28.80]Mella mella mella mellaga
+[00:32.90]Kannullo matthu laaga allaave
+[00:36.80]Kala nijam oke kshanam
+[00:40.00]Aayo mayamga undhe
+[00:43.70]Chero sagam panche vidham
+[00:47.00]Idhemito bagundhe
+[00:50.20]Mella mella mella mellaga gundello
+[00:54.50]Kottha rangu challaave
+[00:57.30]Mella mella mella mellaga
+[01:01.60]Kannullo matthu laaga allaave
+[01:06.00]♪ Melodic Interlude ♪
+[01:19.60]Neetho cheruthu yedho kotthaga
+[01:23.30]Maaro nenula maaraane
+[01:26.70]Padha rammani alaa velitho
+[01:30.30]Kaalaanne ila aapaave
+[01:33.90]Endhukemo mundhu ledhe ee haayi
+[01:37.40]Sandhademo alluthune neevaipoye
+[01:41.10]Prathi kshanam santhoshame
+[01:44.50]Neneppudu choodandhe
+[01:46.40]Prapanchamey choosanule
+[01:48.60]Neela yedhi ledhanthe
+[01:52.20]Mella mella mella mellaga
+[01:56.30]Gundello kottha rangu challaave
+[01:59.20]Mella mella mella mellaga
+[02:03.30]Kannullo matthu laaga allaave
+[02:08.50]♪ Musical Interlude ♪
+[02:20.60]Merise lopale manase
+[02:24.00]Murise neevila kalise
+[02:27.60]Nimishalu rojulayi
+[02:31.00]Nilichenu chethilo
+[02:34.70]Nenunta needala ilaa
+[02:38.20]Neethone anni velalaa
+[02:42.80]Mella mella mella mellaga nacchade
+[02:46.20]Allaredho thecchaade
+[02:49.70]Mella mella mella mellaga nacchade
+[02:53.20]Aashalevo icchaade
+[02:56.80]Mella mella mella mellaga gundello
+[03:00.20]Kottha rangu challaave
+[03:03.70]Mella mella mella mellaga
+[03:07.10]Kannullo matthu laaga allaave
+[03:12.50]♪ Instrumental Outro ♪""",
     "a-yrni_zzqy": """[00:00.00]♪ Music Intro ♪
-[00:15.50]Aaaaaa... aaaaa...
-[00:23.15]Toli Toli Aase Emandhe
-[00:26.54]Manasa Telusa Telusaa
-[00:29.47]Pedavula Paina Chirunavvai Kothagaa
-[00:35.43]Chali Chali Gaalai Thaake
-[00:38.90]Ee Oosula Varasa Varasaa
-[00:41.83]Tagadanukunna Bavundaa Ilaa
-[00:48.01]Adedo Jarigindhe
-[00:51.35]Manasa Telusa Telusaa
-[00:54.26]Pedavula Paina Chirunavvai Kothagaa
-[01:00.27]Chali Chali Gaalai Thaake
-[01:03.74]Ee Oosula Varasa Varasaa
-[01:06.67]Tagadanukunna Bavundaa Ilaa
-[01:11.83]Mellaga Mellaga Navvule Challaga
-[01:17.84]Mellaga... Mellaga...
-[01:21.05]Mellaga... Mellaga...
-[01:24.03]Oohale Allaga
-[01:27.50]Mellaga... Mellaga...
-[01:33.00]♪ Musical Interlude ♪
-[01:46.06]Toli Toli Aase Emandhe
-[01:49.46]Manasa Telusa Telusaa
-[01:52.41]Pedavula Paina Chirunavvai Kothagaa
-[01:58.37]Chali Chali Gaalai Thaake
-[02:01.81]Ee Oosula Varasa Varasaa
-[02:04.75]Tagadanukunna Bavundaa Ilaa
-[02:10.51]Emayyindo Chinukai Yedalo
-[02:14.07]Modalai Oka Alajadi
-[02:16.88]Popommantu Itu Tariminadaa
-[02:22.77]Lo Lo Evoo Idhivarakepuderugani
-[02:27.91]Talapula Jathalo
-[02:29.80]Kaadanaleni Kalisina Anandanni
-[02:34.02]Nijamani Nammalandaa Ee Chelimi
-[02:38.64]Toli Toli Aase Emandhe
-[02:42.06]Manasa Telusa Telusaa
-[02:44.97]Pedavula Paina Chirunavvai Kothagaa
-[02:50.94]Chali Chali Gaalai Thaake
-[02:54.40]Ee Oosula Varasa Varasaa
-[02:57.30]Tagadanukunna Bavundaa Ilaa
-[03:02.49]Mellaga Mellaga Navvule Challaga
-[03:08.50]Mellaga... Mellaga...
-[03:11.66]Mellaga... Mellaga...
-[03:14.62]Oohale Allaga
-[03:18.06]Mellaga... Mellaga...
-[03:24.00]♪ Outro ♪""",
+[00:11.80]Aaaaaa... aaaaa...
+[00:21.80]Toli Toli Aase Emandhe
+[00:25.10]Manasa Telusa Telusaa
+[00:28.00]Pedavula Paina Chirunavvai Kothagaa
+[00:34.00]Chali Chali Gaalai Thaake
+[00:37.50]Ee Oosula Varasa Varasaa
+[00:40.40]Tagadanukunna Bavundaa Ilaa
+[00:46.60]Adedo Jarigindhe
+[00:49.90]Manasa Telusa Telusaa
+[00:52.80]Pedavula Paina Chirunavvai Kothagaa
+[00:58.80]Chali Chali Gaalai Thaake
+[01:02.30]Ee Oosula Varasa Varasaa
+[01:05.20]Tagadanukunna Bavundaa Ilaa
+[01:10.40]Mellaga Mellaga Navvule Challaga
+[01:16.40]Mellaga... Mellaga...
+[01:19.60]Mellaga... Mellaga...
+[01:22.60]Oohale Allaga
+[01:26.10]Mellaga... Mellaga...
+[01:31.50]♪ Musical Interlude ♪
+[01:44.60]Toli Toli Aase Emandhe
+[01:48.00]Manasa Telusa Telusaa
+[01:51.00]Pedavula Paina Chirunavvai Kothagaa
+[01:56.90]Chali Chali Gaalai Thaake
+[02:00.40]Ee Oosula Varasa Varasaa
+[02:03.30]Tagadanukunna Bavundaa Ilaa
+[02:09.10]Emayyindo Chinukai Yedalo
+[02:12.60]Modalai Oka Alajadi
+[02:15.40]Popommantu Itu Tariminadaa
+[02:21.30]Lo Lo Evoo Idhivarakepuderugani
+[02:26.50]Talapula Jathalo
+[02:28.40]Kaadanaleni Kalisina Anandanni
+[02:32.60]Nijamani Nammalandaa Ee Chelimi
+[02:37.20]Toli Toli Aase Emandhe
+[02:40.60]Manasa Telusa Telusaa
+[02:43.50]Pedavula Paina Chirunavvai Kothagaa
+[02:49.50]Chali Chali Gaalai Thaake
+[02:53.00]Ee Oosula Varasa Varasaa
+[02:55.90]Tagadanukunna Bavundaa Ilaa
+[03:01.00]Mellaga Mellaga Navvule Challaga
+[03:07.10]Mellaga... Mellaga...
+[03:10.20]Mellaga... Mellaga...
+[03:13.20]Oohale Allaga
+[03:16.60]Mellaga... Mellaga...
+[03:22.50]♪ Outro ♪""",
     "mellaga karagani": """[00:00.00]♪ Music Intro ♪
-[00:29.00]Mellaga karagani rendu manasula dooram
-[00:32.60]Challaga theravani konte thalapula dwaaram
-[00:36.70]Valapu vaana dhaaraale pamputhunnadhi aakaasham
-[00:41.20]Chinuku poola haaraalai alluthunnadhi mana kosam
-[00:45.30]Thadipi thadipi thanatho nadipi
-[00:49.20]Harivillunu vanthena vesina shubhavele
-[00:53.60]Ee varsham saakshigaa thelapani nuvu naake sontham
-[01:02.30]Ee varsham saakshigaa kalapanee bandham
-[01:08.70]Mellaga karagani rendu manasula dooram
-[01:12.70]Challaga theravani konte thalapula dwaaram
-[01:18.00]♪ Musical Interlude ♪
-[01:31.00]Nee melikalalona aa merupulu choosthunnaa
-[01:35.00]Ee tholakarilo thalathala naatyam needenaa
-[01:39.10]Aa urumulalona nee pilupulu vinthunnaa
-[01:43.20]Ee chitapatalo chitikelu thaalam needenaa
-[01:47.30]Mathi chedi daahamai anusarinchi vasthunnaa
-[01:51.50]Jatha pade snehamai anunayinchanaa
-[01:55.60]Chali pidugula sadi vini jadisinna bidiyamu thadabadi ninu vidagaa
-[02:03.90]Ee varsham saakshigaa thelapani nuvu naake sontham
-[02:12.20]Ee varsham saakshigaa kalapanee bandham
-[02:20.00]♪ Flute & Rhythm Interlude ♪
-[02:35.80]Ye theramarugainaa ee choravanu aapenaa
-[02:40.00]Naa paruvamu nee kanulaku kaanukanisthunnaa
-[02:44.10]Ye chiru chinukainaa nee sirulanu choopenaa
-[02:48.30]Aa varunike runapadiponaa
-[02:51.60]Ikapaina thvarapade vayasune nilupalenu ikapainaa
-[02:58.30]Vidhudhale vaddhane mudulu veyanaa
-[03:02.50]Mana kalayika chedarani chelimiki rujuvani charithalu chadivelaa
-[03:10.80]Ee varsham saakshiga thelapani nuvu naake sontham
-[03:19.20]Ee varsham saakshiga kalapani bandham
-[03:25.60]Mellaga karagani rendu manasula dooram
-[03:29.60]Challaga theravani konte thalapula dwaaram
-[03:35.00]♪ Outro ♪""",
+[00:27.60]Mellaga karagani rendu manasula dooram
+[00:31.20]Challaga theravani konte thalapula dwaaram
+[00:35.30]Valapu vaana dhaaraale pamputhunnadhi aakaasham
+[00:39.80]Chinuku poola haaraalai alluthunnadhi mana kosam
+[00:43.90]Thadipi thadipi thanatho nadipi
+[00:47.80]Harivillunu vanthena vesina shubhavele
+[00:52.20]Ee varsham saakshigaa thelapani nuvu naake sontham
+[01:00.90]Ee varsham saakshigaa kalapanee bandham
+[01:07.30]Mellaga karagani rendu manasula dooram
+[01:11.30]Challaga theravani konte thalapula dwaaram
+[01:16.60]♪ Musical Interlude ♪
+[01:29.60]Nee melikalalona aa merupulu choosthunnaa
+[01:33.60]Ee tholakarilo thalathala naatyam needenaa
+[01:37.70]Aa urumulalona nee pilupulu vinthunnaa
+[01:41.80]Ee chitapatalo chitikelu thaalam needenaa
+[01:45.90]Mathi chedi daahamai anusarinchi vasthunnaa
+[01:50.10]Jatha pade snehamai anunayinchanaa
+[01:54.20]Chali pidugula sadi vini jadisinna bidiyamu thadabadi ninu vidagaa
+[02:02.50]Ee varsham saakshigaa thelapani nuvu naake sontham
+[02:10.80]Ee varsham saakshigaa kalapanee bandham
+[02:18.60]♪ Flute & Rhythm Interlude ♪
+[02:34.40]Ye theramarugainaa ee choravanu aapenaa
+[02:38.60]Naa paruvamu nee kanulaku kaanukanisthunnaa
+[02:42.70]Ye chiru chinukainaa nee sirulanu choopenaa
+[02:46.90]Aa varunike runapadiponaa
+[02:50.20]Ikapaina thvarapade vayasune nilupalenu ikapainaa
+[02:56.90]Vidhudhale vaddhane mudulu veyanaa
+[03:01.10]Mana kalayika chedarani chelimiki rujuvani charithalu chadivelaa
+[03:09.40]Ee varsham saakshiga thelapani nuvu naake sontham
+[03:17.80]Ee varsham saakshiga kalapani bandham
+[03:24.20]Mellaga karagani rendu manasula dooram
+[03:28.20]Challaga theravani konte thalapula dwaaram
+[03:33.60]♪ Outro ♪""",
     "-gydnfptgus": """[00:00.00]♪ Music Intro ♪
 [00:18.00]Vellipomaakey.. Vellipomaakey
 [00:27.50]Nannu vadili ekkadiki vellipomaakey

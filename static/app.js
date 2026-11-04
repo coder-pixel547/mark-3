@@ -45,7 +45,7 @@
     currentLyrics: null,
     lyricsSynced: false,
     currentLyricLineIndex: -1,
-    lyricsSyncOffset: parseFloat(localStorage.getItem('swarify_lyrics_offset') || '0.0'),
+    lyricsSyncOffset: parseFloat(localStorage.getItem('swarify_lyrics_offset_v2') || '0.35'),
     userScrolledLyrics: false,
     activeLyricsTrackId: null
   };
@@ -1487,11 +1487,11 @@
   }
 
   function adjustLyricsSyncOffset(delta) {
-    state.lyricsSyncOffset = Math.round(((state.lyricsSyncOffset || 0.0) + delta) * 100) / 100;
+    state.lyricsSyncOffset = Math.round(((state.lyricsSyncOffset || 0.35) + delta) * 100) / 100;
     // Bound offset between -2.0s and +3.0s
     state.lyricsSyncOffset = Math.max(-2.0, Math.min(3.0, state.lyricsSyncOffset));
     try {
-      localStorage.setItem('swarify_lyrics_offset', String(state.lyricsSyncOffset));
+      localStorage.setItem('swarify_lyrics_offset_v2', String(state.lyricsSyncOffset));
     } catch (_) {}
     updateLyricsTimingUI();
     if (state.isLyricsOpen) {
@@ -1502,20 +1502,20 @@
   }
 
   function resetLyricsSyncOffset() {
-    state.lyricsSyncOffset = 0.0;
+    state.lyricsSyncOffset = 0.35;
     try {
-      localStorage.setItem('swarify_lyrics_offset', '0.0');
+      localStorage.setItem('swarify_lyrics_offset_v2', '0.35');
     } catch (_) {}
     updateLyricsTimingUI();
     if (state.isLyricsOpen) {
       syncLyricsWithCurrentTime(audio.currentTime || 0);
     }
-    showToast('Lyrics Timing Reset to Standard (0.00s)');
+    showToast('Lyrics Timing Reset to Snappy Anticipation (+0.35s)');
   }
 
   function updateLyricsTimingUI() {
     if (!el.lyricsTimingVal) return;
-    const off = typeof state.lyricsSyncOffset === 'number' ? state.lyricsSyncOffset : 0.0;
+    const off = typeof state.lyricsSyncOffset === 'number' ? state.lyricsSyncOffset : 0.35;
     const sign = off > 0 ? '+' : '';
     el.lyricsTimingVal.textContent = `Sync: ${sign}${off.toFixed(2)}s`;
   }
@@ -1524,7 +1524,7 @@
     if (!state.currentLyrics || state.currentLyrics.length === 0 || !state.lyricsSynced) return;
 
     // Compensate for audio buffer & hardware latency using calibrated offset
-    const offset = typeof state.lyricsSyncOffset === 'number' ? state.lyricsSyncOffset : 0.0;
+    const offset = typeof state.lyricsSyncOffset === 'number' ? state.lyricsSyncOffset : 0.35;
     const t = currentTime + offset;
 
     let activeIdx = -1;
@@ -1669,8 +1669,8 @@
   if (el.btnCloseLyrics) el.btnCloseLyrics.addEventListener('click', closeLyricsOverlay);
   if (el.btnLyricsNativeFs) el.btnLyricsNativeFs.addEventListener('click', toggleNativeFullscreen);
 
-  if (el.btnSyncEarlier) el.btnSyncEarlier.addEventListener('click', () => adjustLyricsSyncOffset(-0.1));
-  if (el.btnSyncLater) el.btnSyncLater.addEventListener('click', () => adjustLyricsSyncOffset(0.1));
+  if (el.btnSyncEarlier) el.btnSyncEarlier.addEventListener('click', () => adjustLyricsSyncOffset(-0.2));
+  if (el.btnSyncLater) el.btnSyncLater.addEventListener('click', () => adjustLyricsSyncOffset(0.2));
   if (el.btnSyncReset) el.btnSyncReset.addEventListener('click', resetLyricsSyncOffset);
 
   if (el.lyricsBtnPlay) el.lyricsBtnPlay.addEventListener('click', togglePlayPause);
@@ -3041,10 +3041,10 @@
       }
     } else if (state.isLyricsOpen && e.key === '[') {
       e.preventDefault();
-      adjustLyricsSyncOffset(-0.1);
+      adjustLyricsSyncOffset(-0.2);
     } else if (state.isLyricsOpen && e.key === ']') {
       e.preventDefault();
-      adjustLyricsSyncOffset(0.1);
+      adjustLyricsSyncOffset(0.2);
     } else if (state.isLyricsOpen && e.key === '0') {
       e.preventDefault();
       resetLyricsSyncOffset();
