@@ -6,6 +6,9 @@ import difflib
 import base64
 import asyncio
 import random
+import secrets
+import hashlib
+import hmac
 import urllib.parse
 import urllib.request
 from typing import List, Dict, Any, Optional, Tuple
@@ -16,7 +19,7 @@ import yt_dlp
 import sqlite3
 from dotenv import load_dotenv
 
-from fastapi import FastAPI, Query, Request, Response, HTTPException
+from fastapi import FastAPI, Query, Request, Response, HTTPException, Depends, Header
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,33 +28,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 # Load environment variables
 load_dotenv()
 
-app = FastAPI(
-    title="Swarify Music",
-    description="Spotify-style Ad-Free Background Music Streaming API with AI Playlist Generation",
-    version="4.0"
-)
-
-# GZip compression for mobile network efficiency (compresses all responses > 500 bytes)
-app.add_middleware(GZipMiddleware, minimum_size=500)
-
-# Enable CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Request performance & latency monitoring middleware
-@app.middleware("http")
-async def monitor_request_performance(request: Request, call_next):
-    start_time = time.time()
-    response = await call_next(request)
-    process_time = time.time() - start_time
-    if process_time > 1.0 and not request.url.path.startswith("/api/stream"):
-        safe_log(f"[Slow Request] {request.method} {request.url.path} took {process_time:.2f}s")
-    return response
+is_dev = os.environ.get("ENV", "production").lower() == "development"
 
 # Safe console logging helper for Windows cp1252 character map safety
 def safe_log(msg: str):
@@ -62,6 +39,248 @@ def safe_log(msg: str):
             print(msg.encode('ascii', errors='replace').decode('ascii'), flush=True)
         except Exception:
             pass
+
+# Initialize FastAPI with security best-practices:
+# - Debug mode disabled
+# - API documentation hidden in production to prevent information disclosure
+app = FastAPI(
+    title="Swarify Music",
+    description="Spotify-style Ad-Free Background Music Streaming API with AI Playlist Generation",
+    version="4.0",
+    debug=False,
+    docs_url="/docs" if is_dev else None,
+    redoc_url="/redoc" if is_dev else None,
+    openapi_url="/openapi.json" if is_dev else None
+)
+
+# Global unhandled exception handler to prevent leaking stack traces or internal paths
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    safe_log(f"[Unhandled Error] {request.method} {request.url.path}: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"error": "An internal server error occurred. Please try again later."}
+    )
+
+# ==============================================================================
+# Security: Authentication, Password Hashing & Admin Authorization
+# ==============================================================================
+ADMIN_SECRET_KEY = os.environ.get("ADMIN_SECRET_KEY", "").strip()
+ADMIN_PASSWORD_HASH = os.environ.get("ADMIN_PASSWORD_HASH", "").strip()
+
+def hash_password(password: str, salt: Optional[bytes] = None) -> str:
+    """
+    Hashes a password using PBKDF2-HMAC-SHA256 with 600,000 iterations (OWASP recommendation).
+    Format: pbkdf2:sha256:600000$<salt_hex>$<derived_key_hex>
+    """
+    if not isinstance(password, str) or not password:
+        raise ValueError("Password must be a non-empty string")
+    if salt is None:
+        salt = os.urandom(16)
+    dk = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 600000)
+    return f"pbkdf2:sha256:600000${salt.hex()}${dk.hex()}"
+
+def verify_password(password: str, hashed: str) -> bool:
+    """Verifies a password against PBKDF2 hash using constant-time comparison."""
+    if not password or not hashed or not isinstance(hashed, str):
+        return False
+    try:
+        parts = hashed.split('$')
+        if len(parts) != 3:
+            return False
+        algo_header, salt_hex, expected_hex = parts
+        header_parts = algo_header.split(':')
+        if len(header_parts) != 3 or header_parts[0] != 'pbkdf2':
+            return False
+        hash_name = header_parts[1]
+        iterations = int(header_parts[2])
+        salt = bytes.fromhex(salt_hex)
+        expected_dk = bytes.fromhex(expected_hex)
+        actual_dk = hashlib.pbkdf2_hmac(hash_name, password.encode('utf-8'), salt, iterations)
+        return secrets.compare_digest(actual_dk, expected_dk)
+    except Exception:
+        return False
+
+def verify_admin_access(
+    request: Request,
+    admin_key: Optional[str] = Query(None, description="Admin secret key query parameter"),
+    x_admin_token: Optional[str] = Header(None, alias="X-Admin-Token"),
+    authorization: Optional[str] = Header(None)
+) -> bool:
+    """
+    Protects administrative and diagnostic endpoints.
+    Requires valid token matching ADMIN_SECRET_KEY or ADMIN_PASSWORD_HASH.
+    """
+    token = x_admin_token or admin_key or ""
+    if not token and authorization:
+        if authorization.lower().startswith("bearer "):
+            token = authorization[7:].strip()
+
+    current_secret = (os.environ.get("ADMIN_SECRET_KEY") or ADMIN_SECRET_KEY or "").strip()
+    current_hash = (os.environ.get("ADMIN_PASSWORD_HASH") or ADMIN_PASSWORD_HASH or "").strip()
+
+    if current_hash and token:
+        if verify_password(token, current_hash):
+            return True
+
+    if current_secret and token:
+        if secrets.compare_digest(token, current_secret):
+            return True
+
+    if not current_secret and not current_hash:
+        current_env = os.environ.get("ENV", "production").lower()
+        if current_env == "development":
+            return True
+        raise HTTPException(
+            status_code=403,
+            detail="Admin access is disabled in production. Set ADMIN_SECRET_KEY in environment."
+        )
+
+    raise HTTPException(
+        status_code=401,
+        detail="Unauthorized: Admin authentication required.",
+        headers={"WWW-Authenticate": "Bearer"}
+    )
+
+# ==============================================================================
+# Security: Rate Limiting & Client IP Detection
+# ==============================================================================
+class InMemoryRateLimiter:
+    """Thread-safe sliding-window rate limiter preventing API abuse and brute-force."""
+    def __init__(self):
+        self._records: Dict[str, List[float]] = {}
+        self._last_cleanup = time.time()
+
+    def is_allowed(self, key: str, max_requests: int, window_seconds: float = 60.0) -> Tuple[bool, int]:
+        now = time.time()
+        if now - self._last_cleanup > 300:
+            self._cleanup(now)
+
+        timestamps = self._records.setdefault(key, [])
+        cutoff = now - window_seconds
+        timestamps = [t for t in timestamps if t > cutoff]
+        self._records[key] = timestamps
+
+        if len(timestamps) >= max_requests:
+            retry_after = int(max(1, window_seconds - (now - timestamps[0])))
+            return False, retry_after
+
+        timestamps.append(now)
+        return True, 0
+
+    def _cleanup(self, now: float):
+        cutoff = now - 3600
+        keys_to_del = [k for k, v in self._records.items() if not v or v[-1] < cutoff]
+        for k in keys_to_del:
+            self._records.pop(k, None)
+        self._last_cleanup = now
+
+RATE_LIMITER = InMemoryRateLimiter()
+
+def get_client_ip(request: Request) -> str:
+    """Extracts client IP safely from forwarded headers or connection."""
+    x_forwarded = request.headers.get("x-forwarded-for")
+    if x_forwarded:
+        return x_forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+# GZip compression for mobile network efficiency (compresses all responses > 500 bytes)
+app.add_middleware(GZipMiddleware, minimum_size=500)
+
+# ==============================================================================
+# Security: Strict CORS Configuration
+# ==============================================================================
+ALLOWED_ORIGINS_ENV = os.environ.get("ALLOWED_ORIGINS", "").strip()
+if ALLOWED_ORIGINS_ENV:
+    ALLOWED_ORIGINS = [o.strip() for o in ALLOWED_ORIGINS_ENV.split(",") if o.strip()]
+    ALLOW_ALL_ORIGINS = "*" in ALLOWED_ORIGINS
+else:
+    ALLOW_ALL_ORIGINS = False
+    ALLOWED_ORIGINS = [
+        "https://swarify-music-b0e9.onrender.com",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173"
+    ]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"] if ALLOW_ALL_ORIGINS else ALLOWED_ORIGINS,
+    allow_credentials=False if ALLOW_ALL_ORIGINS else True,
+    allow_methods=["GET", "POST", "HEAD", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "Range", "X-Admin-Token", "Accept"],
+    expose_headers=["Content-Range", "Accept-Ranges", "Content-Length"],
+    max_age=86400
+)
+
+# ==============================================================================
+# Security: Comprehensive HTTP Headers & Rate Limiting Middleware
+# ==============================================================================
+@app.middleware("http")
+async def security_and_rate_limiting_middleware(request: Request, call_next):
+    # Enforce Rate Limiting
+    client_ip = get_client_ip(request)
+    path = request.url.path
+
+    if path.startswith("/api/ai-playlist"):
+        allowed, retry = RATE_LIMITER.is_allowed(f"ai:{client_ip}", max_requests=12, window_seconds=60.0)
+    elif path.startswith("/api/sync/save"):
+        allowed, retry = RATE_LIMITER.is_allowed(f"sync_save:{client_ip}", max_requests=15, window_seconds=60.0)
+    elif path.startswith("/api/sync/generate-code"):
+        allowed, retry = RATE_LIMITER.is_allowed(f"sync_gen:{client_ip}", max_requests=30, window_seconds=60.0)
+    elif path.startswith("/api/sync/load"):
+        allowed, retry = RATE_LIMITER.is_allowed(f"sync_load:{client_ip}", max_requests=45, window_seconds=60.0)
+    elif path.startswith("/api/admin"):
+        allowed, retry = RATE_LIMITER.is_allowed(f"admin:{client_ip}", max_requests=20, window_seconds=60.0)
+    elif path.startswith("/api/search") or path.startswith("/api/suggestions"):
+        allowed, retry = RATE_LIMITER.is_allowed(f"search:{client_ip}", max_requests=120, window_seconds=60.0)
+    elif path.startswith("/api/"):
+        allowed, retry = RATE_LIMITER.is_allowed(f"api:{client_ip}", max_requests=240, window_seconds=60.0)
+    else:
+        allowed, retry = True, 0
+
+    if not allowed:
+        return JSONResponse(
+            status_code=429,
+            content={"error": "Rate limit exceeded. Please wait a moment and try again."},
+            headers={"Retry-After": str(retry)}
+        )
+
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    if process_time > 1.0 and not path.startswith("/api/stream"):
+        safe_log(f"[Slow Request] {request.method} {path} took {process_time:.2f}s")
+
+    # Inject standard security headers
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()"
+
+    if request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+
+    csp = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com data:; "
+        "img-src 'self' data: blob: https:; "
+        "media-src 'self' blob: data: https:; "
+        "connect-src 'self' https:; "
+        "worker-src 'self'; "
+        "manifest-src 'self'; "
+        "object-src 'none'; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self';"
+    )
+    response.headers["Content-Security-Policy"] = csp
+    return response
 
 from requests.adapters import HTTPAdapter
 
@@ -1835,31 +2054,46 @@ async def create_ai_playlist_unified(
 # ==============================================================================
 @app.post("/api/ai-playlist")
 async def api_create_ai_playlist(request: Request):
-    """Generates an AI playlist from JSON request body."""
+    """Generates an AI playlist from JSON request body with strict input sanitization."""
     try:
-        data = await request.json()
+        body = await request.body()
+        if len(body) > 10240:
+            return JSONResponse(status_code=413, content={"error": "Payload too large. Max 10KB allowed."})
+        data = json.loads(body.decode("utf-8")) if body else {}
     except Exception:
         data = {}
 
-    languages = data.get("languages", ["telugu", "hindi"])
-    mood = data.get("mood", "romantic")
-    era = data.get("era", "latest")
-    prompt = data.get("prompt", "")
-    count = int(data.get("count", 12))
+    raw_langs = data.get("languages", ["telugu", "hindi"])
+    if isinstance(raw_langs, list):
+        languages = [re.sub(r'[^a-zA-Z0-9_\-\s]', '', str(l)).strip()[:30] for l in raw_langs][:5]
+    else:
+        languages = ["telugu", "hindi"]
+
+    mood = re.sub(r'[^a-zA-Z0-9_\-\s]', '', str(data.get("mood", "romantic"))).strip()[:40]
+    era = re.sub(r'[^a-zA-Z0-9_\-\s]', '', str(data.get("era", "latest"))).strip()[:40]
+    prompt = re.sub(r'[\r\n\t]+', ' ', str(data.get("prompt", ""))).strip()[:200]
+    try:
+        count = max(1, min(25, int(data.get("count", 12))))
+    except (ValueError, TypeError):
+        count = 12
 
     return await create_ai_playlist_unified(languages, mood, era, prompt, count)
 
 @app.get("/api/ai-playlist")
 async def api_get_ai_playlist(
-    langs: str = Query("telugu,hindi", description="Comma separated languages"),
-    mood: str = Query("romantic"),
-    era: str = Query("latest"),
-    prompt: str = Query(""),
-    count: int = Query(12)
+    langs: str = Query("telugu,hindi", max_length=150, description="Comma separated languages"),
+    mood: str = Query("romantic", max_length=50),
+    era: str = Query("latest", max_length=50),
+    prompt: str = Query("", max_length=200),
+    count: int = Query(12, ge=1, le=25)
 ):
-    """GET fallback for AI playlist generation."""
-    lang_list = [l.strip() for l in langs.split(",") if l.strip()]
-    return await create_ai_playlist_unified(lang_list, mood, era, prompt, count)
+    """GET fallback for AI playlist generation with input sanitization."""
+    lang_list = [re.sub(r'[^a-zA-Z0-9_\-\s]', '', l).strip()[:30] for l in langs.split(",") if l.strip()][:5]
+    clean_mood = re.sub(r'[^a-zA-Z0-9_\-\s]', '', mood).strip()[:40]
+    clean_era = re.sub(r'[^a-zA-Z0-9_\-\s]', '', era).strip()[:40]
+    clean_prompt = re.sub(r'[\r\n\t]+', ' ', prompt).strip()[:200]
+    clean_count = max(1, min(25, count))
+    return await create_ai_playlist_unified(lang_list, clean_mood, clean_era, clean_prompt, clean_count)
 
 # ==============================================================================
 # Spotify Playlist Importer Engine (Embed Scraper - No Auth Required)
@@ -1975,12 +2209,15 @@ def fetch_spotify_playlist(entity_type: str, entity_id: str) -> Optional[Dict[st
 
 @app.post("/api/spotify/import")
 async def api_import_spotify_post(request: Request):
-    """Imports a public Spotify playlist, album, or track."""
+    """Imports a public Spotify playlist, album, or track with size limits."""
     try:
-        data = await request.json()
+        body = await request.body()
+        if len(body) > 10240:
+            return JSONResponse(status_code=413, content={"error": "Payload too large. Max 10KB allowed."})
+        data = json.loads(body.decode("utf-8")) if body else {}
     except Exception:
         data = {}
-    url = data.get("url") or data.get("playlist_url") or ""
+    url = str(data.get("url") or data.get("playlist_url") or "").strip()[:300]
     if not url:
         return JSONResponse(status_code=400, content={"error": "Spotify playlist/album URL is required."})
 
@@ -1996,8 +2233,9 @@ async def api_import_spotify_post(request: Request):
     return result
 
 @app.get("/api/spotify/import")
-async def api_import_spotify_get(url: str = Query(..., description="Public Spotify playlist or album URL")):
+async def api_import_spotify_get(url: str = Query(..., max_length=300, description="Public Spotify playlist or album URL")):
     """GET endpoint for importing a public Spotify playlist, album, or track."""
+    url = url.strip()[:300]
     extracted = extract_spotify_entity(url)
     if not extracted:
         return JSONResponse(status_code=400, content={"error": "Invalid Spotify URL. Please paste a valid link to a public Spotify playlist, album, or track."})
@@ -2010,10 +2248,10 @@ async def api_import_spotify_get(url: str = Query(..., description="Public Spoti
     return result
 
 @app.get("/api/trending")
-def get_trending(response: Response, lang: str = Query("all", description="telugu | hindi | english | tamil | punjabi | all")):
+def get_trending(response: Response, lang: str = Query("all", max_length=30, description="telugu | hindi | english | tamil | punjabi | all")):
     """Returns trending chartbusters with support for all major languages and HTTP caching."""
     response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
-    lang = lang.lower().strip()
+    lang = re.sub(r'[^a-zA-Z0-9_\-]', '', lang).lower().strip()[:20] or "all"
     if lang == "all":
         all_tracks = []
         t = CURATED_TRACKS.get("telugu", [])
@@ -2033,17 +2271,23 @@ def get_trending(response: Response, lang: str = Query("all", description="telug
         return {"language": lang, "tracks": tracks}
 
 @app.get("/api/search")
-async def search(response: Response, q: str = Query(..., min_length=1, description="Search query for song, artist or album")):
-    """Asynchronous instant YouTube song search with HTTP caching."""
+async def search(response: Response, q: str = Query(..., min_length=1, max_length=150, description="Search query for song, artist or album")):
+    """Asynchronous instant YouTube song search with sanitized input and HTTP caching."""
     response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
-    results = await async_search_youtube(q, max_results=15, filter_long=True)
-    return {"query": q, "results": results}
+    clean_q = " ".join(re.sub(r'[\r\n\t\x00-\x1f\x7f]', ' ', q).split())[:150]
+    if not clean_q:
+        return {"query": "", "results": []}
+    results = await async_search_youtube(clean_q, max_results=15, filter_long=True)
+    return {"query": clean_q, "results": results}
 
 @app.get("/api/suggestions")
-async def suggestions(response: Response, q: str = Query(..., min_length=1)):
-    """Auto-suggestions as user types with HTTP caching."""
+async def suggestions(response: Response, q: str = Query(..., min_length=1, max_length=100)):
+    """Auto-suggestions as user types with sanitized input and HTTP caching."""
     response.headers["Cache-Control"] = "public, max-age=1800, stale-while-revalidate=86400"
-    encoded = urllib.parse.quote(q)
+    clean_q = " ".join(re.sub(r'[\r\n\t\x00-\x1f\x7f]', ' ', q).split())[:100]
+    if not clean_q:
+        return {"suggestions": []}
+    encoded = urllib.parse.quote(clean_q)
     url = f"https://suggestqueries.google.com/complete/search?client=youtube&ds=yt&q={encoded}"
     try:
         async with httpx.AsyncClient(headers={"User-Agent": "Mozilla/5.0"}, timeout=3.0) as client:
@@ -2081,6 +2325,9 @@ def init_sync_db():
 
 init_sync_db()
 
+SYNC_CODE_REGEX = re.compile(r"^[A-Z0-9\-]{4,16}$")
+MAX_SYNC_PAYLOAD_BYTES = 512 * 1024  # 512 KB
+
 @app.get("/api/sync/generate-code")
 def generate_sync_code():
     import string
@@ -2091,16 +2338,42 @@ def generate_sync_code():
 @app.post("/api/sync/save")
 async def save_sync_library(request: Request):
     try:
-        data = await request.json()
-        code = (data.get("code") or "").strip().upper()
-        if not code or len(code) < 4:
-            return JSONResponse(status_code=400, content={"error": "Invalid sync code"})
+        body = await request.body()
+        if len(body) > MAX_SYNC_PAYLOAD_BYTES:
+            return JSONResponse(
+                status_code=413,
+                content={"error": "Payload too large. Maximum library sync size is 512KB."}
+            )
 
-        playlists = json.dumps(data.get("playlists", []))
-        liked_songs = json.dumps(data.get("liked_songs", []))
+        try:
+            data = json.loads(body.decode("utf-8")) if body else {}
+        except Exception:
+            return JSONResponse(status_code=400, content={"error": "Invalid JSON payload."})
+
+        code = (data.get("code") or "").strip().upper()
+        if not code or not SYNC_CODE_REGEX.match(code):
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Invalid sync code. Code must be 4-16 alphanumeric characters or hyphens."}
+            )
+
+        raw_playlists = data.get("playlists", [])
+        raw_liked = data.get("liked_songs", [])
+        if not isinstance(raw_playlists, list) or not isinstance(raw_liked, list):
+            return JSONResponse(status_code=400, content={"error": "Invalid library data format."})
+
+        # Cap entries to prevent excessive storage consumption
+        playlists_clean = raw_playlists[:100]
+        liked_clean = raw_liked[:2000]
+
+        playlists = json.dumps(playlists_clean)
+        liked_songs = json.dumps(liked_clean)
         now = int(time.time())
+        retention_cutoff = now - (90 * 86400)  # 90 days retention
 
         with sqlite3.connect(SYNC_DB_PATH) as conn:
+            # Auto-prune stale sync records
+            conn.execute("DELETE FROM library_sync WHERE updated_at < ?", (retention_cutoff,))
             conn.execute("""
                 INSERT INTO library_sync (code, playlists, liked_songs, updated_at)
                 VALUES (?, ?, ?, ?)
@@ -2113,11 +2386,14 @@ async def save_sync_library(request: Request):
         return {"status": "ok", "code": code, "updated_at": now}
     except Exception as e:
         safe_log(f"Error saving sync library: {e}")
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        return JSONResponse(status_code=500, content={"error": "Database error while saving sync library."})
 
 @app.get("/api/sync/load")
-def load_sync_library(code: str = Query(...)):
+def load_sync_library(code: str = Query(..., min_length=4, max_length=16)):
     clean_code = code.strip().upper()
+    if not SYNC_CODE_REGEX.match(clean_code):
+        return JSONResponse(status_code=400, content={"error": "Invalid sync code format."})
+
     try:
         with sqlite3.connect(SYNC_DB_PATH) as conn:
             cur = conn.cursor()
@@ -2126,15 +2402,82 @@ def load_sync_library(code: str = Query(...)):
             if not row:
                 return JSONResponse(status_code=404, content={"error": "Sync code not found. Please verify your code."})
 
-            playlists = json.loads(row[0]) if row[0] else []
-            liked_songs = json.loads(row[1]) if row[1] else []
+            try:
+                playlists = json.loads(row[0]) if row[0] else []
+            except Exception:
+                playlists = []
+            try:
+                liked_songs = json.loads(row[1]) if row[1] else []
+            except Exception:
+                liked_songs = []
             return {"code": clean_code, "playlists": playlists, "liked_songs": liked_songs, "updated_at": row[2]}
     except Exception as e:
         safe_log(f"Error loading sync library: {e}")
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        return JSONResponse(status_code=500, content={"error": "Database error while loading sync library."})
 
-@app.get("/api/debug-extract/{video_id}")
+# ==============================================================================
+# Admin & Diagnostics Endpoints (Protected by verify_admin_access)
+# ==============================================================================
+@app.get("/api/admin/verify", dependencies=[Depends(verify_admin_access)])
+def admin_verify():
+    """Confirms valid admin credentials."""
+    return {"status": "authenticated", "role": "admin", "timestamp": int(time.time())}
+
+@app.get("/api/admin/status", dependencies=[Depends(verify_admin_access)])
+def admin_status():
+    """System health and security monitoring metrics."""
+    sync_count = 0
+    try:
+        with sqlite3.connect(SYNC_DB_PATH) as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) FROM library_sync")
+            sync_count = cur.fetchone()[0]
+    except Exception:
+        pass
+
+    return {
+        "status": "healthy",
+        "env": os.environ.get("ENV", "production"),
+        "debug_mode": False,
+        "search_cache_entries": len(SEARCH_CACHE),
+        "audio_url_cache_entries": len(AUDIO_URL_CACHE),
+        "lyrics_cache_entries": len(LYRICS_CACHE),
+        "sync_records_count": sync_count,
+        "cookie_file_present": bool(os.path.exists(COOKIE_FILE_PATH)),
+        "groq_configured": bool(os.environ.get("GROQ_API_KEY")),
+        "gemini_configured": bool(os.environ.get("GEMINI_API_KEY")),
+        "openai_configured": bool(os.environ.get("OPENAI_API_KEY")),
+        "admin_auth_configured": bool(ADMIN_SECRET_KEY or os.environ.get("ADMIN_PASSWORD_HASH")),
+        "timestamp": int(time.time())
+    }
+
+@app.post("/api/admin/cache/clear", dependencies=[Depends(verify_admin_access)])
+def admin_clear_cache():
+    """Safely purges in-memory caches."""
+    SEARCH_CACHE.clear()
+    AUDIO_URL_CACHE.clear()
+    LYRICS_CACHE.clear()
+    return {"status": "cleared", "message": "All runtime caches purged successfully."}
+
+@app.post("/api/admin/hash-password", dependencies=[Depends(verify_admin_access)])
+async def admin_hash_password(request: Request):
+    """Utility to generate secure PBKDF2 hash for admin passwords."""
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    password = str(data.get("password") or "")
+    if not password or len(password) < 8:
+        return JSONResponse(status_code=400, content={"error": "Password must be at least 8 characters long."})
+    hashed = hash_password(password)
+    return {"hash": hashed, "instructions": "Set this value as ADMIN_PASSWORD_HASH in your environment variables."}
+
+@app.get("/api/debug-extract/{video_id}", dependencies=[Depends(verify_admin_access)])
 def debug_extract(video_id: str, use_cookies: bool = False):
+    clean_id = re.sub(r'[^a-zA-Z0-9_\-]', '', video_id)[:32]
+    if not clean_id:
+        return JSONResponse(status_code=400, content={"error": "Invalid video_id"})
+
     import traceback
     logs = []
     cookie_file = COOKIE_FILE_PATH if (use_cookies and os.path.exists(COOKIE_FILE_PATH)) else None
@@ -2155,7 +2498,7 @@ def debug_extract(video_id: str, use_cookies: bool = False):
             opts['cookiefile'] = cookie_file
         try:
             with yt_dlp.YoutubeDL(opts) as ydl:
-                info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+                info = ydl.extract_info(f"https://www.youtube.com/watch?v={clean_id}", download=False)
                 formats = info.get('formats', [])
                 audio_fmts = [f for f in formats if f.get('vcodec') == 'none' and f.get('acodec') != 'none']
                 logs.append({
@@ -2169,7 +2512,7 @@ def debug_extract(video_id: str, use_cookies: bool = False):
         except Exception as e:
             logs.append({"client": client_name, "success": False, "error": str(e)[:150]})
     return {
-        "video_id": video_id,
+        "video_id": clean_id,
         "cookie_file_exists": cookie_exists,
         "cookie_file_size": cookie_size,
         "env_cookie_present": env_cookie,
@@ -2177,23 +2520,27 @@ def debug_extract(video_id: str, use_cookies: bool = False):
         "logs": logs
     }
 
-@app.get("/api/debug-trace/{video_id}")
+@app.get("/api/debug-trace/{video_id}", dependencies=[Depends(verify_admin_access)])
 def debug_trace(
     video_id: str,
     title: Optional[str] = None,
     dur: Optional[str] = None,
     artist: Optional[str] = None
 ):
+    clean_id = re.sub(r'[^a-zA-Z0-9_\-]', '', video_id)[:32]
+    if not clean_id:
+        return JSONResponse(status_code=400, content={"error": "Invalid video_id"})
+
     t0 = time.time()
     steps = []
     
-    curated_info = VIDEO_INFO_MAP.get(video_id)
-    curated_map_entry = CURATED_STREAM_MAP.get(video_id)
+    curated_info = VIDEO_INFO_MAP.get(clean_id)
+    curated_map_entry = CURATED_STREAM_MAP.get(clean_id)
     steps.append({"step": "curated_lookup", "curated": curated_info, "in_stream_map": bool(curated_map_entry), "elapsed": time.time() - t0})
     
     query_hint = (title or "").strip()
     if not query_hint:
-        query_hint = VIDEO_TITLE_MAP.get(video_id, "")
+        query_hint = VIDEO_TITLE_MAP.get(clean_id, "")
     if not query_hint and curated_info:
         query_hint = f"{curated_info.get('title', '')} {curated_info.get('artist', '')}".strip()
     steps.append({"step": "query_hint", "query_hint": query_hint, "elapsed": time.time() - t0})
@@ -2252,7 +2599,7 @@ def debug_trace(
             'extractor_args': YTDL_CLIENT_ARGS,
         }
         with yt_dlp.YoutubeDL(opts) as ydl:
-            inf = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+            inf = ydl.extract_info(f"https://www.youtube.com/watch?v={clean_id}", download=False)
             if inf and inf.get("url"):
                 ytdl_res = {
                     "format_id": inf.get("format_id"),
@@ -2275,7 +2622,7 @@ def debug_trace(
     })
 
     return {
-        "video_id": video_id,
+        "video_id": clean_id,
         "total_time": time.time() - t0,
         "steps": steps
     }
@@ -2289,16 +2636,19 @@ def get_audio_info(
     artist: Optional[str] = None
 ):
     """Returns direct audio stream URL and proxied stream URL."""
+    clean_id = re.sub(r'[^a-zA-Z0-9_\-]', '', video_id)[:64]
+    if not clean_id:
+        return JSONResponse(status_code=400, content={"error": "Invalid video_id"})
     dur_param = dur or duration
     expected_dur = parse_duration_to_seconds(dur_param) if dur_param else None
-    meta = get_audio_metadata(video_id, title, expected_duration=expected_dur, expected_artist=artist)
+    meta = get_audio_metadata(clean_id, title, expected_duration=expected_dur, expected_artist=artist)
     if not meta:
-        return JSONResponse(status_code=404, content={"error": "Audio stream not found", "videoId": video_id})
+        return JSONResponse(status_code=404, content={"error": "Audio stream not found", "videoId": clean_id})
     return {
-        "video_id": video_id,
-        "videoId": video_id,
+        "video_id": clean_id,
+        "videoId": clean_id,
         "audio_url": meta["url"],
-        "stream_url": f"/api/stream/{video_id}",
+        "stream_url": f"/api/stream/{clean_id}",
         "content_type": meta.get("content_type", "audio/mp4"),
         "duration": meta.get("duration"),
         "filesize": meta.get("filesize")
@@ -2313,18 +2663,21 @@ def stream_audio(
     duration: Optional[str] = None,
     artist: Optional[str] = None
 ):
+    clean_id = re.sub(r'[^a-zA-Z0-9_\-]', '', video_id)[:64]
+    if not clean_id:
+        return JSONResponse(status_code=400, content={"error": "Invalid video_id"})
     """
     Direct inline audio stream proxy with HTTP 206 Partial Content, Range headers,
     resilient chunk streaming, and clean client disconnect handling.
     """
     dur_param = dur or duration
     expected_dur = parse_duration_to_seconds(dur_param) if dur_param else None
-    meta = get_audio_metadata(video_id, title, expected_duration=expected_dur, expected_artist=artist)
+    meta = get_audio_metadata(clean_id, title, expected_duration=expected_dur, expected_artist=artist)
     if not meta or not meta.get("url"):
-        safe_log(f"[Stream 404] Audio stream metadata not found for video_id={video_id}")
+        safe_log(f"[Stream 404] Audio stream metadata not found for video_id={clean_id}")
         return JSONResponse(
             status_code=404,
-            content={"error": "Audio stream not found", "videoId": video_id, "detail": "Unable to extract audio formats"}
+            content={"error": "Audio stream not found", "videoId": clean_id, "detail": "Unable to extract audio formats"}
         )
 
     range_header = request.headers.get("range")
@@ -2343,20 +2696,20 @@ def stream_audio(
         )
         # If upstream expired (403/410), force refresh cache once
         if upstream_resp.status_code in (403, 410):
-            safe_log(f"[Stream Expired] Upstream HTTP {upstream_resp.status_code} for {video_id}, re-extracting fresh URL...")
-            AUDIO_URL_CACHE.pop(video_id, None)
-            meta = get_audio_metadata(video_id, title, force_refresh=True, expected_duration=expected_dur, expected_artist=artist)
+            safe_log(f"[Stream Expired] Upstream HTTP {upstream_resp.status_code} for {clean_id}, re-extracting fresh URL...")
+            AUDIO_URL_CACHE.pop(clean_id, None)
+            meta = get_audio_metadata(clean_id, title, force_refresh=True, expected_duration=expected_dur, expected_artist=artist)
             if not meta or not meta.get("url"):
-                return JSONResponse(status_code=404, content={"error": "Audio stream expired and re-extraction failed", "videoId": video_id})
+                return JSONResponse(status_code=404, content={"error": "Audio stream expired and re-extraction failed", "videoId": clean_id})
             req_headers = dict(meta.get("headers", {}))
             if range_header:
                 req_headers["Range"] = range_header
             upstream_resp = STREAM_SESSION.get(meta["url"], headers=req_headers, stream=True, timeout=(6.0, None))
     except Exception as ex:
-        safe_log(f"[Stream Connection Error] video_id={video_id}: {ex}")
+        safe_log(f"[Stream Connection Error] video_id={clean_id}: {ex}")
         try:
-            AUDIO_URL_CACHE.pop(video_id, None)
-            meta = get_audio_metadata(video_id, title, force_refresh=True, expected_duration=expected_dur, expected_artist=artist)
+            AUDIO_URL_CACHE.pop(clean_id, None)
+            meta = get_audio_metadata(clean_id, title, force_refresh=True, expected_duration=expected_dur, expected_artist=artist)
             if meta and meta.get("url"):
                 req_headers = dict(meta.get("headers", {}))
                 if range_header:
@@ -2367,8 +2720,8 @@ def stream_audio(
 
     if upstream_resp is None or upstream_resp.status_code >= 400:
         status_code = upstream_resp.status_code if upstream_resp else 502
-        safe_log(f"[Stream Upstream Failed] video_id={video_id} status={status_code}")
-        return JSONResponse(status_code=status_code, content={"error": "Failed to stream audio", "videoId": video_id})
+        safe_log(f"[Stream Upstream Failed] video_id={clean_id} status={status_code}")
+        return JSONResponse(status_code=status_code, content={"error": "Failed to stream audio", "videoId": clean_id})
 
     # Determine container & Content-Type
     ext = meta.get("ext", "m4a").lower()

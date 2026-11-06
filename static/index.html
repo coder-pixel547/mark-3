@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="/static/styles.css?v=24.0" />
+  <link rel="stylesheet" href="/static/styles.css?v=25.0" />
   <style>
     /* Critical 0ms render styles & zero overflow-x */
     *, *::before, *::after { box-sizing: border-box; }
@@ -136,7 +136,7 @@
         <div class="search-container">
           <div class="search-box">
             <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            <input type="text" id="search-input" placeholder="Search Telugu, Hindi, English songs, artists, or movies..." autocomplete="off" />
+            <input type="text" id="search-input" placeholder="Search Telugu, Hindi, English songs, artists, or movies..." maxlength="150" autocomplete="off" />
             <button id="clear-search-btn" class="clear-btn hidden">&times;</button>
           </div>
           <!-- Auto-complete Suggestions Dropdown -->
@@ -490,7 +490,7 @@
         <div class="form-group">
           <label for="spotify-url-input">Spotify Share Link</label>
           <div class="spotify-input-wrapper">
-            <input type="url" id="spotify-url-input" placeholder="https://open.spotify.com/playlist/..." autocomplete="off" />
+            <input type="url" id="spotify-url-input" placeholder="https://open.spotify.com/playlist/..." maxlength="300" autocomplete="off" />
             <button type="button" class="btn-spotify-paste" id="btn-paste-spotify" title="Paste from clipboard">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
               <span>Paste</span>
@@ -750,6 +750,6 @@
   <!-- Native HTML5 Audio Engine for Background & Screen-Off Playback -->
   <audio id="native-audio" preload="metadata"></audio>
 
-  <script src="/static/app.js?v=24.0"></script>
+  <script src="/static/app.js?v=25.0"></script>
 </body>
 </html>

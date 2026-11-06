@@ -16,8 +16,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application source code
 COPY . .
 
-# Set open write permissions for SQLite database and temporary files across container users
-RUN chmod -R 777 /app
+# Create non-root system user and configure least-privilege permissions
+RUN useradd -m -u 10001 appuser && \
+    chown -R appuser:appuser /app
+
+USER appuser
 
 # Expose ports (8000 for standard hosts, 7860 for Hugging Face Spaces)
 EXPOSE 8000

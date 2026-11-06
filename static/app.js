@@ -2,6 +2,16 @@
 (function() {
   'use strict';
 
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   function safeLoadStorage(key, fallback = []) {
     try {
       const item = localStorage.getItem(key);
@@ -1857,7 +1867,7 @@
       const item = document.createElement('button');
       item.className = `playlist-nav-item ${state.activeView === 'playlist' && state.activePlaylistId === pl.id ? 'active' : ''}`;
       item.innerHTML = `
-        <span class="pl-nav-title">${pl.name}</span>
+        <span class="pl-nav-title">${escapeHtml(pl.name)}</span>
         <span class="pl-track-count">${pl.tracks.length}</span>
       `;
       item.addEventListener('click', () => {
@@ -1888,13 +1898,14 @@
       const card = document.createElement('div');
       card.className = 'home-playlist-card text-only-pl-card';
       const trackCount = (pl.tracks || []).length;
+      const safeName = escapeHtml(pl.name);
 
       card.innerHTML = `
         <div class="pl-card-body">
-          <div class="pl-card-title" title="${pl.name}">${pl.name}</div>
+          <div class="pl-card-title" title="${safeName}">${safeName}</div>
           <div class="pl-card-meta">${trackCount} ${trackCount === 1 ? 'song' : 'songs'}</div>
         </div>
-        <button class="pl-quick-play" title="Play Playlist" aria-label="Play ${pl.name}">
+        <button class="pl-quick-play" title="Play Playlist" aria-label="Play ${safeName}">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
         </button>
       `;
@@ -2371,7 +2382,7 @@
         item.className = 'modal-pl-item';
         item.innerHTML = `
           <div>
-            <div class="modal-pl-name">${pl.name}</div>
+            <div class="modal-pl-name">${escapeHtml(pl.name)}</div>
             <div class="modal-pl-tracks-count">${pl.tracks.length} songs</div>
           </div>
           <button class="btn-primary" style="padding: 6px 14px; font-size: 0.8rem;">
@@ -2428,10 +2439,10 @@
       const item = document.createElement('div');
       item.className = `queue-item ${i === state.currentIndex ? 'active' : ''}`;
       item.innerHTML = `
-        <img class="queue-thumb" src="${track.thumbnail}" alt="" loading="lazy" decoding="async" />
+        <img class="queue-thumb" src="${escapeHtml(track.thumbnail)}" alt="" loading="lazy" decoding="async" />
         <div class="queue-info">
-          <div class="queue-title">${track.title}</div>
-          <div class="queue-artist">${track.artist}</div>
+          <div class="queue-title">${escapeHtml(track.title)}</div>
+          <div class="queue-artist">${escapeHtml(track.artist)}</div>
         </div>
         <button class="queue-remove-btn" title="Remove" data-index="${i}">&times;</button>
       `;
@@ -2483,10 +2494,15 @@
     card.dataset.trackId = track.id;
     const isLiked = state.likedSongs.some(t => t.id === track.id);
 
+    const safeTitle = escapeHtml(track.title);
+    const safeArtist = escapeHtml(track.artist);
+    const safeThumb = escapeHtml(track.thumbnail);
+    const safeId = escapeHtml(track.id);
+
     card.innerHTML = `
       <div class="card-thumb-wrapper song-thumb-wrapper">
-        <img class="song-card-img" src="${track.thumbnail}" alt="${track.title}" loading="lazy" decoding="async" />
-        <span class="card-duration-tag">${typeof track.duration === 'number' ? formatTime(track.duration) : (track.duration || '3:30')}</span>
+        <img class="song-card-img" src="${safeThumb}" alt="${safeTitle}" loading="lazy" decoding="async" />
+        <span class="card-duration-tag">${typeof track.duration === 'number' ? formatTime(track.duration) : escapeHtml(track.duration || '3:30')}</span>
         <div class="card-playing-eq ${isCurrent ? '' : 'hidden'}">
           <span></span><span></span><span></span>
         </div>
@@ -2495,11 +2511,11 @@
         </button>
       </div>
       <div class="card-info song-info">
-        <div class="card-title song-title" title="${track.title}">${track.title}</div>
-        <div class="card-artist song-artist" title="${track.artist}">${track.artist}</div>
+        <div class="card-title song-title" title="${safeTitle}">${safeTitle}</div>
+        <div class="card-artist song-artist" title="${safeArtist}">${safeArtist}</div>
       </div>
       <div class="card-actions">
-        <button class="card-btn-icon ${isLiked ? 'liked' : ''}" data-song-id="${track.id}" title="Like">
+        <button class="card-btn-icon ${isLiked ? 'liked' : ''}" data-song-id="${safeId}" title="Like">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
         </button>
         <button class="card-btn-icon add-playlist-btn" title="Add to Playlist">
@@ -2708,7 +2724,7 @@
       item.className = 'suggestion-item';
       item.innerHTML = `
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-        <span>${text}</span>
+        <span>${escapeHtml(text)}</span>
       `;
       item.addEventListener('click', () => {
         el.searchInput.value = text;
@@ -2738,7 +2754,7 @@
     existingSearch.innerHTML = `
       <div class="section-header">
         <div class="section-title-group">
-          <h2>Searching for "${query}"...</h2>
+          <h2>Searching for "${escapeHtml(query)}"...</h2>
           <span class="section-subtitle">Finding top music tracks</span>
         </div>
       </div>
@@ -2818,7 +2834,11 @@
       searchGrid.innerHTML = `
         <div class="empty-state-card">
           <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <h4 class="empty-state-title">No songs found for "${query}"</h4>
+          <h4 class="empty-state-title">No songs found for "${escapeHtml(query)}"</h4>
+          <p class="empty-state-desc">Try checking your spelling or searching for another artist, movie, or song title.</p>
+          <button class="btn-secondary" id="btn-clear-search-view" style="padding: 9px 22px; font-size: 0.85rem;">Clear Search</button>
+        </div>
+      `;
           <p class="empty-state-desc">Try checking your spelling or searching for another artist, movie, or song title.</p>
           <button class="btn-secondary" id="btn-clear-search-view" style="padding: 9px 22px; font-size: 0.85rem;">Clear Search</button>
         </div>
