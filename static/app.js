@@ -104,6 +104,15 @@
     heroDesc: document.getElementById('hero-desc'),
     heroPlayAllBtn: document.getElementById('hero-play-all-btn'),
     heroShuffleBtn: document.getElementById('hero-shuffle-btn'),
+    spotifyQuickAccess: document.getElementById('spotify-quick-access'),
+    spotifyGreetingHeading: document.getElementById('spotify-greeting-heading'),
+    spotifyQuickGrid: document.getElementById('spotify-quick-grid'),
+    spotifyFeaturedPlaylistsSection: document.getElementById('spotify-featured-playlists-section'),
+    spotifyFeaturedPlaylistsGrid: document.getElementById('spotify-featured-playlists-grid'),
+    spotifyArtistsSection: document.getElementById('spotify-artists-section'),
+    spotifyArtistsGrid: document.getElementById('spotify-artists-grid'),
+    spotifyMoodsSection: document.getElementById('spotify-moods-section'),
+    spotifyMoodsGrid: document.getElementById('spotify-moods-grid'),
     songsContainer: document.getElementById('songs-container'),
     homePlaylistsSection: document.getElementById('home-playlists-section'),
     homePlaylistsGrid: document.getElementById('home-playlists-grid'),
@@ -2567,6 +2576,9 @@
 
   // Initial Catalog Loader
   async function loadInitialCatalog() {
+    // Immediate 0ms first render of Spotify quick picks, playlists & artist shelves
+    renderHomeGrids();
+
     try {
       const safeFetchTrending = async (lang) => {
         try {
@@ -2602,7 +2614,409 @@
     }
   }
 
+  const SPOTIFY_CURATED_PLAYLISTS = [
+    {
+      id: 'pl_top_telugu',
+      name: "Today's Top Telugu",
+      desc: "Tollywood's hottest chartbusters featuring Pushpa 2, Devara & Ala Vaikunthapurramuloo.",
+      cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&auto=format&fit=crop&q=80',
+      tag: 'Tollywood Top 50',
+      category: 'telugu',
+      getTracks: () => state.allTelugu
+    },
+    {
+      id: 'pl_bollywood_hits',
+      name: "Bollywood Mega Hits",
+      desc: "The biggest songs in Hindi cinema right now. Arijit Singh, Pritam & Shreya Ghoshal.",
+      cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&auto=format&fit=crop&q=80',
+      tag: 'Bollywood Top 50',
+      category: 'hindi',
+      getTracks: () => state.allHindi
+    },
+    {
+      id: 'pl_top_global',
+      name: "Today's Top Hits",
+      desc: "The biggest tracks in the world right now on Billboard & Global charts.",
+      cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400&auto=format&fit=crop&q=80',
+      tag: 'Global Pop',
+      category: 'english',
+      getTracks: () => state.allEnglish
+    },
+    {
+      id: 'pl_telugu_romance',
+      name: "Telugu Romantic Melodies",
+      desc: "Heart-touching soulful love songs by Sid Sriram, Anurag Kulkarni & Shreya Ghoshal.",
+      cover: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=400&auto=format&fit=crop&q=80',
+      tag: 'Romance',
+      category: 'romance',
+      getTracks: () => state.allTelugu.slice(1, 8).concat(state.allTelugu.slice(0, 3))
+    },
+    {
+      id: 'pl_tollywood_party',
+      name: "Tollywood Mass & DJ Party",
+      desc: "High-octane mass anthems to turn every gathering into a celebration.",
+      cover: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400&auto=format&fit=crop&q=80',
+      tag: 'Party & Dance',
+      category: 'party',
+      getTracks: () => state.allTelugu.slice(0, 6)
+    },
+    {
+      id: 'pl_midnight_lofi',
+      name: "Midnight Lofi & Chill",
+      desc: "Soft beats and peaceful melodies for relaxing, late-night coding, and unwinding.",
+      cover: 'https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=400&auto=format&fit=crop&q=80',
+      tag: 'Chill & Lofi',
+      category: 'chill',
+      getTracks: () => state.allEnglish.concat(state.allHindi).slice(0, 8)
+    }
+  ];
+
+  const SPOTIFY_MOOD_PLAYLISTS = [
+    {
+      id: 'pl_workout_energy',
+      name: "High-Octane Workout",
+      desc: "Fast BPM anthems, adrenaline rushes, and heavy drops to crush your workout.",
+      cover: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&auto=format&fit=crop&q=80',
+      tag: 'Workout',
+      category: 'party',
+      getTracks: () => state.allTelugu.slice(0, 5).concat(state.allEnglish.slice(0, 4))
+    },
+    {
+      id: 'pl_90s_nostalgia',
+      name: "90s & 2000s Tollywood Classics",
+      desc: "Timeless golden melodies by SPB, Chithra, Mani Sharma & MM Keeravani.",
+      cover: 'https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=400&auto=format&fit=crop&q=80',
+      tag: 'Classics',
+      category: 'telugu',
+      getTracks: () => state.allTelugu.slice(2, 9)
+    },
+    {
+      id: 'pl_bollywood_retro',
+      name: "Bollywood 2000s Romance",
+      desc: "The golden romantic era of KK, Mohit Chauhan, Atif Aslam & Shaan.",
+      cover: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&auto=format&fit=crop&q=80',
+      tag: 'Retro Romance',
+      category: 'romance',
+      getTracks: () => state.allHindi.slice(0, 7)
+    },
+    {
+      id: 'pl_deep_focus',
+      name: "Deep Focus & Flow",
+      desc: "Zero distractions, rhythmic instrumentals and atmospheric soundscapes.",
+      cover: 'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=400&auto=format&fit=crop&q=80',
+      tag: 'Focus',
+      category: 'chill',
+      getTracks: () => state.allEnglish.slice(1, 6)
+    }
+  ];
+
+  const SPOTIFY_POPULAR_ARTISTS = [
+    {
+      name: 'Anirudh Ravichander',
+      image: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&auto=format&fit=crop&q=80',
+      query: 'Anirudh Ravichander songs'
+    },
+    {
+      name: 'A.R. Rahman',
+      image: 'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=300&auto=format&fit=crop&q=80',
+      query: 'AR Rahman songs'
+    },
+    {
+      name: 'Sid Sriram',
+      image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&auto=format&fit=crop&q=80',
+      query: 'Sid Sriram Telugu songs'
+    },
+    {
+      name: 'Arijit Singh',
+      image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&auto=format&fit=crop&q=80',
+      query: 'Arijit Singh songs'
+    },
+    {
+      name: 'Shreya Ghoshal',
+      image: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=300&auto=format&fit=crop&q=80',
+      query: 'Shreya Ghoshal songs'
+    },
+    {
+      name: 'Devi Sri Prasad (DSP)',
+      image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&auto=format&fit=crop&q=80',
+      query: 'Devi Sri Prasad DSP songs'
+    },
+    {
+      name: 'The Weeknd',
+      image: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=300&auto=format&fit=crop&q=80',
+      query: 'The Weeknd songs'
+    },
+    {
+      name: 'Thaman S',
+      image: 'https://images.unsplash.com/photo-1487180144351-b8472da7d491?w=300&auto=format&fit=crop&q=80',
+      query: 'Thaman S Telugu songs'
+    }
+  ];
+
+  function updateSpotifyGreeting() {
+    if (!el.spotifyGreetingHeading) return;
+    const hour = new Date().getHours();
+    let greeting = 'Good evening';
+    if (hour >= 5 && hour < 12) greeting = 'Good morning';
+    else if (hour >= 12 && hour < 17) greeting = 'Good afternoon';
+    el.spotifyGreetingHeading.textContent = greeting;
+  }
+
+  function renderSpotifyQuickAccess() {
+    if (!el.spotifyQuickGrid) return;
+    updateSpotifyGreeting();
+    el.spotifyQuickGrid.innerHTML = '';
+
+    const quickItems = [
+      {
+        title: 'Liked Songs',
+        isLiked: true,
+        getTracks: () => state.likedSongs,
+        action: () => switchView('liked')
+      },
+      {
+        title: "Today's Top Telugu",
+        thumb: state.allTelugu[0]?.thumbnail || SPOTIFY_CURATED_PLAYLISTS[0].cover,
+        getTracks: () => state.allTelugu,
+        playlistRef: SPOTIFY_CURATED_PLAYLISTS[0]
+      },
+      {
+        title: "Bollywood Mega Hits",
+        thumb: state.allHindi[0]?.thumbnail || SPOTIFY_CURATED_PLAYLISTS[1].cover,
+        getTracks: () => state.allHindi,
+        playlistRef: SPOTIFY_CURATED_PLAYLISTS[1]
+      },
+      {
+        title: "Today's Top Hits Global",
+        thumb: state.allEnglish[0]?.thumbnail || SPOTIFY_CURATED_PLAYLISTS[2].cover,
+        getTracks: () => state.allEnglish,
+        playlistRef: SPOTIFY_CURATED_PLAYLISTS[2]
+      },
+      {
+        title: "Telugu Romantic Melodies",
+        thumb: state.allTelugu[1]?.thumbnail || SPOTIFY_CURATED_PLAYLISTS[3].cover,
+        getTracks: () => SPOTIFY_CURATED_PLAYLISTS[3].getTracks(),
+        playlistRef: SPOTIFY_CURATED_PLAYLISTS[3]
+      },
+      {
+        title: "Tollywood Mass & DJ Party",
+        thumb: state.allTelugu[2]?.thumbnail || SPOTIFY_CURATED_PLAYLISTS[4].cover,
+        getTracks: () => SPOTIFY_CURATED_PLAYLISTS[4].getTracks(),
+        playlistRef: SPOTIFY_CURATED_PLAYLISTS[4]
+      }
+    ];
+
+    quickItems.forEach(item => {
+      const card = document.createElement('div');
+      card.className = 'spotify-quick-card';
+      const safeTitle = escapeHtml(item.title);
+
+      if (item.isLiked) {
+        card.innerHTML = `
+          <div class="spotify-quick-icon-thumb">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+          </div>
+          <div class="spotify-quick-info">
+            <div class="spotify-quick-title">${safeTitle}</div>
+          </div>
+          <button class="spotify-quick-play-btn" title="Play ${safeTitle}">
+            <svg viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+          </button>
+        `;
+      } else {
+        const safeThumb = escapeHtml(item.thumb);
+        card.innerHTML = `
+          <img class="spotify-quick-thumb" src="${safeThumb}" alt="${safeTitle}" loading="lazy" />
+          <div class="spotify-quick-info">
+            <div class="spotify-quick-title">${safeTitle}</div>
+          </div>
+          <button class="spotify-quick-play-btn" title="Play ${safeTitle}">
+            <svg viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+          </button>
+        `;
+      }
+
+      const playBtn = card.querySelector('.spotify-quick-play-btn');
+      playBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const tracks = item.getTracks();
+        if (tracks && tracks.length > 0) {
+          setQueueAndPlay(tracks, 0);
+          showToast(`Playing ${item.title}`);
+        } else {
+          showToast('No tracks found in playlist yet.');
+        }
+      });
+
+      card.addEventListener('click', () => {
+        if (item.action) item.action();
+        else if (item.playlistRef) openCuratedSpotifyPlaylist(item.playlistRef);
+      });
+
+      el.spotifyQuickGrid.appendChild(card);
+    });
+  }
+
+  function createSpotifyPlaylistCard(pl) {
+    const card = document.createElement('div');
+    card.className = 'spotify-playlist-card';
+    const safeName = escapeHtml(pl.name);
+    const safeDesc = escapeHtml(pl.desc);
+    const safeCover = escapeHtml(pl.cover);
+
+    card.innerHTML = `
+      <div class="spotify-playlist-cover-wrap">
+        <img src="${safeCover}" alt="${safeName}" loading="lazy" />
+        <button class="spotify-playlist-play-btn" title="Play ${safeName}">
+          <svg viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+        </button>
+      </div>
+      <div class="spotify-playlist-title" title="${safeName}">${safeName}</div>
+      <div class="spotify-playlist-desc">${safeDesc}</div>
+    `;
+
+    const playBtn = card.querySelector('.spotify-playlist-play-btn');
+    playBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const tracks = pl.getTracks ? pl.getTracks() : [];
+      if (tracks && tracks.length > 0) {
+        setQueueAndPlay(tracks, 0);
+        showToast(`Playing ${pl.name}`);
+      } else {
+        showToast('Playlist is currently loading.');
+      }
+    });
+
+    card.addEventListener('click', () => openCuratedSpotifyPlaylist(pl));
+    return card;
+  }
+
+  function createSpotifyArtistCard(artist) {
+    const card = document.createElement('div');
+    card.className = 'spotify-artist-card';
+    const safeName = escapeHtml(artist.name);
+    const safeImage = escapeHtml(artist.image);
+
+    card.innerHTML = `
+      <div class="spotify-artist-avatar-wrap">
+        <img src="${safeImage}" alt="${safeName}" loading="lazy" />
+        <button class="spotify-playlist-play-btn" title="Play ${safeName}">
+          <svg viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+        </button>
+      </div>
+      <div class="spotify-artist-name" title="${safeName}">${safeName}</div>
+      <div class="spotify-artist-tag">Artist</div>
+    `;
+
+    const playBtn = card.querySelector('.spotify-playlist-play-btn');
+    playBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      el.searchInput.value = artist.query;
+      performSearch(artist.query);
+    });
+
+    card.addEventListener('click', () => {
+      el.searchInput.value = artist.query;
+      performSearch(artist.query);
+    });
+
+    return card;
+  }
+
+  function renderSpotifyFeaturedPlaylists() {
+    if (!el.spotifyFeaturedPlaylistsGrid) return;
+    el.spotifyFeaturedPlaylistsGrid.innerHTML = '';
+    SPOTIFY_CURATED_PLAYLISTS.forEach(pl => {
+      el.spotifyFeaturedPlaylistsGrid.appendChild(createSpotifyPlaylistCard(pl));
+    });
+  }
+
+  function renderSpotifyArtists() {
+    if (!el.spotifyArtistsGrid) return;
+    el.spotifyArtistsGrid.innerHTML = '';
+    SPOTIFY_POPULAR_ARTISTS.forEach(art => {
+      el.spotifyArtistsGrid.appendChild(createSpotifyArtistCard(art));
+    });
+  }
+
+  function renderSpotifyMoods() {
+    if (!el.spotifyMoodsGrid) return;
+    el.spotifyMoodsGrid.innerHTML = '';
+    SPOTIFY_MOOD_PLAYLISTS.forEach(pl => {
+      el.spotifyMoodsGrid.appendChild(createSpotifyPlaylistCard(pl));
+    });
+  }
+
+  function openCuratedSpotifyPlaylist(pl) {
+    state.activeView = 'playlist';
+    state.activePlaylistId = pl.id;
+
+    el.navItems.forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.playlist-nav-item').forEach(b => b.classList.remove('active'));
+
+    if (el.spotifyQuickAccess) el.spotifyQuickAccess.classList.add('hidden');
+    if (el.spotifyFeaturedPlaylistsSection) el.spotifyFeaturedPlaylistsSection.classList.add('hidden');
+    if (el.spotifyArtistsSection) el.spotifyArtistsSection.classList.add('hidden');
+    if (el.spotifyMoodsSection) el.spotifyMoodsSection.classList.add('hidden');
+    if (el.teluguSection) el.teluguSection.classList.add('hidden');
+    if (el.hindiSection) el.hindiSection.classList.add('hidden');
+    if (el.englishSection) el.englishSection.classList.add('hidden');
+    if (el.homePlaylistsSection) el.homePlaylistsSection.classList.add('hidden');
+
+    el.heroBanner.classList.remove('hidden');
+    el.heroTitle.textContent = pl.name;
+    const tracks = pl.getTracks ? pl.getTracks() : [];
+    el.heroDesc.textContent = `${pl.desc} • ${tracks.length} songs`;
+
+    const prevSection = document.getElementById('custom-view-section');
+    if (prevSection) prevSection.remove();
+    const prevSearch = document.getElementById('search-results-section');
+    if (prevSearch) prevSearch.remove();
+
+    const section = document.createElement('div');
+    section.className = 'content-section';
+    section.id = 'custom-view-section';
+    section.innerHTML = `
+      <div class="section-header">
+        <div class="section-title-group">
+          <h2>Tracks in ${escapeHtml(pl.name)}</h2>
+          <span class="section-subtitle">${tracks.length} tracks • Public Playlist</span>
+        </div>
+      </div>
+      <div class="song-grid" id="playlist-grid"></div>
+    `;
+    el.songsContainer.appendChild(section);
+
+    const grid = document.getElementById('playlist-grid');
+    if (tracks.length === 0) {
+      grid.innerHTML = '<div class="empty-state">No tracks found in this playlist.</div>';
+    } else {
+      tracks.forEach((track, idx) => {
+        grid.appendChild(createSongCard(track, idx, tracks));
+      });
+    }
+
+    el.heroPlayAllBtn.onclick = () => {
+      if (tracks.length > 0) setQueueAndPlay(tracks, 0);
+      else showToast('No tracks in playlist');
+    };
+    el.heroShuffleBtn.onclick = () => {
+      if (tracks.length > 0) {
+        state.isShuffle = true;
+        el.btnShuffle.classList.add('active');
+        setQueueAndPlay(tracks, Math.floor(Math.random() * tracks.length));
+      }
+    };
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
   function renderHomeGrids() {
+    renderSpotifyQuickAccess();
+    renderSpotifyFeaturedPlaylists();
+    renderSpotifyArtists();
+    renderSpotifyMoods();
+
     el.teluguGrid.innerHTML = '';
     el.hindiGrid.innerHTML = '';
     el.englishGrid.innerHTML = '';
@@ -2895,6 +3309,12 @@
     if (prevSearch) prevSearch.remove();
 
     if (viewName === 'home') {
+      if (el.spotifyQuickAccess) el.spotifyQuickAccess.classList.remove('hidden');
+      if (el.spotifyFeaturedPlaylistsSection) el.spotifyFeaturedPlaylistsSection.classList.remove('hidden');
+      if (el.spotifyArtistsSection) el.spotifyArtistsSection.classList.remove('hidden');
+      if (el.spotifyMoodsSection) el.spotifyMoodsSection.classList.remove('hidden');
+      updateSpotifyGreeting();
+
       el.heroBanner.classList.remove('hidden');
       el.heroTitle.textContent = 'Telugu, Hindi & Global Hits';
       if (el.homePlaylistsSection) el.homePlaylistsSection.classList.add('hidden');
@@ -2911,6 +3331,10 @@
         setQueueAndPlay(allCombined, randIdx);
       };
     } else {
+      if (el.spotifyQuickAccess) el.spotifyQuickAccess.classList.add('hidden');
+      if (el.spotifyFeaturedPlaylistsSection) el.spotifyFeaturedPlaylistsSection.classList.add('hidden');
+      if (el.spotifyArtistsSection) el.spotifyArtistsSection.classList.add('hidden');
+      if (el.spotifyMoodsSection) el.spotifyMoodsSection.classList.add('hidden');
       if (el.homePlaylistsSection) el.homePlaylistsSection.classList.add('hidden');
     }
 
@@ -3032,10 +3456,28 @@
       const lang = chip.dataset.lang;
       state.activeLangChip = lang;
 
-      if (lang === 'all') switchView('home');
-      else if (lang === 'telugu') switchView('telugu');
-      else if (lang === 'hindi') switchView('hindi');
-      else if (lang === 'english') switchView('english');
+      if (lang === 'all') {
+        switchView('home');
+      } else if (lang === 'playlists') {
+        switchView('all-playlists');
+      } else if (lang === 'artists') {
+        switchView('home');
+        if (el.spotifyArtistsSection) {
+          el.spotifyArtistsSection.scrollIntoView({ behavior: 'smooth' });
+        }
+      } else if (lang === 'telugu') {
+        switchView('telugu');
+      } else if (lang === 'hindi') {
+        switchView('hindi');
+      } else if (lang === 'english') {
+        switchView('english');
+      } else if (lang === 'romance') {
+        const romancePl = SPOTIFY_CURATED_PLAYLISTS.find(p => p.id === 'pl_telugu_romance');
+        if (romancePl) openCuratedSpotifyPlaylist(romancePl);
+      } else if (lang === 'party') {
+        const partyPl = SPOTIFY_CURATED_PLAYLISTS.find(p => p.id === 'pl_tollywood_party');
+        if (partyPl) openCuratedSpotifyPlaylist(partyPl);
+      }
     });
   });
 

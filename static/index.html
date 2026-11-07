@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="/static/styles.css?v=25.0" />
+  <link rel="stylesheet" href="/static/styles.css?v=26.0" />
   <style>
     /* Critical 0ms render styles & zero overflow-x */
     *, *::before, *::after { box-sizing: border-box; }
@@ -144,11 +144,15 @@
         </div>
 
         <div class="header-actions">
-          <div class="filter-chips" role="tablist" aria-label="Language filters">
-            <button class="chip active" data-lang="all" role="tab" aria-selected="true" aria-label="Show all languages">All</button>
-            <button class="chip" data-lang="telugu" role="tab" aria-selected="false" aria-label="Filter by Telugu hits">Telugu</button>
-            <button class="chip" data-lang="hindi" role="tab" aria-selected="false" aria-label="Filter by Hindi hits">Hindi</button>
-            <button class="chip" data-lang="english" role="tab" aria-selected="false" aria-label="Filter by English hits">English</button>
+          <div class="filter-chips" role="tablist" aria-label="Filters">
+            <button class="chip active" data-lang="all" role="tab" aria-selected="true">All</button>
+            <button class="chip" data-lang="playlists" role="tab" aria-selected="false">Playlists</button>
+            <button class="chip" data-lang="artists" role="tab" aria-selected="false">Artists</button>
+            <button class="chip" data-lang="telugu" role="tab" aria-selected="false">Telugu</button>
+            <button class="chip" data-lang="hindi" role="tab" aria-selected="false">Hindi</button>
+            <button class="chip" data-lang="english" role="tab" aria-selected="false">English</button>
+            <button class="chip" data-lang="romance" role="tab" aria-selected="false">Romance</button>
+            <button class="chip" data-lang="party" role="tab" aria-selected="false">Party</button>
           </div>
           <button class="btn-app-install-header" id="btn-header-get-app" title="Download Mobile App / Install" aria-label="Download or Install Mobile App">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
@@ -159,6 +163,14 @@
 
       <!-- Scrollable Main View -->
       <section class="content-scrollable is-home" id="main-view">
+        <!-- Spotify Signature Greeting & Quick Access Grid -->
+        <div class="spotify-quick-access" id="spotify-quick-access">
+          <h1 class="spotify-greeting-heading" id="spotify-greeting-heading">Good evening</h1>
+          <div class="spotify-quick-grid" id="spotify-quick-grid">
+            <!-- Dynamically populated Spotify 6-item quick cards -->
+          </div>
+        </div>
+
         <!-- Dynamic Hero Banner -->
         <div class="hero-banner" id="hero-banner">
           <div class="hero-content">
@@ -180,6 +192,40 @@
 
         <!-- Section Containers -->
         <div id="songs-container">
+          <!-- Curated Featured Playlists Shelf (Spotify Style) -->
+          <div class="content-section" id="spotify-featured-playlists-section">
+            <div class="section-header">
+              <div class="section-title-group">
+                <h2>Featured Playlists</h2>
+                <span class="section-subtitle">Curated collections for every vibe and moment</span>
+              </div>
+              <button class="btn-view-all" id="btn-show-all-featured" data-target="all-playlists">Show all</button>
+            </div>
+            <div class="playlist-cards-grid spotify-shelf-grid" id="spotify-featured-playlists-grid"></div>
+          </div>
+
+          <!-- Popular Artists Shelf (Spotify Circular Cards) -->
+          <div class="content-section" id="spotify-artists-section">
+            <div class="section-header">
+              <div class="section-title-group">
+                <h2>Popular Artists</h2>
+                <span class="section-subtitle">Trending voices & master composers</span>
+              </div>
+            </div>
+            <div class="artist-cards-grid spotify-shelf-grid" id="spotify-artists-grid"></div>
+          </div>
+
+          <!-- Moods & Mixes Shelf (Spotify Style) -->
+          <div class="content-section" id="spotify-moods-section">
+            <div class="section-header">
+              <div class="section-title-group">
+                <h2>Made For Your Mood</h2>
+                <span class="section-subtitle">Tailored sounds for romance, chill, and focus</span>
+              </div>
+            </div>
+            <div class="playlist-cards-grid spotify-shelf-grid" id="spotify-moods-grid"></div>
+          </div>
+
           <!-- Dynamically populated sections or search results -->
           <div class="content-section hidden" id="home-playlists-section">
             <div class="section-header">
@@ -750,6 +796,6 @@
   <!-- Native HTML5 Audio Engine for Background & Screen-Off Playback -->
   <audio id="native-audio" preload="metadata"></audio>
 
-  <script src="/static/app.js?v=25.0"></script>
+  <script src="/static/app.js?v=26.0"></script>
 </body>
 </html>
