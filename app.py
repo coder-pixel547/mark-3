@@ -195,16 +195,8 @@ if ALLOWED_ORIGINS_ENV:
     ALLOWED_ORIGINS = [o.strip() for o in ALLOWED_ORIGINS_ENV.split(",") if o.strip()]
     ALLOW_ALL_ORIGINS = "*" in ALLOWED_ORIGINS
 else:
-    ALLOW_ALL_ORIGINS = False
-    ALLOWED_ORIGINS = [
-        "https://swarify-music-b0e9.onrender.com",
-        "http://localhost:8000",
-        "http://127.0.0.1:8000",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173"
-    ]
+    ALLOW_ALL_ORIGINS = True
+    ALLOWED_ORIGINS = ["*"]
 
 app.add_middleware(
     CORSMiddleware,
@@ -235,6 +227,8 @@ async def security_and_rate_limiting_middleware(request: Request, call_next):
         allowed, retry = RATE_LIMITER.is_allowed(f"sync_load:{client_ip}", max_requests=45, window_seconds=60.0)
     elif path.startswith("/api/admin"):
         allowed, retry = RATE_LIMITER.is_allowed(f"admin:{client_ip}", max_requests=20, window_seconds=60.0)
+    elif path.startswith("/api/stream") or path.startswith("/api/audio-info"):
+        allowed, retry = True, 0
     elif path.startswith("/api/search") or path.startswith("/api/suggestions"):
         allowed, retry = RATE_LIMITER.is_allowed(f"search:{client_ip}", max_requests=120, window_seconds=60.0)
     elif path.startswith("/api/"):

@@ -2839,10 +2839,6 @@
           <button class="btn-secondary" id="btn-clear-search-view" style="padding: 9px 22px; font-size: 0.85rem;">Clear Search</button>
         </div>
       `;
-          <p class="empty-state-desc">Try checking your spelling or searching for another artist, movie, or song title.</p>
-          <button class="btn-secondary" id="btn-clear-search-view" style="padding: 9px 22px; font-size: 0.85rem;">Clear Search</button>
-        </div>
-      `;
       document.getElementById('btn-clear-search-view')?.addEventListener('click', () => {
         el.clearSearchBtn.click();
       });
