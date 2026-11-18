@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="/static/styles.css?v=27.0" />
+  <link rel="stylesheet" href="/static/styles.css?v=28.0" />
   <style>
     /* Critical 0ms render styles & zero overflow-x */
     *, *::before, *::after { box-sizing: border-box; }
@@ -456,6 +456,63 @@
     </div>
   </div>
 
+  
+  <!-- Edit Playlist Details Modal -->
+  <div class="modal-overlay hidden" id="edit-playlist-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Edit Playlist Details</h3>
+        <button class="modal-close-btn" id="close-edit-pl-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="edit-pl-name-input">Playlist Name</label>
+          <input type="text" id="edit-pl-name-input" placeholder="e.g. Daily beates" maxlength="50" autocomplete="off" />
+        </div>
+        <div class="form-group">
+          <label for="edit-pl-desc-input">Description (optional)</label>
+          <input type="text" id="edit-pl-desc-input" placeholder="e.g. Favorite tracks and daily hits" maxlength="120" autocomplete="off" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary modal-cancel-btn" id="cancel-edit-pl-btn">Cancel</button>
+        <button class="btn-primary" id="save-edit-pl-btn">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Spotify-Style Options Bottom Sheet -->
+  <div class="modal-overlay hidden" id="sp-options-sheet">
+    <div class="sp-sheet-content">
+      <div class="sp-sheet-handle"></div>
+      <div class="sp-sheet-header" id="sp-sheet-header"></div>
+      <div class="sp-sheet-items" id="sp-sheet-items"></div>
+      <button type="button" class="sp-sheet-close-btn" id="sp-sheet-close">Close</button>
+    </div>
+  </div>
+
+  <!-- In-Playlist Add Songs Modal -->
+  <div class="modal-overlay hidden" id="sp-add-songs-modal">
+    <div class="modal-card sp-add-songs-card">
+      <div class="modal-header">
+        <div>
+          <h3 style="margin: 0; font-size: 1.15rem;">Add Songs to Playlist</h3>
+          <span style="font-size: 0.8rem; color: #a7a7a7;" id="sp-add-songs-pl-name">Add tracks instantly</span>
+        </div>
+        <button class="modal-close-btn" id="close-sp-add-songs-modal">&times;</button>
+      </div>
+      <div class="modal-body" style="padding-top: 10px;">
+        <div class="sp-search-bar-wrap" style="margin: 0 0 16px 0;">
+          <div class="sp-search-input-box">
+            <svg class="sp-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="22" y2="22"></line></svg>
+            <input type="text" id="sp-add-songs-search-input" class="sp-search-input" placeholder="Search Telugu, Hindi, English songs..." autocomplete="off" />
+          </div>
+        </div>
+        <div class="sp-add-songs-results" id="sp-add-songs-results"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Add to Playlist Modal -->
   <div class="modal-overlay hidden" id="add-to-playlist-modal">
     <div class="modal-card">
@@ -750,6 +807,6 @@
   <!-- Native HTML5 Audio Engine for Background & Screen-Off Playback -->
   <audio id="native-audio" preload="metadata"></audio>
 
-  <script src="/static/app.js?v=27.0"></script>
+  <script src="/static/app.js?v=28.0"></script>
 </body>
 </html>

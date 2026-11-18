@@ -62,17 +62,94 @@
 
   let activeOnPlayingListener = null;
 
-  // Seed starter playlist if none exists
-  if (state.playlists.length === 0) {
-    state.playlists = [
-      {
-        id: 'pl_favorites_telugu',
-        name: 'Tollywood Top Picks',
-        description: 'Selected Telugu chartbusters for quick listening',
-        createdAt: Date.now(),
-        tracks: []
-      }
-    ];
+  // Seed starter playlist & Daily beates matching user's Spotify playlist
+  const initialDailyBeatesTracks = [
+    {
+      id: 'Es4NrOnoNb4',
+      videoId: 'Es4NrOnoNb4',
+      title: 'Paro',
+      artist: "Aditya Rikhari, UNPLG'd",
+      duration: '3:04',
+      album: 'Paro',
+      thumbnail: 'https://i.ytimg.com/vi/Es4NrOnoNb4/hqdefault.jpg'
+    },
+    {
+      id: '2kjolTLZ_Mg',
+      videoId: '2kjolTLZ_Mg',
+      title: 'São Paulo (feat. Anitta)',
+      artist: 'The Weeknd, Anitta',
+      duration: '3:42',
+      album: 'Hurry Up Tomorrow',
+      thumbnail: 'https://i.ytimg.com/vi/2kjolTLZ_Mg/hqdefault.jpg',
+      explicit: true
+    },
+    {
+      id: '34Na4j8AVgA',
+      videoId: '34Na4j8AVgA',
+      title: 'Starboy (feat. Daft Punk)',
+      artist: 'The Weeknd, Daft Punk',
+      duration: '3:50',
+      album: 'Starboy',
+      thumbnail: 'https://i.ytimg.com/vi/34Na4j8AVgA/hqdefault.jpg',
+      explicit: true
+    },
+    {
+      id: 's3a4OQR-10M',
+      videoId: 's3a4OQR-10M',
+      title: 'Loser',
+      artist: 'Tame Impala',
+      duration: '3:34',
+      album: 'Currents',
+      thumbnail: 'https://i.ytimg.com/vi/s3a4OQR-10M/hqdefault.jpg',
+      explicit: true
+    },
+    {
+      id: 'Q6978DnF8C4',
+      videoId: 'Q6978DnF8C4',
+      title: 'FREAKED OUT',
+      artist: 'Fat Papi, prodshushy',
+      duration: '2:25',
+      album: 'FREAKED OUT',
+      thumbnail: 'https://i.ytimg.com/vi/Q6978DnF8C4/hqdefault.jpg',
+      explicit: true
+    },
+    {
+      id: '4NRXx6U8ABQ',
+      videoId: '4NRXx6U8ABQ',
+      title: 'Blinding Lights',
+      artist: 'The Weeknd',
+      duration: '3:20',
+      album: 'After Hours',
+      thumbnail: 'https://i.ytimg.com/vi/4NRXx6U8ABQ/hqdefault.jpg'
+    },
+    {
+      id: 'ygTZZpVkmKg',
+      videoId: 'ygTZZpVkmKg',
+      title: 'After Hours',
+      artist: 'The Weeknd',
+      duration: '6:01',
+      album: 'After Hours',
+      thumbnail: 'https://i.ytimg.com/vi/ygTZZpVkmKg/hqdefault.jpg'
+    },
+    {
+      id: 'M4ZoCHID9GI',
+      videoId: 'M4ZoCHID9GI',
+      title: 'Call Out My Name',
+      artist: 'The Weeknd',
+      duration: '3:48',
+      album: 'My Dear Melancholy,',
+      thumbnail: 'https://i.ytimg.com/vi/M4ZoCHID9GI/hqdefault.jpg'
+    }
+  ];
+
+  if (!state.playlists.some(p => p.name.toLowerCase() === 'daily beates')) {
+    state.playlists.unshift({
+      id: 'pl_daily_beates',
+      name: 'Daily beates',
+      description: 'Daily beats and global hits playlist',
+      createdAt: Date.now(),
+      tracks: initialDailyBeatesTracks
+    });
     localStorage.setItem('mark3_playlists', JSON.stringify(state.playlists));
   }
 
@@ -2000,18 +2077,51 @@
     };
   }
 
+  // Format Total Playlist Duration (e.g. "1h 35min" or "42 min")
+  function formatPlaylistDuration(tracks) {
+    if (!tracks || tracks.length === 0) return '0 min';
+    const totalSecs = tracks.reduce((acc, t) => acc + parseDurationToSeconds(t.duration), 0);
+    const hours = Math.floor(totalSecs / 3600);
+    const mins = Math.floor((totalSecs % 3600) / 60);
+    if (hours > 0) {
+      return `${hours}h ${mins}min`;
+    }
+    return `${mins} min`;
+  }
+
+  // Update Spotify Big Play Button Icon State
+  function updateSpotifyPlayBtnState() {
+    const playIcon = document.getElementById('sp-big-play-icon');
+    if (!playIcon) return;
+    const isThisPlPlaying = state.isPlaying && state.activePlaylistId && (state.playlists.find(p => p.id === state.activePlaylistId)?.tracks || []).some(t => t.id === state.queue[state.currentIndex]?.id);
+    if (isThisPlPlaying) {
+      playIcon.innerHTML = '<rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/>';
+    } else {
+      playIcon.innerHTML = '<polygon points="7 5 19 12 7 19 7 5"/>';
+    }
+  }
+
+  // View Playlist
   function viewPlaylist(playlistId) {
+    state.previousView = state.activeView || 'home';
     state.activeView = 'playlist';
     state.activePlaylistId = playlistId;
 
+    document.body.classList.add('is-playlist-view');
+
     el.navItems.forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.playlist-nav-item').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.mobile-nav-tab').forEach(t => t.classList.toggle('active', t.dataset.view === 'liked'));
+    document.querySelectorAll('.playlist-nav-item').forEach(b => {
+      b.classList.toggle('active', b.dataset.playlistId === playlistId);
+    });
+    document.querySelectorAll('.mobile-nav-tab').forEach(t => {
+      t.classList.toggle('active', t.dataset.view === 'all-playlists' || t.dataset.view === 'liked');
+    });
     updatePlaylistsSidebar();
 
     renderPlaylistView(playlistId);
   }
 
+  // Render Spotify Playlist View (Mobile & Laptop)
   function renderPlaylistView(playlistId) {
     const pl = state.playlists.find(p => p.id === playlistId);
     if (!pl) {
@@ -2019,67 +2129,828 @@
       return;
     }
 
+    document.body.classList.add('is-playlist-view');
+
     el.teluguSection.classList.add('hidden');
     el.hindiSection.classList.add('hidden');
     el.englishSection.classList.add('hidden');
     if (el.homePlaylistsSection) el.homePlaylistsSection.classList.add('hidden');
-
-    el.heroBanner.classList.remove('hidden');
-    el.heroTitle.textContent = pl.name;
-    el.heroDesc.textContent = pl.description || `${pl.tracks.length} songs in this playlist`;
+    el.heroBanner.classList.add('hidden');
 
     const prevSection = document.getElementById('custom-view-section');
     if (prevSection) prevSection.remove();
     const prevSearch = document.getElementById('search-results-section');
     if (prevSearch) prevSearch.remove();
 
-    const section = document.createElement('div');
-    section.className = 'content-section';
-    section.id = 'custom-view-section';
-    section.innerHTML = `
-      <div class="section-header">
-        <div class="section-title-group">
-          <h2>Playlist Tracks</h2>
-          <span class="section-subtitle">${pl.tracks.length} tracks</span>
-        </div>
-        <button class="btn-danger" id="btn-delete-active-pl">Delete Playlist</button>
-      </div>
-      <div class="song-grid" id="playlist-grid"></div>
-    `;
-    el.songsContainer.appendChild(section);
+    const safeName = escapeHtml(pl.name);
+    const safeDesc = escapeHtml(pl.description || '');
+    const trackCount = (pl.tracks || []).length;
+    const totalDurationText = formatPlaylistDuration(pl.tracks || []);
 
-    document.getElementById('btn-delete-active-pl').addEventListener('click', () => {
-      deletePlaylist(playlistId);
+    // Get up to 4 covers for 2x2 collage
+    const covers = [];
+    (pl.tracks || []).forEach(t => {
+      const thumb = t.thumbnail || (t.id ? `https://i.ytimg.com/vi/${t.id}/hqdefault.jpg` : '');
+      if (thumb && !covers.includes(thumb) && covers.length < 4) {
+        covers.push(thumb);
+      }
     });
 
-    const grid = document.getElementById('playlist-grid');
-    if (pl.tracks.length === 0) {
-      grid.innerHTML = `
-        <div class="empty-state-card">
-          <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
-          <h4 class="empty-state-title">This playlist is empty</h4>
-          <p class="empty-state-desc">Search for songs across Telugu, Hindi, and English and click "Add to Playlist".</p>
-          <button class="btn-primary" id="btn-go-search" style="padding: 9px 22px; font-size: 0.85rem;">Find Songs</button>
+    let artworkHtml = '';
+    if (covers.length >= 4) {
+      artworkHtml = `
+        <div class="sp-collage-grid">
+          <img src="${covers[0]}" alt="${safeName}" />
+          <img src="${covers[1]}" alt="${safeName}" />
+          <img src="${covers[2]}" alt="${safeName}" />
+          <img src="${covers[3]}" alt="${safeName}" />
         </div>
       `;
-      document.getElementById('btn-go-search')?.addEventListener('click', () => {
-        el.searchInput.focus();
-      });
-      return;
+    } else if (covers.length > 0) {
+      artworkHtml = `
+        <div class="sp-single-art">
+          <img src="${covers[0]}" alt="${safeName}" />
+        </div>
+      `;
+    } else {
+      artworkHtml = `
+        <div class="sp-empty-art">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M9 18V5l12-2v13" />
+            <circle cx="6" cy="18" r="3" />
+            <circle cx="18" cy="16" r="3" />
+          </svg>
+        </div>
+      `;
     }
 
-    pl.tracks.forEach((track, idx) => {
-      const card = createSongCard(track, idx, pl.tracks, true, playlistId);
-      grid.appendChild(card);
+    const userName = escapeHtml(localStorage.getItem('swarify_username') || 'Nani');
+    const userInitial = userName.charAt(0).toUpperCase() || 'N';
+
+    const section = document.createElement('div');
+    section.className = 'spotify-playlist-view';
+    section.id = 'custom-view-section';
+
+    section.innerHTML = `
+      <!-- Mobile Top Sticky Navigation Bar -->
+      <div class="sp-sticky-top-bar" id="sp-sticky-top-bar">
+        <button type="button" class="sp-top-nav-btn sp-btn-back" id="sp-btn-back" title="Go Back" aria-label="Go Back">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+            <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+          </svg>
+        </button>
+        <span class="sp-sticky-title" id="sp-sticky-title">${safeName}</span>
+        <button type="button" class="sp-top-nav-btn sp-btn-more-options" id="sp-btn-pl-options" title="Playlist options" aria-label="Playlist options">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+            <circle cx="12" cy="5" r="2.2"/>
+            <circle cx="12" cy="12" r="2.2"/>
+            <circle cx="12" cy="19" r="2.2"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Mobile Header Section -->
+      <div class="sp-mobile-header">
+        <!-- Find in playlist Search Bar -->
+        <div class="sp-search-bar-wrap">
+          <div class="sp-search-input-box">
+            <svg class="sp-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <circle cx="11" cy="11" r="7"/>
+              <line x1="16.5" y1="16.5" x2="22" y2="22"/>
+            </svg>
+            <input type="text" class="sp-search-input" id="sp-search-input" placeholder="Find in playlist" autocomplete="off" />
+            <button type="button" class="sp-search-clear-btn" id="sp-search-clear-btn" title="Clear">✕</button>
+          </div>
+        </div>
+
+        <!-- Centered Artwork -->
+        <div class="sp-artwork-container">
+          ${artworkHtml}
+        </div>
+
+        <!-- Mobile Title & Meta -->
+        <div class="sp-mobile-meta">
+          <h1 class="sp-mobile-title">${safeName}</h1>
+          <div class="sp-mobile-creator-row">
+            <div class="sp-creator-avatar">${userInitial}</div>
+            <span class="sp-creator-name">${userName}</span>
+            <button type="button" class="sp-creator-add-btn" id="sp-creator-add-btn" title="Add collaborator" aria-label="Add collaborator">+</button>
+          </div>
+          <div class="sp-mobile-details">
+            <span class="sp-globe-icon">🌐</span>
+            <span class="sp-total-duration">${totalDurationText}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Desktop Header Section (for Laptop / Desktop) -->
+      <div class="sp-desktop-header">
+        <div class="sp-artwork-container">
+          ${artworkHtml}
+        </div>
+        <div class="sp-desktop-meta">
+          <span class="sp-desktop-type">Public Playlist</span>
+          <h1 class="sp-desktop-title">${safeName}</h1>
+          ${safeDesc ? `<p class="sp-desktop-desc">${safeDesc}</p>` : ''}
+          <div class="sp-desktop-creator-row">
+            <div class="sp-creator-avatar">${userInitial}</div>
+            <span class="sp-creator-name">${userName}</span>
+            <span class="sp-meta-dot">•</span>
+            <span>${trackCount} ${trackCount === 1 ? 'song' : 'songs'}</span>
+            <span class="sp-meta-dot">•</span>
+            <span class="sp-desktop-duration">${totalDurationText}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Bar -->
+      <div class="sp-action-bar">
+        <div class="sp-actions-left">
+          <button type="button" class="sp-action-icon-btn" id="sp-btn-stack" title="Cover view" aria-label="Cover view">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="4" y="2" width="14" height="15" rx="2"/>
+              <path d="M7 21h12a2 2 0 0 0 2-2V7"/>
+            </svg>
+          </button>
+          <button type="button" class="sp-action-icon-btn sp-download-btn" id="sp-btn-download" title="Download playlist for offline" aria-label="Download playlist">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 8v8m-4-4l4 4 4-4"/>
+            </svg>
+          </button>
+          <button type="button" class="sp-action-icon-btn sp-share-btn" id="sp-btn-share" title="Share playlist" aria-label="Share playlist">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="18" cy="5" r="3"/>
+              <circle cx="6" cy="12" r="3"/>
+              <circle cx="18" cy="19" r="3"/>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            </svg>
+          </button>
+        </div>
+        <div class="sp-actions-right">
+          <button type="button" class="sp-action-icon-btn sp-shuffle-btn ${state.isShuffle ? 'active' : ''}" id="sp-btn-shuffle" title="Shuffle" aria-label="Shuffle playlist">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M16 3h5v5M4 20l17-17M21 16v5h-5M15 15l6 6M4 4l5 5"/>
+            </svg>
+            <span class="sp-shuffle-dot"></span>
+          </button>
+          <button type="button" class="sp-big-play-btn" id="sp-big-play-btn" title="Play playlist" aria-label="Play playlist">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" id="sp-big-play-icon">
+              <polygon points="7 5 19 12 7 19 7 5"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Action Chips / Pills Row -->
+      <div class="sp-chips-bar">
+        <button type="button" class="sp-chip-pill" id="sp-chip-add">
+          <span class="sp-chip-icon">+</span>
+          <span>Add</span>
+        </button>
+        <button type="button" class="sp-chip-pill" id="sp-chip-edit">
+          <span class="sp-chip-icon">≡</span>
+          <span>Edit</span>
+        </button>
+        <button type="button" class="sp-chip-pill" id="sp-chip-details">
+          <span class="sp-chip-icon">✎</span>
+          <span>Name and details</span>
+        </button>
+        <button type="button" class="sp-chip-pill" id="sp-chip-sort">
+          <span class="sp-chip-icon">⇅</span>
+          <span id="sp-sort-label">Sort</span>
+        </button>
+      </div>
+
+      <!-- Tracklist Section -->
+      <div class="sp-tracklist-section">
+        <!-- Desktop Table Header -->
+        <div class="sp-tracklist-header-desktop">
+          <span class="sp-th-index">#</span>
+          <span class="sp-th-title">Title</span>
+          <span class="sp-th-album">Album</span>
+          <span class="sp-th-duration">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </span>
+        </div>
+
+        <!-- Rendered Track Rows Container -->
+        <div class="sp-tracklist-container" id="sp-tracklist-container"></div>
+      </div>
+    `;
+
+    el.songsContainer.appendChild(section);
+
+    let currentFilter = '';
+    let currentSort = 'default';
+
+    function renderTracklistRows() {
+      const container = document.getElementById('sp-tracklist-container');
+      if (!container) return;
+      container.innerHTML = '';
+
+      let tracks = [...(pl.tracks || [])];
+
+      // Live search filter
+      if (currentFilter.trim()) {
+        const q = currentFilter.toLowerCase().trim();
+        tracks = tracks.filter(t =>
+          (t.title && t.title.toLowerCase().includes(q)) ||
+          (t.artist && t.artist.toLowerCase().includes(q)) ||
+          (t.album && t.album.toLowerCase().includes(q))
+        );
+      }
+
+      // Sort
+      if (currentSort === 'title') {
+        tracks.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+      } else if (currentSort === 'artist') {
+        tracks.sort((a, b) => (a.artist || '').localeCompare(b.artist || ''));
+      } else if (currentSort === 'duration') {
+        tracks.sort((a, b) => parseDurationToSeconds(b.duration) - parseDurationToSeconds(a.duration));
+      }
+
+      if (tracks.length === 0) {
+        if (currentFilter.trim()) {
+          container.innerHTML = `
+            <div class="sp-empty-playlist-card">
+              <h3>No results found for "${escapeHtml(currentFilter)}"</h3>
+              <p>Check your spelling or search for another track in this playlist.</p>
+              <button type="button" class="sp-btn-find-songs" id="sp-btn-clear-search">Clear Search</button>
+            </div>
+          `;
+          document.getElementById('sp-btn-clear-search')?.addEventListener('click', () => {
+            const input = document.getElementById('sp-search-input');
+            const clearBtn = document.getElementById('sp-search-clear-btn');
+            if (input) input.value = '';
+            if (clearBtn) clearBtn.classList.remove('visible');
+            currentFilter = '';
+            renderTracklistRows();
+          });
+        } else {
+          container.innerHTML = `
+            <div class="sp-empty-playlist-card">
+              <h3>This playlist is empty</h3>
+              <p>Discover hits across Telugu, Hindi, and English chartbusters and add them to this playlist.</p>
+              <button type="button" class="sp-btn-find-songs" id="sp-empty-add-btn">Add Songs</button>
+            </div>
+          `;
+          document.getElementById('sp-empty-add-btn')?.addEventListener('click', () => {
+            openAddSongsModal(playlistId);
+          });
+        }
+        return;
+      }
+
+      tracks.forEach((track, idx) => {
+        const row = createSpotifyTrackRow(track, idx, tracks, pl.id);
+        container.appendChild(row);
+      });
+
+      updateSpotifyPlayBtnState();
+    }
+
+    renderTracklistRows();
+
+    // Event: Back button
+    document.getElementById('sp-btn-back')?.addEventListener('click', () => {
+      const target = (state.previousView && state.previousView !== 'playlist') ? state.previousView : 'home';
+      switchView(target);
     });
 
-    el.heroPlayAllBtn.onclick = () => setQueueAndPlay(pl.tracks, 0);
-    el.heroShuffleBtn.onclick = () => {
-      state.isShuffle = true;
-      el.btnShuffle.classList.add('active');
-      setQueueAndPlay(pl.tracks, Math.floor(Math.random() * pl.tracks.length));
+    // Event: Playlist options button
+    document.getElementById('sp-btn-pl-options')?.addEventListener('click', () => {
+      openPlaylistOptionsSheet(playlistId);
+    });
+
+    // Event: Find in playlist search input
+    const searchInput = document.getElementById('sp-search-input');
+    const searchClearBtn = document.getElementById('sp-search-clear-btn');
+    if (searchInput) {
+      searchInput.addEventListener('input', () => {
+        currentFilter = searchInput.value;
+        if (searchClearBtn) {
+          searchClearBtn.classList.toggle('visible', Boolean(currentFilter.trim()));
+        }
+        renderTracklistRows();
+      });
+    }
+    if (searchClearBtn) {
+      searchClearBtn.addEventListener('click', () => {
+        if (searchInput) {
+          searchInput.value = '';
+          searchInput.focus();
+        }
+        searchClearBtn.classList.remove('visible');
+        currentFilter = '';
+        renderTracklistRows();
+      });
+    }
+
+    // Event: Big Play Button
+    const bigPlayBtn = document.getElementById('sp-big-play-btn');
+    if (bigPlayBtn) {
+      bigPlayBtn.addEventListener('click', () => {
+        if (!pl.tracks || pl.tracks.length === 0) {
+          showToast(`Playlist "${pl.name}" is empty`);
+          return;
+        }
+        const isThisPlPlaying = state.isPlaying && (pl.tracks || []).some(t => t.id === state.queue[state.currentIndex]?.id);
+        if (isThisPlPlaying) {
+          togglePlayPause();
+        } else {
+          setQueueAndPlay(pl.tracks, 0);
+        }
+        updateSpotifyPlayBtnState();
+      });
+    }
+
+    // Event: Shuffle Button
+    const shuffleBtn = document.getElementById('sp-btn-shuffle');
+    if (shuffleBtn) {
+      shuffleBtn.addEventListener('click', () => {
+        state.isShuffle = !state.isShuffle;
+        shuffleBtn.classList.toggle('active', state.isShuffle);
+        if (el.btnShuffle) el.btnShuffle.classList.toggle('active', state.isShuffle);
+        if (state.isShuffle && pl.tracks && pl.tracks.length > 0) {
+          const randIdx = Math.floor(Math.random() * pl.tracks.length);
+          setQueueAndPlay(pl.tracks, randIdx);
+          showToast('Shuffle play activated');
+        } else {
+          showToast(state.isShuffle ? 'Shuffle on' : 'Shuffle off');
+        }
+      });
+    }
+
+    // Event: Download Offline Button
+    document.getElementById('sp-btn-download')?.addEventListener('click', () => {
+      showToast('All tracks marked for offline background playback');
+    });
+
+    // Event: Share Button
+    document.getElementById('sp-btn-share')?.addEventListener('click', () => {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(window.location.origin + `?playlist=${playlistId}`);
+        showToast('Playlist link copied to clipboard!');
+      } else {
+        showToast(`Shared "${pl.name}"`);
+      }
+    });
+
+    // Event: Chips
+    document.getElementById('sp-chip-add')?.addEventListener('click', () => {
+      openAddSongsModal(playlistId);
+    });
+
+    document.getElementById('sp-creator-add-btn')?.addEventListener('click', () => {
+      openAddSongsModal(playlistId);
+    });
+
+    document.getElementById('sp-chip-edit')?.addEventListener('click', () => {
+      openPlaylistOptionsSheet(playlistId);
+    });
+
+    document.getElementById('sp-chip-details')?.addEventListener('click', () => {
+      openEditPlaylistModal(playlistId);
+    });
+
+    const sortLabel = document.getElementById('sp-sort-label');
+    document.getElementById('sp-chip-sort')?.addEventListener('click', () => {
+      if (currentSort === 'default') {
+        currentSort = 'title';
+        if (sortLabel) sortLabel.textContent = 'Title (A-Z)';
+        showToast('Sorted by Title');
+      } else if (currentSort === 'title') {
+        currentSort = 'artist';
+        if (sortLabel) sortLabel.textContent = 'Artist (A-Z)';
+        showToast('Sorted by Artist');
+      } else if (currentSort === 'artist') {
+        currentSort = 'duration';
+        if (sortLabel) sortLabel.textContent = 'Duration';
+        showToast('Sorted by Duration');
+      } else {
+        currentSort = 'default';
+        if (sortLabel) sortLabel.textContent = 'Sort';
+        showToast('Default Custom Order');
+      }
+      renderTracklistRows();
+    });
+  }
+
+  // Create Spotify Track Row
+  function createSpotifyTrackRow(track, index, listRef, playlistId) {
+    const row = document.createElement('div');
+    const isCurrent = state.queue[state.currentIndex]?.id === track.id;
+    row.className = `sp-track-item ${isCurrent ? 'is-current' : ''}`;
+    row.dataset.trackId = track.id;
+
+    const safeTitle = escapeHtml(track.title);
+    const safeArtist = escapeHtml(track.artist || 'Swarify Artist');
+    const safeThumb = escapeHtml(track.thumbnail || `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg`);
+    const safeAlbum = escapeHtml(track.album || (track.language ? `${track.language.toUpperCase()} Hits` : 'Single'));
+    const isExplicit = Boolean(track.explicit || /explicit/i.test(track.title || ''));
+    const durRaw = track.duration || '3:30';
+    const durFormatted = typeof durRaw === 'number' ? formatTime(durRaw) : durRaw;
+
+    row.innerHTML = `
+      <!-- Desktop Index Column -->
+      <div class="sp-track-col-index">
+        <span class="sp-track-num">${index + 1}</span>
+        <button type="button" class="sp-track-hover-play" title="Play">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <polygon points="6 4 20 12 6 20 6 4"/>
+          </svg>
+        </button>
+        <div class="sp-playing-eq">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+
+      <!-- Main Cell: Thumbnail + Info -->
+      <div class="sp-track-main-cell">
+        <div class="sp-track-thumb-wrap">
+          <img src="${safeThumb}" alt="${safeTitle}" class="sp-track-thumb" loading="lazy" decoding="async" />
+        </div>
+        <div class="sp-track-info">
+          <div class="sp-track-title" title="${safeTitle}">${safeTitle}</div>
+          <div class="sp-track-subtitle">
+            ${isExplicit ? '<span class="sp-explicit-tag">E</span>' : ''}
+            <span class="sp-track-artist" title="${safeArtist}">${safeArtist}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Desktop Album Column -->
+      <div class="sp-track-col-album">
+        <span title="${safeAlbum}">${safeAlbum}</span>
+      </div>
+
+      <!-- Desktop Duration Column -->
+      <div class="sp-track-col-duration">
+        <span>${durFormatted}</span>
+      </div>
+
+      <!-- Options 3-Dots Button -->
+      <div class="sp-track-actions">
+        <button type="button" class="sp-track-options-btn" data-track-id="${escapeHtml(track.id)}" title="More options" aria-label="More options for ${safeTitle}">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+            <circle cx="12" cy="5" r="2.2"/>
+            <circle cx="12" cy="12" r="2.2"/>
+            <circle cx="12" cy="19" r="2.2"/>
+          </svg>
+        </button>
+      </div>
+    `;
+
+    // Row Click to Play
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('.sp-track-options-btn') || e.target.closest('.sp-track-hover-play')) return;
+      setQueueAndPlay(listRef, index);
+    });
+
+    // Play icon on desktop hover
+    row.querySelector('.sp-track-hover-play')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setQueueAndPlay(listRef, index);
+    });
+
+    // Three-dot options menu
+    row.querySelector('.sp-track-options-btn')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openTrackOptionsSheet(track, playlistId);
+    });
+
+    return row;
+  }
+
+  // Open Track Options Sheet
+  function openTrackOptionsSheet(track, playlistId) {
+    const sheet = document.getElementById('sp-options-sheet');
+    const header = document.getElementById('sp-sheet-header');
+    const items = document.getElementById('sp-sheet-items');
+    if (!sheet || !header || !items) return;
+
+    const safeTitle = escapeHtml(track.title);
+    const safeArtist = escapeHtml(track.artist || 'Swarify');
+    const safeThumb = escapeHtml(track.thumbnail || `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg`);
+    const isLiked = state.likedSongs.some(t => t.id === track.id);
+
+    header.innerHTML = `
+      <img src="${safeThumb}" alt="${safeTitle}" class="sp-sheet-thumb" />
+      <div class="sp-sheet-meta">
+        <div class="sp-sheet-title">${safeTitle}</div>
+        <div class="sp-sheet-sub">${safeArtist}</div>
+      </div>
+    `;
+
+    items.innerHTML = `
+      <button type="button" class="sp-sheet-item" id="sheet-opt-play-next">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19"></line></svg>
+        <span>Play next</span>
+      </button>
+      <button type="button" class="sp-sheet-item" id="sheet-opt-add-queue">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        <span>Add to queue</span>
+      </button>
+      <button type="button" class="sp-sheet-item" id="sheet-opt-toggle-like">
+        <svg viewBox="0 0 24 24" fill="${isLiked ? '#1DB954' : 'none'}" stroke="${isLiked ? '#1DB954' : 'currentColor'}" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+        <span>${isLiked ? 'Remove from Liked Songs' : 'Save to your Liked Songs'}</span>
+      </button>
+      <button type="button" class="sp-sheet-item" id="sheet-opt-add-pl">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 11H5M19 16H5M11 6H5M19 6h-4"></path></svg>
+        <span>Add to other playlist</span>
+      </button>
+      <button type="button" class="sp-sheet-item" id="sheet-opt-remove-pl" style="color: #ef4444;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        <span>Remove from this playlist</span>
+      </button>
+      <button type="button" class="sp-sheet-item" id="sheet-opt-share">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        <span>Share track link</span>
+      </button>
+    `;
+
+    sheet.classList.remove('hidden');
+
+    document.getElementById('sheet-opt-play-next').onclick = () => {
+      sheet.classList.add('hidden');
+      state.queue.splice(state.currentIndex + 1, 0, track);
+      updateQueueUI();
+      showToast(`Playing "${track.title}" next`);
+    };
+
+    document.getElementById('sheet-opt-add-queue').onclick = () => {
+      sheet.classList.add('hidden');
+      state.queue.push(track);
+      updateQueueUI();
+      showToast(`Added "${track.title}" to queue`);
+    };
+
+    document.getElementById('sheet-opt-toggle-like').onclick = () => {
+      sheet.classList.add('hidden');
+      toggleLikeTrack(track);
+    };
+
+    document.getElementById('sheet-opt-add-pl').onclick = () => {
+      sheet.classList.add('hidden');
+      openAddToPlaylistModal(track);
+    };
+
+    document.getElementById('sheet-opt-remove-pl').onclick = () => {
+      sheet.classList.add('hidden');
+      removeTrackFromPlaylist(playlistId, track.id);
+    };
+
+    document.getElementById('sheet-opt-share').onclick = () => {
+      sheet.classList.add('hidden');
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(window.location.origin + `?track=${track.id}`);
+        showToast('Track link copied to clipboard!');
+      } else {
+        showToast(`Share: ${track.title} - ${track.artist}`);
+      }
     };
   }
+
+  // Open Playlist Options Sheet
+  function openPlaylistOptionsSheet(playlistId) {
+    const pl = state.playlists.find(p => p.id === playlistId);
+    if (!pl) return;
+    const sheet = document.getElementById('sp-options-sheet');
+    const header = document.getElementById('sp-sheet-header');
+    const items = document.getElementById('sp-sheet-items');
+    if (!sheet || !header || !items) return;
+
+    const safeName = escapeHtml(pl.name);
+    const count = (pl.tracks || []).length;
+
+    header.innerHTML = `
+      <div class="sp-sheet-meta" style="padding: 4px 0;">
+        <div class="sp-sheet-title">${safeName}</div>
+        <div class="sp-sheet-sub">${count} ${count === 1 ? 'song' : 'songs'} in playlist</div>
+      </div>
+    `;
+
+    items.innerHTML = `
+      <button type="button" class="sp-sheet-item" id="pl-opt-add-songs">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        <span>Add songs to this playlist</span>
+      </button>
+      <button type="button" class="sp-sheet-item" id="pl-opt-edit">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+        <span>Edit name and details</span>
+      </button>
+      <button type="button" class="sp-sheet-item" id="pl-opt-share">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        <span>Share playlist link</span>
+      </button>
+      <button type="button" class="sp-sheet-item" id="pl-opt-delete" style="color: #ef4444;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+        <span>Delete playlist</span>
+      </button>
+    `;
+
+    sheet.classList.remove('hidden');
+
+    document.getElementById('pl-opt-add-songs').onclick = () => {
+      sheet.classList.add('hidden');
+      openAddSongsModal(playlistId);
+    };
+
+    document.getElementById('pl-opt-edit').onclick = () => {
+      sheet.classList.add('hidden');
+      openEditPlaylistModal(playlistId);
+    };
+
+    document.getElementById('pl-opt-share').onclick = () => {
+      sheet.classList.add('hidden');
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(window.location.origin + `?playlist=${playlistId}`);
+        showToast('Playlist link copied to clipboard!');
+      } else {
+        showToast(`Share: ${pl.name}`);
+      }
+    };
+
+    document.getElementById('pl-opt-delete').onclick = () => {
+      sheet.classList.add('hidden');
+      if (confirm(`Are you sure you want to delete playlist "${pl.name}"?`)) {
+        deletePlaylist(playlistId);
+      }
+    };
+  }
+
+  // Open Edit Playlist Modal
+  function openEditPlaylistModal(playlistId) {
+    const pl = state.playlists.find(p => p.id === playlistId);
+    if (!pl) return;
+    const modal = document.getElementById('edit-playlist-modal');
+    const nameInput = document.getElementById('edit-pl-name-input');
+    const descInput = document.getElementById('edit-pl-desc-input');
+    const saveBtn = document.getElementById('save-edit-pl-btn');
+    if (!modal || !nameInput || !descInput) return;
+
+    nameInput.value = pl.name || '';
+    descInput.value = pl.description || '';
+    modal.classList.remove('hidden');
+    setTimeout(() => nameInput.focus(), 60);
+
+    saveBtn.onclick = () => {
+      const newName = nameInput.value.trim();
+      if (!newName) {
+        showToast('Playlist name cannot be empty');
+        return;
+      }
+      pl.name = newName;
+      pl.description = descInput.value.trim();
+      savePlaylists();
+      modal.classList.add('hidden');
+      renderPlaylistView(playlistId);
+      showToast(`Updated playlist "${newName}"`);
+    };
+  }
+
+  // Open In-Playlist Add Songs Modal
+  function openAddSongsModal(playlistId) {
+    const pl = state.playlists.find(p => p.id === playlistId);
+    if (!pl) return;
+    const modal = document.getElementById('sp-add-songs-modal');
+    const nameLabel = document.getElementById('sp-add-songs-pl-name');
+    const searchInput = document.getElementById('sp-add-songs-search-input');
+    const resultsContainer = document.getElementById('sp-add-songs-results');
+    if (!modal || !searchInput || !resultsContainer) return;
+
+    if (nameLabel) nameLabel.textContent = `Adding tracks to: ${pl.name}`;
+    searchInput.value = '';
+    modal.classList.remove('hidden');
+
+    const pool = [...state.allTelugu, ...state.allHindi, ...state.allEnglish];
+    renderAddSongPool(pool.slice(0, 24));
+
+    function renderAddSongPool(trackList) {
+      resultsContainer.innerHTML = '';
+      if (!trackList || trackList.length === 0) {
+        resultsContainer.innerHTML = '<div style="text-align: center; padding: 24px; color: #888;">No tracks found</div>';
+        return;
+      }
+
+      trackList.forEach(t => {
+        const row = document.createElement('div');
+        row.className = 'sp-add-song-row';
+        const isAlreadyAdded = (pl.tracks || []).some(x => x.id === t.id);
+        const safeT = escapeHtml(t.title);
+        const safeA = escapeHtml(t.artist);
+        const safeTh = escapeHtml(t.thumbnail || `https://i.ytimg.com/vi/${t.id}/hqdefault.jpg`);
+
+        row.innerHTML = `
+          <img src="${safeTh}" alt="${safeT}" class="sp-add-song-thumb" loading="lazy" />
+          <div class="sp-add-song-info">
+            <div class="sp-add-song-title" title="${safeT}">${safeT}</div>
+            <div class="sp-add-song-artist" title="${safeA}">${safeA}</div>
+          </div>
+          <button type="button" class="sp-btn-add-track-action ${isAlreadyAdded ? 'added' : ''}" data-id="${escapeHtml(t.id)}">
+            ${isAlreadyAdded ? '✓ Added' : '+ Add'}
+          </button>
+        `;
+
+        const btn = row.querySelector('.sp-btn-add-track-action');
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          const inPl = (pl.tracks || []).some(x => x.id === t.id);
+          if (inPl) {
+            removeTrackFromPlaylist(playlistId, t.id);
+            btn.classList.remove('added');
+            btn.textContent = '+ Add';
+          } else {
+            addTrackToPlaylist(playlistId, t);
+            btn.classList.add('added');
+            btn.textContent = '✓ Added';
+            showToast(`Added "${t.title}" to ${pl.name}`);
+          }
+          if (state.activePlaylistId === playlistId) {
+            renderPlaylistView(playlistId);
+          }
+        };
+
+        resultsContainer.appendChild(row);
+      });
+    }
+
+    let searchDebounce;
+    searchInput.oninput = () => {
+      clearTimeout(searchDebounce);
+      const q = searchInput.value.trim().toLowerCase();
+      searchDebounce = setTimeout(async () => {
+        if (!q) {
+          renderAddSongPool(pool.slice(0, 24));
+          return;
+        }
+        const matches = pool.filter(t =>
+          (t.title && t.title.toLowerCase().includes(q)) ||
+          (t.artist && t.artist.toLowerCase().includes(q))
+        );
+        if (matches.length > 0) {
+          renderAddSongPool(matches);
+        } else {
+          try {
+            const resp = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+            if (resp.ok) {
+              const data = await resp.json();
+              renderAddSongPool(data.results || []);
+            }
+          } catch(err) {
+            console.error('Search error', err);
+          }
+        }
+      }, 250);
+    };
+
+    setTimeout(() => searchInput.focus(), 60);
+  }
+
+  // Sticky header scroll listener
+  if (el.mainView) {
+    el.mainView.addEventListener('scroll', () => {
+      const topBar = document.getElementById('sp-sticky-top-bar');
+      if (!topBar) return;
+      topBar.classList.toggle('scrolled', el.mainView.scrollTop > 140);
+    });
+  }
+
+  // Modal event listeners for Edit Playlist, Sheet & Add Songs
+  document.getElementById('close-edit-pl-modal')?.addEventListener('click', () => {
+    document.getElementById('edit-playlist-modal')?.classList.add('hidden');
+  });
+  document.getElementById('cancel-edit-pl-btn')?.addEventListener('click', () => {
+    document.getElementById('edit-playlist-modal')?.classList.add('hidden');
+  });
+  document.getElementById('edit-playlist-modal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'edit-playlist-modal') {
+      document.getElementById('edit-playlist-modal').classList.add('hidden');
+    }
+  });
+
+  document.getElementById('sp-sheet-close')?.addEventListener('click', () => {
+    document.getElementById('sp-options-sheet')?.classList.add('hidden');
+  });
+  document.getElementById('sp-options-sheet')?.addEventListener('click', (e) => {
+    if (e.target.id === 'sp-options-sheet') {
+      document.getElementById('sp-options-sheet').classList.add('hidden');
+    }
+  });
+
+  document.getElementById('close-sp-add-songs-modal')?.addEventListener('click', () => {
+    document.getElementById('sp-add-songs-modal')?.classList.add('hidden');
+  });
+  document.getElementById('sp-add-songs-modal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'sp-add-songs-modal') {
+      document.getElementById('sp-add-songs-modal').classList.add('hidden');
+    }
+  });
 
   // Modals Controller
   function openCreatePlaylistModal() {
@@ -2862,6 +3733,7 @@
   function switchView(viewName) {
     state.activeView = viewName;
     state.activePlaylistId = null;
+    document.body.classList.remove('is-playlist-view');
 
     if (el.mainView) {
       el.mainView.classList.toggle('is-home', viewName === 'home');
@@ -3209,6 +4081,10 @@
     });
   }
 
+  // Global Exports for Navigation and Deep-Linking
+  window.viewPlaylist = viewPlaylist;
+  window.switchView = switchView;
+
   // Initialize
   initMediaSession();
   restorePlaybackPersistence();
@@ -3217,4 +4093,13 @@
   renderHomePlaylistsSection();
   ensureSyncCode();
   loadInitialCatalog();
+
+  // Check URL params for playlist deep link
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    const plParam = urlParams.get('playlist');
+    if (plParam) {
+      setTimeout(() => viewPlaylist(plParam), 150);
+    }
+  } catch (e) {}
 })();

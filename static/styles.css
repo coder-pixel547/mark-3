@@ -3586,3 +3586,1067 @@ input:focus-visible,
   }
 }
 
+
+
+/* ==========================================================================
+   Spotify-Style Playlist View (Mobile & Laptop)
+   ========================================================================== */
+
+/* Full View Container */
+.spotify-playlist-view {
+  width: 100%;
+  min-height: 100%;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: linear-gradient(180deg, #6c1017 0%, #3e090e 28%, #1a0507 55%, #121212 85%, #121212 100%);
+  animation: spFadeIn 0.25s ease-out;
+}
+
+@keyframes spFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Mobile Top Sticky Navigation Bar */
+.sp-sticky-top-bar {
+  position: sticky;
+  top: 0;
+  z-index: 95;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px 12px;
+  background: transparent;
+  transition: background-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.sp-sticky-top-bar.scrolled {
+  background-color: #580d13;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+}
+
+.sp-top-nav-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.28);
+  border: none;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.15s, transform 0.15s;
+  flex-shrink: 0;
+}
+
+.sp-top-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+}
+
+.sp-top-nav-btn:active {
+  transform: scale(0.95);
+}
+
+.sp-sticky-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #ffffff;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60%;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.sp-sticky-top-bar.scrolled .sp-sticky-title {
+  opacity: 1;
+}
+
+/* Find in playlist search bar */
+.sp-search-bar-wrap {
+  margin: 4px 16px 20px;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.sp-search-input-box {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 10px 14px;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.sp-search-input-box:focus-within {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.sp-search-icon {
+  width: 18px;
+  height: 18px;
+  color: rgba(255, 255, 255, 0.7);
+  flex-shrink: 0;
+}
+
+.sp-search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 500;
+  font-family: inherit;
+}
+
+.sp-search-input::placeholder {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.sp-search-clear-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  padding: 4px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+}
+
+.sp-search-clear-btn.visible {
+  display: flex;
+}
+
+/* Mobile Artwork Collage & Single Artwork */
+.sp-mobile-header {
+  display: flex;
+  flex-direction: column;
+}
+
+.sp-artwork-container {
+  width: 220px;
+  height: 220px;
+  margin: 6px auto 20px;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.65);
+  background: #282828;
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* 2x2 collage */
+.sp-collage-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  width: 100%;
+  height: 100%;
+}
+
+.sp-collage-grid img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.sp-single-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.sp-empty-art {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #333333 0%, #1e1e1e 100%);
+  color: #888888;
+}
+
+.sp-empty-art svg {
+  width: 64px;
+  height: 64px;
+}
+
+/* Mobile Metadata */
+.sp-mobile-meta {
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sp-mobile-title {
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.sp-mobile-creator-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.sp-creator-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #e91e63;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sp-creator-name {
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.sp-creator-add-btn {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: transparent;
+  color: #ffffff;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  transition: border-color 0.15s, transform 0.15s;
+}
+
+.sp-creator-add-btn:hover {
+  border-color: #ffffff;
+  transform: scale(1.1);
+}
+
+.sp-mobile-details {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #a7a7a7;
+  font-weight: 500;
+}
+
+.sp-globe-icon {
+  font-size: 0.95rem;
+  display: inline-flex;
+}
+
+/* Action Bar */
+.sp-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  margin-top: 4px;
+}
+
+.sp-actions-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.sp-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.sp-action-icon-btn {
+  background: transparent;
+  border: none;
+  color: #b3b3b3;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, transform 0.15s;
+  position: relative;
+}
+
+.sp-action-icon-btn:hover {
+  color: #ffffff;
+  transform: scale(1.08);
+}
+
+.sp-action-icon-btn:active {
+  transform: scale(0.95);
+}
+
+.sp-action-icon-btn.active {
+  color: #1DB954;
+}
+
+.sp-shuffle-dot {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: #1DB954;
+  display: none;
+}
+
+.sp-action-icon-btn.active .sp-shuffle-dot {
+  display: block;
+}
+
+.sp-big-play-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background-color: #1DB954;
+  color: #000000;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s, background-color 0.15s;
+  flex-shrink: 0;
+}
+
+.sp-big-play-btn:hover {
+  background-color: #1ed760;
+  transform: scale(1.05);
+}
+
+.sp-big-play-btn:active {
+  transform: scale(0.96);
+}
+
+.sp-big-play-btn svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+}
+
+/* Action Chips / Pills Row */
+.sp-chips-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 16px 14px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sp-chips-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.sp-chip-pill {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border-radius: 20px;
+  padding: 7px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background-color 0.15s, transform 0.15s;
+  user-select: none;
+}
+
+.sp-chip-pill:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.sp-chip-pill:active {
+  transform: scale(0.96);
+}
+
+.sp-chip-pill .sp-chip-icon {
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Tracklist Section */
+.sp-tracklist-section {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0 32px;
+}
+
+.sp-tracklist-header-desktop {
+  display: none;
+}
+
+/* Track Row */
+.sp-track-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  gap: 12px;
+  cursor: pointer;
+  border-radius: 6px;
+  margin: 1px 8px;
+  transition: background-color 0.15s;
+  user-select: none;
+}
+
+.sp-track-item:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.sp-track-item:active {
+  background-color: rgba(255, 255, 255, 0.14);
+}
+
+.sp-track-item.is-current {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.sp-track-main-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+
+.sp-track-thumb-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: 4px;
+  overflow: hidden;
+  background-color: #282828;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.sp-track-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.sp-track-col-index {
+  display: none;
+}
+
+.sp-track-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+}
+
+.sp-track-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #ffffff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+
+.sp-track-item.is-current .sp-track-title {
+  color: #1DB954;
+  font-weight: 700;
+}
+
+.sp-track-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: #a7a7a7;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sp-explicit-tag {
+  display: inline-block;
+  background-color: #555555;
+  color: #121212;
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  line-height: 1.1;
+  flex-shrink: 0;
+}
+
+.sp-track-artist {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sp-track-col-album,
+.sp-track-col-duration {
+  display: none;
+}
+
+.sp-track-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.sp-track-options-btn {
+  background: transparent;
+  border: none;
+  color: #a7a7a7;
+  cursor: pointer;
+  padding: 8px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, transform 0.15s;
+}
+
+.sp-track-options-btn:hover {
+  color: #ffffff;
+  transform: scale(1.15);
+}
+
+/* Mini Equalizer */
+.sp-playing-eq {
+  display: none;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+}
+
+.sp-track-item.is-current .sp-playing-eq {
+  display: flex;
+}
+
+.sp-playing-eq span {
+  width: 3px;
+  background-color: #1DB954;
+  border-radius: 1px;
+  animation: spEqAnim 1s ease-in-out infinite alternate;
+}
+
+.sp-playing-eq span:nth-child(1) { height: 60%; animation-delay: 0s; }
+.sp-playing-eq span:nth-child(2) { height: 100%; animation-delay: 0.25s; }
+.sp-playing-eq span:nth-child(3) { height: 40%; animation-delay: 0.5s; }
+
+@keyframes spEqAnim {
+  0% { height: 25%; }
+  100% { height: 100%; }
+}
+
+/* Empty State Card */
+.sp-empty-playlist-card {
+  padding: 48px 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  color: #a7a7a7;
+}
+
+.sp-empty-playlist-card h3 {
+  font-size: 1.25rem;
+  color: #ffffff;
+  margin: 0;
+}
+
+.sp-empty-playlist-card p {
+  font-size: 0.9rem;
+  max-width: 320px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.sp-btn-find-songs {
+  background-color: #ffffff;
+  color: #000000;
+  border: none;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 10px 24px;
+  border-radius: 24px;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: transform 0.15s, background-color 0.15s;
+}
+
+.sp-btn-find-songs:hover {
+  background-color: #f0f0f0;
+  transform: scale(1.04);
+}
+
+/* Spotify Action Sheet */
+#sp-options-sheet .sp-sheet-content {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #242424;
+  border-radius: 16px 16px 0 0;
+  padding: 12px 16px 28px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 -8px 30px rgba(0,0,0,0.7);
+  animation: spSlideUp 0.2s ease-out;
+  z-index: 1000;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+@keyframes spSlideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.sp-sheet-handle {
+  width: 36px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+  margin: 4px auto 14px;
+}
+
+.sp-sheet-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 8px;
+}
+
+.sp-sheet-thumb {
+  width: 52px;
+  height: 52px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.sp-sheet-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.sp-sheet-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sp-sheet-sub {
+  font-size: 0.85rem;
+  color: #a7a7a7;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sp-sheet-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 14px 8px;
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background-color 0.15s;
+}
+
+.sp-sheet-item:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.sp-sheet-item svg {
+  width: 22px;
+  height: 22px;
+  color: #b3b3b3;
+  flex-shrink: 0;
+}
+
+.sp-sheet-close-btn {
+  width: 100%;
+  padding: 12px;
+  margin-top: 10px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* In-Playlist Add Songs Modal */
+.sp-add-songs-card {
+  max-width: 540px !important;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.sp-add-songs-results {
+  max-height: 55vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-right: 4px;
+}
+
+.sp-add-song-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  transition: background-color 0.15s;
+}
+
+.sp-add-song-row:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.sp-add-song-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.sp-add-song-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.sp-add-song-title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sp-add-song-artist {
+  font-size: 0.8rem;
+  color: #a7a7a7;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sp-btn-add-track-action {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s;
+}
+
+.sp-btn-add-track-action:hover {
+  background: #1DB954;
+  color: #000;
+  border-color: #1DB954;
+}
+
+.sp-btn-add-track-action.added {
+  background: rgba(29, 185, 84, 0.2);
+  color: #1DB954;
+  border-color: #1DB954;
+}
+
+/* ==========================================================================
+   Desktop / Laptop Media Query (min-width: 769px)
+   ========================================================================== */
+@media (min-width: 769px) {
+  .spotify-playlist-view {
+    background: linear-gradient(180deg, #6c1017 0%, #3e090e 240px, #121212 400px, #121212 100%);
+    padding: 0 0 60px 0;
+  }
+
+  .sp-sticky-top-bar {
+    display: none !important;
+  }
+
+  .sp-mobile-header {
+    display: none !important;
+  }
+
+  .sp-desktop-header {
+    display: flex !important;
+    align-items: flex-end;
+    gap: 28px;
+    padding: 32px 32px 24px 32px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, transparent 100%);
+  }
+
+  .sp-desktop-header .sp-artwork-container {
+    width: 232px;
+    height: 232px;
+    margin: 0;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
+  }
+
+  .sp-desktop-meta {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .sp-desktop-type {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #ffffff;
+  }
+
+  .sp-desktop-title {
+    font-size: clamp(2.2rem, 4vw, 4.5rem);
+    font-weight: 900;
+    color: #ffffff;
+    margin: 0;
+    letter-spacing: -0.04em;
+    line-height: 1.05;
+    word-break: break-word;
+  }
+
+  .sp-desktop-desc {
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 6px 0 8px;
+    line-height: 1.4;
+  }
+
+  .sp-desktop-creator-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #ffffff;
+  }
+
+  .sp-meta-dot {
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .sp-desktop-duration {
+    color: #a7a7a7;
+  }
+
+  /* Desktop Action Bar */
+  .sp-action-bar {
+    padding: 20px 32px;
+    background: rgba(18, 18, 18, 0.5);
+  }
+
+  .sp-big-play-btn {
+    width: 56px;
+    height: 56px;
+  }
+
+  .sp-big-play-btn svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .sp-chips-bar {
+    padding: 0 32px 16px;
+  }
+
+  /* Desktop In-Playlist Search */
+  .sp-search-bar-wrap {
+    margin: 0 32px 16px auto;
+    max-width: 300px;
+  }
+
+  /* Tracklist Table Header */
+  .sp-tracklist-section {
+    padding: 0 32px 40px;
+  }
+
+  .sp-tracklist-header-desktop {
+    display: grid;
+    grid-template-columns: 48px 4fr 3fr 1fr;
+    padding: 0 16px 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #a7a7a7;
+    margin-bottom: 8px;
+  }
+
+  .sp-th-index { text-align: center; }
+  .sp-th-duration { text-align: right; }
+
+  /* Desktop Track Row */
+  .sp-track-item {
+    display: grid;
+    grid-template-columns: 48px 4fr 3fr 1fr;
+    align-items: center;
+    padding: 8px 16px;
+    margin: 1px 0;
+    gap: 14px;
+    border-radius: 4px;
+  }
+
+  .sp-track-col-index {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    color: #a7a7a7;
+    font-size: 0.95rem;
+    font-weight: 500;
+  }
+
+  .sp-track-item:hover .sp-track-num {
+    display: none;
+  }
+
+  .sp-track-hover-play {
+    display: none;
+    background: transparent;
+    border: none;
+    color: #ffffff;
+    cursor: pointer;
+  }
+
+  .sp-track-item:hover .sp-track-hover-play {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .sp-track-item.is-current .sp-track-num {
+    display: none;
+  }
+
+  .sp-track-item.is-current:hover .sp-track-hover-play {
+    display: flex;
+  }
+
+  .sp-track-item.is-current:not(:hover) .sp-playing-eq {
+    display: flex;
+  }
+
+  .sp-track-main-cell {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .sp-track-thumb-wrap {
+    width: 44px;
+    height: 44px;
+  }
+
+  .sp-track-col-album {
+    display: block;
+    font-size: 0.88rem;
+    color: #a7a7a7;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sp-track-col-duration {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 16px;
+    font-size: 0.88rem;
+    color: #a7a7a7;
+  }
+}
+
+/* ==========================================================================
+   Mobile-specific View Overrides for Playlist View
+   ========================================================================== */
+@media (max-width: 768px) {
+  body.is-playlist-view .top-header {
+    display: none !important;
+  }
+
+  body.is-playlist-view .content-scrollable {
+    padding: 0 0 170px 0 !important;
+  }
+
+  .sp-desktop-header {
+    display: none !important;
+  }
+}
+
