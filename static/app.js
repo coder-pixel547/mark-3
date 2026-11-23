@@ -646,8 +646,8 @@
       if (el.audioVisualizer) {
         el.audioVisualizer.classList.add('paused');
       }
-      if (ytProgressInterval) {
-        stopYtProgressTracking();
+      if (typeof ytProgressInterval !== 'undefined' && ytProgressInterval) {
+        if (typeof stopYtProgressTracking === 'function') stopYtProgressTracking();
       }
     } else {
       // Resume visualizer if actively playing
@@ -1603,8 +1603,8 @@
   function syncLyricsWithCurrentTime(currentTime) {
     if (!state.currentLyrics || state.currentLyrics.length === 0 || !state.lyricsSynced) return;
 
-    // Calibrated line anticipation offset (+0.35s)
-    const offset = 0.35;
+    // Precise vocal onset offset (+0.08s for instant real-time audio-visual synchronization without delay)
+    const offset = 0.08;
     const t = currentTime + offset;
 
     let activeIdx = -1;

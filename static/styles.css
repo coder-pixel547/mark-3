@@ -3291,17 +3291,13 @@ input:focus-visible,
   -webkit-text-fill-color: #ffffff !important;
 }
 
-/* Active Sentence Spotlight: Entire sentence lights up with solid brightness */
+/* Active Sentence Spotlight: Zero-delay physical spring rise + ambient breathing glow */
 .lyric-line.active {
   font-size: 2.35rem;
   font-weight: 800;
   opacity: 1 !important;
-  filter: drop-shadow(0 2px 16px rgba(255, 255, 255, 0.5))
-          drop-shadow(0 0 32px rgba(139, 92, 246, 0.5)) !important;
-  transform: scale(1.06) translateX(12px);
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-              filter 0.25s ease,
-              opacity 0.25s ease;
+  animation: lyricSpotlightRise 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards,
+             lyricSpotlightBreathe 2.8s ease-in-out 0.32s infinite alternate;
   z-index: 5;
   background: transparent;
 }
@@ -3315,14 +3311,52 @@ input:focus-visible,
   font-weight: 800;
 }
 
-/* Past Line State */
+/* Past Line State: Glides up smoothly and softly recedes */
 .lyric-line.past {
   opacity: 0.35;
+  transform: scale(0.97) translateY(-2px);
+  filter: blur(0.6px);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.3s ease,
+              filter 0.3s ease;
 }
 
 .lyric-line.past .lyric-text {
   color: rgba(255, 255, 255, 0.35) !important;
   -webkit-text-fill-color: rgba(255, 255, 255, 0.35) !important;
+}
+
+/* Zero-delay Entrance Animation: Rises fluidly into spotlight without delaying vocal sync */
+@keyframes lyricSpotlightRise {
+  0% {
+    transform: scale(0.98) translateY(10px) translateX(0);
+    opacity: 0.6;
+    filter: blur(1px);
+  }
+  65% {
+    transform: scale(1.055) translateY(-1px) translateX(10px);
+    opacity: 1;
+    filter: drop-shadow(0 2px 18px rgba(255, 255, 255, 0.65))
+            drop-shadow(0 0 34px rgba(139, 92, 246, 0.6));
+  }
+  100% {
+    transform: scale(1.05) translateY(0) translateX(10px);
+    opacity: 1;
+    filter: drop-shadow(0 2px 16px rgba(255, 255, 255, 0.5))
+            drop-shadow(0 0 30px rgba(139, 92, 246, 0.45));
+  }
+}
+
+/* Ambient Breathing Glow: Keeps the active lyric alive without layout shifts */
+@keyframes lyricSpotlightBreathe {
+  0% {
+    filter: drop-shadow(0 2px 16px rgba(255, 255, 255, 0.5))
+            drop-shadow(0 0 28px rgba(139, 92, 246, 0.4));
+  }
+  100% {
+    filter: drop-shadow(0 2px 22px rgba(255, 255, 255, 0.8))
+            drop-shadow(0 0 42px rgba(168, 85, 247, 0.65));
+  }
 }
 
 /* Active Lyric Singing Mini-Equalizer */
@@ -3520,6 +3554,8 @@ input:focus-visible,
   }
   .lyric-line.active {
     font-size: 1.85rem;
+    animation: lyricSpotlightRiseMobile 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards,
+               lyricSpotlightBreathe 2.8s ease-in-out 0.32s infinite alternate;
   }
   .lyrics-floating-footer {
     width: calc(100% - 24px);
@@ -3534,7 +3570,29 @@ input:focus-visible,
   }
   .lyric-line.active {
     font-size: 1.55rem;
+    animation: lyricSpotlightRiseMobile 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards,
+               lyricSpotlightBreathe 2.8s ease-in-out 0.32s infinite alternate;
   }
+
+@keyframes lyricSpotlightRiseMobile {
+  0% {
+    transform: scale(0.98) translateY(6px);
+    opacity: 0.6;
+    filter: blur(1px);
+  }
+  65% {
+    transform: scale(1.03) translateY(-1px);
+    opacity: 1;
+    filter: drop-shadow(0 2px 14px rgba(255, 255, 255, 0.6))
+            drop-shadow(0 0 24px rgba(139, 92, 246, 0.5));
+  }
+  100% {
+    transform: scale(1.02) translateY(0);
+    opacity: 1;
+    filter: drop-shadow(0 2px 12px rgba(255, 255, 255, 0.5))
+            drop-shadow(0 0 20px rgba(139, 92, 246, 0.4));
+  }
+}
   .lyrics-header {
     padding: max(12px, env(safe-area-inset-top)) 14px 10px 14px;
   }
