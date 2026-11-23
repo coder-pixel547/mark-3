@@ -1539,7 +1539,6 @@
         div.id = `lyric-line-${idx}`;
         div.dataset.index = String(idx);
         div.dataset.dist = String(idx);
-        div.style.setProperty('--line-progress', '0%');
         if (l.time !== undefined && l.time !== null) {
           div.dataset.time = String(l.time);
         }
@@ -1600,36 +1599,11 @@
     }
   }
 
-  // Dynamic Natural Vocal Duration Calculator
-  function getVocalSingingDuration(curLine, nextLine) {
-    if (!curLine) return 3.0;
-    const lineStart = curLine.time;
-    const nextTime = (nextLine && typeof nextLine.time === 'number') ? nextLine.time : null;
-    const rawGap = nextTime !== null ? Math.max(0.4, nextTime - lineStart) : 4.0;
-
-    const text = (curLine.text || '').replace(/[♪\(\)\[\]\{\}\.,!?\-—]/g, '').trim();
-    const words = text ? text.split(/\s+/).filter(Boolean).length : 1;
-    const chars = text.length;
-
-    // Natural vocal cadence: ~0.36s/word, ~0.05s/char + 0.3s decay
-    const wordTime = words * 0.36 + 0.30;
-    const charTime = chars * 0.05 + 0.30;
-    const naturalSingingDuration = Math.max(1.0, Math.max(wordTime, charTime));
-
-    if (rawGap <= 2.2) {
-      // Continuous, rapid line delivery: sweep smoothly across almost the entire gap
-      return Math.max(0.5, rawGap - 0.08);
-    } else {
-      // Verse with melodic breath or instrumental response:
-      // In Indian/Telugu music, vocal decay and melodic sustain comfortably cover ~82% of gap
-      return Math.min(rawGap - 0.25, Math.max(naturalSingingDuration, rawGap * 0.82));
-    }
-  }
-
+  // Synchronize Lyrics with Sentence-Level Spotlight (Instant solid line highlight)
   function syncLyricsWithCurrentTime(currentTime) {
     if (!state.currentLyrics || state.currentLyrics.length === 0 || !state.lyricsSynced) return;
 
-    // Automatic calibrated offset (+0.35s snappy anticipation)
+    // Calibrated line anticipation offset (+0.35s)
     const offset = 0.35;
     const t = currentTime + offset;
 
@@ -1658,32 +1632,15 @@
           } else if (i < activeIdx) {
             lEl.classList.remove('active');
             lEl.classList.add('past');
-            lEl.style.setProperty('--line-progress', '100%');
           } else {
             lEl.classList.remove('active');
             lEl.classList.remove('past');
-            lEl.style.setProperty('--line-progress', '0%');
           }
         }
       }
 
       if (!state.userScrolledLyrics && activeIdx >= 0) {
         scrollActiveLyricToCenter(activeIdx, true);
-      }
-    }
-
-    // Direct active line progress update (interpolated with vocal speed)
-    if (activeIdx >= 0 && state.currentLyrics[activeIdx]) {
-      const curLine = state.currentLyrics[activeIdx];
-      const nextLine = state.currentLyrics[activeIdx + 1];
-      const lineStart = curLine.time;
-      const duration = getVocalSingingDuration(curLine, nextLine);
-      const elapsed = t - lineStart;
-      const rawProgress = Math.min(1.0, Math.max(0.0, elapsed / duration));
-      const easedProgress = Math.min(1.0, Math.pow(rawProgress, 0.92));
-      const activeEl = document.getElementById(`lyric-line-${activeIdx}`);
-      if (activeEl) {
-        activeEl.style.setProperty('--line-progress', `${(easedProgress * 100).toFixed(1)}%`);
       }
     }
   }
