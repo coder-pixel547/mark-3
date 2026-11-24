@@ -916,6 +916,40 @@ def is_valid_song_track(title: str, duration_str: str) -> bool:
     
     return True
 
+STUDIO_ALBUM_RULES: List[Tuple[Any, str, str, str]] = [
+    (re.compile(r's[aã][ou]?\s*paulo', re.I), "Hurry Up Tomorrow", "São Paulo (feat. Anitta)", "The Weeknd, Anitta"),
+    (re.compile(r'\btimeless\b', re.I), "Hurry Up Tomorrow", "Timeless (feat. Playboi Carti)", "The Weeknd, Playboi Carti"),
+    (re.compile(r'dancing in the flames', re.I), "Hurry Up Tomorrow", "Dancing in the Flames", "The Weeknd"),
+    (re.compile(r'\bstarboy\b', re.I), "Starboy", "Starboy (feat. Daft Punk)", "The Weeknd, Daft Punk"),
+    (re.compile(r'\bblinding lights\b', re.I), "After Hours", "Blinding Lights", "The Weeknd"),
+    (re.compile(r'\bafter hours\b', re.I), "After Hours", "After Hours", "The Weeknd"),
+    (re.compile(r'\bsave your tears\b', re.I), "After Hours", "Save Your Tears", "The Weeknd"),
+    (re.compile(r'\bin your eyes\b', re.I), "After Hours", "In Your Eyes", "The Weeknd"),
+    (re.compile(r'\bcall out my name\b', re.I), "My Dear Melancholy,", "Call Out My Name", "The Weeknd"),
+    (re.compile(r'\bdie for you\b', re.I), "Starboy", "Die For You", "The Weeknd"),
+    (re.compile(r'\bthe hills\b', re.I), "Beauty Behind the Madness", "The Hills", "The Weeknd"),
+    (re.compile(r'\bcan[\'’]?t feel my face\b', re.I), "Beauty Behind the Madness", "Can't Feel My Face", "The Weeknd"),
+    (re.compile(r'\bi feel it coming\b', re.I), "Starboy", "I Feel It Coming (feat. Daft Punk)", "The Weeknd, Daft Punk"),
+    (re.compile(r'\bout of time\b', re.I), "Dawn FM", "Out of Time", "The Weeknd"),
+    (re.compile(r'\btake my breath\b', re.I), "Dawn FM", "Take My Breath", "The Weeknd"),
+    (re.compile(r'\bparo\b', re.I), "Paro", "Paro", "Aditya Rikhari, UNPLG'd"),
+    (re.compile(r'\bloser\b', re.I), "Currents", "Loser", "Tame Impala"),
+    (re.compile(r'\bfreaked out\b', re.I), "FREAKED OUT", "FREAKED OUT", "Fat Papi, prodshushy"),
+]
+
+def resolve_studio_album(title: str, artist: str = "") -> Tuple[str, str, str]:
+    """Resolves authentic studio album, cleaned title, and artist."""
+    for pattern, album, clean_title, clean_artist in STUDIO_ALBUM_RULES:
+        if pattern.search(title) or pattern.search(artist):
+            return album, clean_title, clean_artist
+    clean_alb = re.sub(r'[\(\[](live.*?|official.*?|music video)[\)\]]', '', title, flags=re.I).strip()
+    if ' - ' in clean_alb:
+        parts = clean_alb.split(' - ')
+        clean_alb = parts[1].strip()
+    elif ' — ' in clean_alb:
+        clean_alb = clean_alb.split(' — ')[1].strip()
+    return clean_alb or "Single", title, artist
+
 # ==============================================================================
 # Async YouTube Scraper with Fallbacks and Concurrency
 # ==============================================================================
@@ -986,16 +1020,18 @@ async def async_search_youtube(
                                 continue
 
                             clean_title = clean_song_title(raw_title)
+                            album_name, final_title, final_artist = resolve_studio_album(clean_title, channel)
                             trim_cache_if_needed(VIDEO_TITLE_MAP, max_size=MAX_TITLE_MAP_ENTRIES)
-                            if is_music_label_or_channel(channel):
-                                VIDEO_TITLE_MAP[vid_id] = clean_title
+                            if is_music_label_or_channel(final_artist):
+                                VIDEO_TITLE_MAP[vid_id] = final_title
                             else:
-                                VIDEO_TITLE_MAP[vid_id] = f"{clean_title} {channel}".strip()
+                                VIDEO_TITLE_MAP[vid_id] = f"{final_title} {final_artist}".strip()
                             results.append({
                                 "id": vid_id,
                                 "videoId": vid_id,
-                                "title": clean_title,
-                                "artist": channel,
+                                "title": final_title,
+                                "artist": final_artist,
+                                "album": album_name,
                                 "duration": duration,
                                 "language": language_hint,
                                 "thumbnail": f"https://i.ytimg.com/vi/{vid_id}/hqdefault.jpg"

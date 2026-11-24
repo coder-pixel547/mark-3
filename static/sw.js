@@ -1,4 +1,4 @@
-const CACHE_NAME = 'swarify-shell-v28.5';
+const CACHE_NAME = 'swarify-shell-v28.6';
 const APP_SHELL = [
   '/',
   '/static/styles.css',
@@ -18,7 +18,7 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate: Clean up obsolete caches immediately
+// Activate: Clean up obsolete caches immediately and claim clients
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
@@ -43,11 +43,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Scripts and API endpoints: Network-first to always run latest verified code
-  if (url.pathname.includes('app.js') || url.pathname.startsWith('/api/')) {
+  // Navigation (HTML) & Scripts: ALWAYS Network-First so updates load immediately without stale cache
+  if (event.request.mode === 'navigate' || url.pathname === '/' || url.pathname.endsWith('.html') || url.pathname.includes('app.js') || url.pathname.startsWith('/api/')) {
     event.respondWith(
       fetch(event.request).then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200 && url.pathname.includes('app.js')) {
+        if (networkResponse && networkResponse.status === 200) {
           const copy = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
         }

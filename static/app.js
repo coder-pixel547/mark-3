@@ -142,17 +142,79 @@
     }
   ];
 
-  // Known tracks album lookup map for automated data normalization across sessions
-  const KNOWN_TRACK_ALBUMS = {
-    'Es4NrOnoNb4': 'Paro',
-    '2kjolTLZ_Mg': 'Hurry Up Tomorrow',
-    '34Na4j8AVgA': 'Starboy',
-    's3a4OQR-10M': 'Currents',
-    'Q6978DnF8C4': 'FREAKED OUT',
-    '4NRXx6U8ABQ': 'After Hours',
-    'ygTZZpVkmKg': 'After Hours',
-    'M4ZoCHID9GI': 'My Dear Melancholy,'
-  };
+  // Known studio albums dictionary for world chartbusters and popular hits
+  const STUDIO_ALBUMS = [
+    { match: /s[aã][ou]?\s*paulo/i, album: 'Hurry Up Tomorrow', cleanTitle: 'São Paulo (feat. Anitta)', artist: 'The Weeknd, Anitta' },
+    { match: /\btimeless\b/i, album: 'Hurry Up Tomorrow', cleanTitle: 'Timeless (feat. Playboi Carti)', artist: 'The Weeknd, Playboi Carti' },
+    { match: /dancing in the flames/i, album: 'Hurry Up Tomorrow', cleanTitle: 'Dancing in the Flames', artist: 'The Weeknd' },
+    { match: /\bstarboy\b/i, album: 'Starboy', cleanTitle: 'Starboy (feat. Daft Punk)', artist: 'The Weeknd, Daft Punk' },
+    { match: /\bblinding lights\b/i, album: 'After Hours', cleanTitle: 'Blinding Lights', artist: 'The Weeknd' },
+    { match: /\bafter hours\b/i, album: 'After Hours', cleanTitle: 'After Hours', artist: 'The Weeknd' },
+    { match: /\bsave your tears\b/i, album: 'After Hours', cleanTitle: 'Save Your Tears', artist: 'The Weeknd' },
+    { match: /\bin your eyes\b/i, album: 'After Hours', cleanTitle: 'In Your Eyes', artist: 'The Weeknd' },
+    { match: /\bcall out my name\b/i, album: 'My Dear Melancholy,', cleanTitle: 'Call Out My Name', artist: 'The Weeknd' },
+    { match: /\bdie for you\b/i, album: 'Starboy', cleanTitle: 'Die For You', artist: 'The Weeknd' },
+    { match: /\bthe hills\b/i, album: 'Beauty Behind the Madness', cleanTitle: 'The Hills', artist: 'The Weeknd' },
+    { match: /\bcan['’]?t feel my face\b/i, album: 'Beauty Behind the Madness', cleanTitle: "Can't Feel My Face", artist: 'The Weeknd' },
+    { match: /\bi feel it coming\b/i, album: 'Starboy', cleanTitle: 'I Feel It Coming (feat. Daft Punk)', artist: 'The Weeknd, Daft Punk' },
+    { match: /\bout of time\b/i, album: 'Dawn FM', cleanTitle: 'Out of Time', artist: 'The Weeknd' },
+    { match: /\btake my breath\b/i, album: 'Dawn FM', cleanTitle: 'Take My Breath', artist: 'The Weeknd' },
+    { match: /\bharo\b|\bparo\b/i, album: 'Paro', cleanTitle: 'Paro', artist: "Aditya Rikhari, UNPLG'd" },
+    { match: /\bloser\b/i, album: 'Currents', cleanTitle: 'Loser', artist: 'Tame Impala' },
+    { match: /\bfreaked out\b/i, album: 'FREAKED OUT', cleanTitle: 'FREAKED OUT', artist: 'Fat Papi, prodshushy' }
+  ];
+
+  function normalizeTrackMetadata(track) {
+    if (!track) return track;
+    const t = { ...track };
+    const rawTitle = t.title || '';
+    const rawArtist = t.artist || '';
+    const rawAlbum = t.album || '';
+    const tid = t.id || t.videoId || '';
+
+    // 1. Direct rule match by title, album, or ID
+    for (const rule of STUDIO_ALBUMS) {
+      if (rule.match.test(rawTitle) || rule.match.test(rawAlbum) || rule.match.test(tid)) {
+        t.album = rule.album;
+        if (rule.cleanTitle && (rawTitle.toLowerCase().includes('live') || rawTitle.includes('('))) {
+          t.title = rule.cleanTitle;
+        }
+        if (rule.artist && (!rawArtist || rawArtist.toLowerCase().includes('weeknd'))) {
+          t.artist = rule.artist;
+        }
+        return t;
+      }
+    }
+
+    // 2. Clean up live tags or video noise from album
+    if (t.album) {
+      t.album = t.album
+        .replace(/\(live.*?\)/gi, '')
+        .replace(/\[live.*?\]/gi, '')
+        .replace(/\b(live from|live at|live in|live)\b.*?$/gi, '')
+        .replace(/\b(official video|official audio|music video|lyric video|video)\b/gi, '')
+        .replace(/[-–—|:]+$/, '')
+        .trim();
+    }
+
+    // 3. Fallback to clean movie or title
+    if (!t.album && rawTitle) {
+      if (rawTitle.includes(' — ')) {
+        t.album = rawTitle.split(' — ')[1].trim();
+      } else if (rawTitle.includes(' - ')) {
+        const parts = rawTitle.split(' - ');
+        t.album = parts[1].trim();
+      } else {
+        t.album = rawTitle.trim();
+      }
+    }
+
+    if (!t.album) {
+      t.album = 'Single';
+    }
+
+    return t;
+  }
 
   let dailyBeatesPl = state.playlists.find(p => p.name.toLowerCase() === 'daily beates');
   if (!dailyBeatesPl) {
@@ -161,42 +223,37 @@
       name: 'Daily beates',
       description: 'Daily beats and global hits playlist',
       createdAt: Date.now(),
-      tracks: initialDailyBeatesTracks
+      tracks: initialDailyBeatesTracks.map(normalizeTrackMetadata)
     };
     state.playlists.unshift(dailyBeatesPl);
     localStorage.setItem('mark3_playlists', JSON.stringify(state.playlists));
   } else {
     // Migration: ensure existing Daily beates tracks in localStorage have their exact albums
     let modified = false;
-    (dailyBeatesPl.tracks || []).forEach(t => {
-      const tid = t.id || t.videoId;
-      if (KNOWN_TRACK_ALBUMS[tid] && t.album !== KNOWN_TRACK_ALBUMS[tid]) {
-        t.album = KNOWN_TRACK_ALBUMS[tid];
-        modified = true;
-      }
+    dailyBeatesPl.tracks = (dailyBeatesPl.tracks || []).map(t => {
+      const origAlbum = t.album;
+      const norm = normalizeTrackMetadata(t);
+      if (norm.album !== origAlbum) modified = true;
+      return norm;
     });
     if (modified) {
       localStorage.setItem('mark3_playlists', JSON.stringify(state.playlists));
     }
   }
 
-  // Ensure all playlists fill missing albums from known tracks or title extraction
+  // Ensure all playlists fill normalized albums from known tracks
+  let anyModified = false;
   state.playlists.forEach(p => {
-    (p.tracks || []).forEach(t => {
-      const tid = t.id || t.videoId;
-      if (KNOWN_TRACK_ALBUMS[tid] && !t.album) {
-        t.album = KNOWN_TRACK_ALBUMS[tid];
-      } else if (!t.album && t.title) {
-        if (t.title.includes(' — ')) {
-          t.album = t.title.split(' — ')[1].trim();
-        } else if (t.title.includes(' - ')) {
-          t.album = t.title.split(' - ')[1].trim();
-        } else {
-          t.album = t.title;
-        }
-      }
+    p.tracks = (p.tracks || []).map(t => {
+      const origAlbum = t.album;
+      const norm = normalizeTrackMetadata(t);
+      if (norm.album !== origAlbum) anyModified = true;
+      return norm;
     });
   });
+  if (anyModified) {
+    localStorage.setItem('mark3_playlists', JSON.stringify(state.playlists));
+  }
 
   // DOM Elements
   const el = {
@@ -794,6 +851,7 @@
   // ==========================================
   function loadAndPlayTrack(track, addToQueue = true) {
     if (!track) return;
+    track = normalizeTrackMetadata(track);
     track.id = track.id || track.videoId;
     track.videoId = track.videoId || track.id;
     if (!track.id) return;
@@ -928,8 +986,9 @@
 
   function setQueueAndPlay(tracks, startIndex = 0) {
     if (!tracks || tracks.length === 0) return;
-    state.queue = [...tracks];
-    state.originalQueue = [...tracks];
+    const normTracks = tracks.map(normalizeTrackMetadata);
+    state.queue = [...normTracks];
+    state.originalQueue = [...normTracks];
     playTrackAtIndex(startIndex);
   }
 
@@ -1907,6 +1966,7 @@
   function addTrackToPlaylist(playlistId, track) {
     const pl = state.playlists.find(p => p.id === playlistId);
     if (!pl || !track) return;
+    track = normalizeTrackMetadata(track);
     const tid = track.id || track.videoId;
     if (!tid) return;
     track.id = tid;
@@ -2550,26 +2610,18 @@
     row.className = `sp-track-item ${isCurrent ? 'is-current' : ''}`;
     row.dataset.trackId = track.id;
 
-    const safeTitle = escapeHtml(track.title);
-    const safeArtist = escapeHtml(track.artist || 'Swarify Artist');
-    const safeThumb = escapeHtml(track.thumbnail || `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg`);
-    let albumVal = track.album;
-    const trackKey = track.id || track.videoId;
-    if (!albumVal && KNOWN_TRACK_ALBUMS[trackKey]) {
-      albumVal = KNOWN_TRACK_ALBUMS[trackKey];
-    }
-    if (!albumVal && track.title) {
-      if (track.title.includes(' — ')) {
-        albumVal = track.title.split(' — ')[1].trim();
-      } else if (track.title.includes(' - ')) {
-        albumVal = track.title.split(' - ')[1].trim();
-      } else {
-        albumVal = track.title;
-      }
-    }
-    const safeAlbum = escapeHtml(albumVal || (track.language ? `${track.language.toUpperCase()} Hits` : 'Single'));
-    const isExplicit = Boolean(track.explicit || /explicit/i.test(track.title || ''));
-    const durRaw = track.duration || '3:30';
+    // Normalize track metadata to ensure authentic studio album, clean title & artist
+    const norm = normalizeTrackMetadata(track);
+    track.album = norm.album;
+    track.title = norm.title;
+    track.artist = norm.artist;
+
+    const safeTitle = escapeHtml(norm.title);
+    const safeArtist = escapeHtml(norm.artist || 'Swarify Artist');
+    const safeThumb = escapeHtml(norm.thumbnail || `https://i.ytimg.com/vi/${norm.id}/hqdefault.jpg`);
+    const safeAlbum = escapeHtml(norm.album || (norm.language ? `${norm.language.toUpperCase()} Hits` : 'Single'));
+    const isExplicit = Boolean(norm.explicit || /explicit/i.test(norm.title || ''));
+    const durRaw = norm.duration || '3:30';
     const durFormatted = typeof durRaw === 'number' ? formatTime(durRaw) : durRaw;
 
     row.innerHTML = `
@@ -3376,6 +3428,7 @@
   // 7. Song Card Generator
   // ==========================================
   function createSongCard(track, index, listRef, isPlaylistView = false, playlistId = null) {
+    track = normalizeTrackMetadata(track);
     const card = document.createElement('div');
     const isCurrent = state.queue[state.currentIndex]?.id === track.id;
     card.className = `song-card ${isCurrent ? 'is-playing' : ''}`;
