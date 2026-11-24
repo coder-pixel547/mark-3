@@ -142,16 +142,61 @@
     }
   ];
 
-  if (!state.playlists.some(p => p.name.toLowerCase() === 'daily beates')) {
-    state.playlists.unshift({
+  // Known tracks album lookup map for automated data normalization across sessions
+  const KNOWN_TRACK_ALBUMS = {
+    'Es4NrOnoNb4': 'Paro',
+    '2kjolTLZ_Mg': 'Hurry Up Tomorrow',
+    '34Na4j8AVgA': 'Starboy',
+    's3a4OQR-10M': 'Currents',
+    'Q6978DnF8C4': 'FREAKED OUT',
+    '4NRXx6U8ABQ': 'After Hours',
+    'ygTZZpVkmKg': 'After Hours',
+    'M4ZoCHID9GI': 'My Dear Melancholy,'
+  };
+
+  let dailyBeatesPl = state.playlists.find(p => p.name.toLowerCase() === 'daily beates');
+  if (!dailyBeatesPl) {
+    dailyBeatesPl = {
       id: 'pl_daily_beates',
       name: 'Daily beates',
       description: 'Daily beats and global hits playlist',
       createdAt: Date.now(),
       tracks: initialDailyBeatesTracks
-    });
+    };
+    state.playlists.unshift(dailyBeatesPl);
     localStorage.setItem('mark3_playlists', JSON.stringify(state.playlists));
+  } else {
+    // Migration: ensure existing Daily beates tracks in localStorage have their exact albums
+    let modified = false;
+    (dailyBeatesPl.tracks || []).forEach(t => {
+      const tid = t.id || t.videoId;
+      if (KNOWN_TRACK_ALBUMS[tid] && t.album !== KNOWN_TRACK_ALBUMS[tid]) {
+        t.album = KNOWN_TRACK_ALBUMS[tid];
+        modified = true;
+      }
+    });
+    if (modified) {
+      localStorage.setItem('mark3_playlists', JSON.stringify(state.playlists));
+    }
   }
+
+  // Ensure all playlists fill missing albums from known tracks or title extraction
+  state.playlists.forEach(p => {
+    (p.tracks || []).forEach(t => {
+      const tid = t.id || t.videoId;
+      if (KNOWN_TRACK_ALBUMS[tid] && !t.album) {
+        t.album = KNOWN_TRACK_ALBUMS[tid];
+      } else if (!t.album && t.title) {
+        if (t.title.includes(' — ')) {
+          t.album = t.title.split(' — ')[1].trim();
+        } else if (t.title.includes(' - ')) {
+          t.album = t.title.split(' - ')[1].trim();
+        } else {
+          t.album = t.title;
+        }
+      }
+    });
+  });
 
   // DOM Elements
   const el = {
@@ -2508,7 +2553,21 @@
     const safeTitle = escapeHtml(track.title);
     const safeArtist = escapeHtml(track.artist || 'Swarify Artist');
     const safeThumb = escapeHtml(track.thumbnail || `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg`);
-    const safeAlbum = escapeHtml(track.album || (track.language ? `${track.language.toUpperCase()} Hits` : 'Single'));
+    let albumVal = track.album;
+    const trackKey = track.id || track.videoId;
+    if (!albumVal && KNOWN_TRACK_ALBUMS[trackKey]) {
+      albumVal = KNOWN_TRACK_ALBUMS[trackKey];
+    }
+    if (!albumVal && track.title) {
+      if (track.title.includes(' — ')) {
+        albumVal = track.title.split(' — ')[1].trim();
+      } else if (track.title.includes(' - ')) {
+        albumVal = track.title.split(' - ')[1].trim();
+      } else {
+        albumVal = track.title;
+      }
+    }
+    const safeAlbum = escapeHtml(albumVal || (track.language ? `${track.language.toUpperCase()} Hits` : 'Single'));
     const isExplicit = Boolean(track.explicit || /explicit/i.test(track.title || ''));
     const durRaw = track.duration || '3:30';
     const durFormatted = typeof durRaw === 'number' ? formatTime(durRaw) : durRaw;
@@ -2537,6 +2596,7 @@
           <div class="sp-track-subtitle">
             ${isExplicit ? '<span class="sp-explicit-tag">E</span>' : ''}
             <span class="sp-track-artist" title="${safeArtist}">${safeArtist}</span>
+            <span class="sp-track-mobile-album">• ${safeAlbum}</span>
           </div>
         </div>
       </div>

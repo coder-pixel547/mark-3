@@ -4150,6 +4150,22 @@ input:focus-visible,
   white-space: nowrap;
 }
 
+.sp-track-mobile-album {
+  display: inline;
+  color: #a7a7a7;
+  font-size: 0.82rem;
+  margin-left: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (min-width: 769px) {
+  .sp-track-mobile-album {
+    display: none !important;
+  }
+}
+
 .sp-track-col-album,
 .sp-track-col-duration {
   display: none;
