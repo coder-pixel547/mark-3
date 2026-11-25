@@ -2858,7 +2858,76 @@ def parse_lrc(lrc_text: str) -> List[Dict[str, Any]]:
     lines.sort(key=lambda x: x["time"])
     return lines
 
-CURATED_LYRICS: Dict[str, str] = {}
+FEIN_STUDIO_LRC = """[00:09.19] Just come outside, for the night (yeah)
+[00:12.51] Take your time, get your light (yeah)
+[00:15.76] Johnny Dang, yeah, yeah
+[00:18.95] I been out geekin'
+[00:22.16] Bitch
+[00:22.62] FE!N, FE!N, FE!N, FE!N, FE!N (yeah)
+[00:25.75] FE!N, FE!N, FE!N, FE!N, FE!N (yeah)
+[00:29.13] FE!N, FE!N, FE!N, FE!N, FE!N
+[00:32.22] FE!N, FE!N (yeah), FE!N, FE!N, FE!N
+[00:35.44] 
+[00:37.54] The career's more at stake when you in your prime (at stake)
+[00:40.71] Fuck that paper, baby, my face on the dotted line (dot, yeah)
+[00:44.10] I been flyin' out of town for some peace of mind (yeah, yeah, bitch)
+[00:47.31] It's like always they just want a piece of mine (ah)
+[00:50.52] I been focused on the future, never on right now (ah)
+[00:53.93] But I'm sippin', not kombucha, either pink or brown (it's lit)
+[00:57.09] I'm the one that introduced you to the you right now (mm, let's go)
+[01:01.28] Oh my God, that bitch bite (that bitch bite)
+[01:04.37] But alright (alright), tryna vibe (tryna vibe this)
+[01:07.65] In the night, come alive
+[01:10.91] Ain't asleep, ain't a-, ain't a-, ain't-ain't
+[01:14.53] FE!N, FE!N, FE!N, FE!N, FE!N
+[01:17.74] FE!N, FE!N, FE!N, FE!N, FE!N
+[01:21.07] FE!N, FE!N, FE!N, FE!N, FE!N
+[01:24.19] FE!N, FE!N, FE!N, FE!N
+[01:27.38] FE!N, FE!N, FE!N, FE!N, FE!N
+[01:32.30] Syrup, woah, what?
+[01:38.69] What?
+[01:41.66] (Homixide, Homixide, Homixide, Homixide)
+[01:42.84] What? (Yeah)
+[01:46.39] Woah, woah (yeah, yeah)
+[01:47.49] (Homixide, Homixide, Homixide, Homixide)
+[01:48.93] Hit, yeah, hold up (yeah)
+[01:50.40] Yeah, I just been poppin' my shit and gettin' it live, hold up (shit)
+[01:53.86] Yeah, you try to come wrong 'bout this shit, we poppin' your tires, hold up (shit)
+[01:56.89] Uh, hundred round, woah, feelin' like I'm on ten
+[02:00.77] Playin' both sides with these hoes (hold up)
+[02:02.19] Shawty, I'm fuckin' your friend (hold up)
+[02:03.94] I've been goin' crazy, shawty, I've been in the deep end
+[02:07.10] She not innocent, uh, she just tryna go
+[02:09.51] FE!N (talkin' 'bout), FE!N, FE!N (yeah), FE!N, FE!N (Syrup, oh, oh, what? Syrup)
+[02:13.59] FE!N, FE!N (Syrup), FE!N, FE!N, FE!N (oh, oh)
+[02:16.01] FE!N, FE!N (talkin' bout), FE!N, FE!N, FE!N, FE!N (talkin' 'bout, let's go)
+[02:19.32] I just been icin' my hoes
+[02:20.90] I just been drippin' my hoes (drippin' my hoes)
+[02:22.53] This is a whole 'nother level, shorty (oh)
+[02:24.25] I got these hoes on they toes (hoes on they toes)
+[02:25.80] I put the bitch on the road, she tryna fuck on the O, hold up, hold up
+[02:29.12] I got this ho with me, she tryna show me somethin', hold up, hold up
+[02:32.13] I got flows for days, these niggas ain't know nothin', hold up, yeah
+[02:35.55] Me and my bro locked in, you know we on one, hold up (slatt, slatt)
+[02:38.82] We in the spot goin' crazy until the sun up
+[02:41.96] You worried about that ho, that ho done chose us (slatt, bitch-ass)
+[02:44.80] Uh, pistols all in the kitchen, can't give the zip code up, uh, hold up, yeah (wow)
+[02:48.59] FE!N, FE!N, FE!N (huh? Huh? Huh? Huh? Yeah)
+[02:51.75] Why the fuck these niggas actin' like they know us?
+[02:55.38] Double O, Cactus, yeah we towed up (skrrt, skrrt)
+[02:58.69] Switch out the bag, these niggas get rolled up, hold up (it's lit, slatt)
+[03:01.85] Everything hit, hold up, everything Homixide, Homixide (Homixide, Homixide, Homixide, Homixide)
+[03:04.94] FE!N, FE!N, FE!N, FE!N, FE!N, FE!N
+[03:08.24] (Homixide, Homixide, Homixide, Homixide, Homixide, Homixide, Homixide)"""
+
+CURATED_LYRICS: Dict[str, str] = {
+    "b9synwjqbn8": FEIN_STUDIO_LRC,
+    "u-l4ya3ejko": FEIN_STUDIO_LRC,
+    "3oude-w4hmge": FEIN_STUDIO_LRC,
+    "3oudew4hmge": FEIN_STUDIO_LRC,
+    "fein": FEIN_STUDIO_LRC,
+    "fe!n": FEIN_STUDIO_LRC,
+}
 
 TELUGU_TRACK_IDS = {
     "g44vxmcfh4", "_0ak7rwplmu", "ybbg6v6zerc", "2mdcvzruyzq", "-gydnfptgus",
@@ -2920,6 +2989,12 @@ async def get_lyrics(
     clean_t = re.sub(r'\s+', ' ', clean_t).strip()
     vid_key = (id or "").strip().lower()
     dur_sec = parse_duration_to_seconds(duration) if duration else None
+    if vid_key and vid_key in CURATED_STREAM_MAP:
+        cur_dur = CURATED_STREAM_MAP[vid_key].get("duration")
+        if cur_dur and cur_dur > 30:
+            dur_sec = cur_dur
+
+    expected_dur_sec = dur_sec
 
     # Block lyrics for Telugu songs completely
     if is_telugu_song(title, artist, id, lang):
@@ -2935,7 +3010,8 @@ async def get_lyrics(
             "artist": artist
         }
 
-    # 1. Curated fast-path by exact track ID
+    # 1. Curated fast-path by exact track ID or title keyword
+    clean_t_simple = re.sub(r'[^a-zA-Z0-9]', '', clean_t)
     if vid_key and vid_key in CURATED_LYRICS:
         lrc = CURATED_LYRICS[vid_key]
         return {
@@ -2950,9 +3026,8 @@ async def get_lyrics(
             "artist": artist or "Swarify"
         }
 
-    for ck in CURATED_LYRICS:
-        if len(ck) > 3 and (ck in clean_t or clean_t in ck):
-            lrc = CURATED_LYRICS[ck]
+    for ck, lrc in CURATED_LYRICS.items():
+        if ck in vid_key or (len(ck) >= 4 and (ck in clean_t or ck in clean_t_simple)):
             return {
                 "status": "ok",
                 "success": True,

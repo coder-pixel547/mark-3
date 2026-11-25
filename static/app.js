@@ -1581,7 +1581,9 @@
     }
 
     try {
-      const durSec = getTrackDurationSeconds(track);
+      const durSec = (audio && !isNaN(audio.duration) && audio.duration > 30)
+        ? Math.round(audio.duration)
+        : getTrackDurationSeconds(track);
       const params = new URLSearchParams({
         title: track.title || '',
         artist: track.artist || '',
