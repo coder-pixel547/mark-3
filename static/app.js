@@ -1029,9 +1029,6 @@
     document.querySelectorAll('.card-playing-eq').forEach(eq => {
       eq.classList.toggle('paused', !isPlaying);
     });
-    document.querySelectorAll('.lyric-sing-indicator').forEach(eq => {
-      eq.classList.toggle('paused', !isPlaying);
-    });
     const lyricsArt = document.querySelector('.lyrics-art-wrapper');
     if (lyricsArt) lyricsArt.classList.toggle('paused', !isPlaying);
 
@@ -1651,14 +1648,6 @@
         textSpan.className = 'lyric-text';
         textSpan.textContent = l.text || '♪';
         div.appendChild(textSpan);
-
-        if (data.synced) {
-          const eqSpan = document.createElement('span');
-          eqSpan.className = 'lyric-sing-indicator' + (state.isPlaying ? '' : ' paused');
-          eqSpan.setAttribute('aria-hidden', 'true');
-          eqSpan.innerHTML = '<span></span><span></span><span></span>';
-          div.appendChild(eqSpan);
-        }
 
         if (data.synced && typeof l.time === 'number') {
           div.addEventListener('click', () => {
